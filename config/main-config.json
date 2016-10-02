@@ -1,8 +1,8 @@
 {
 	"minDBlatency": 3,
 	"maxDBlatency": 20,
-	"policy_config": "config/policy-list.xml",
-	"db_config": "config/db-config.xml",
+	"policy_config": "../config/policy-list.xml",
+	"db_config": "../config/db-config.xml",
 	"num_clients": 5,
 	"num_coords": 10,
 	"num_workers_per_coord": 3,

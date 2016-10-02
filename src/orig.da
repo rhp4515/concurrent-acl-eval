@@ -1,56 +1,105 @@
 import sys
+import csv
 import config as cfg
 import constants as const
 
+
+# https://stackoverflow.com/questions/1038160/data-structure-for-maintaining-tabular-data-in-memory
+class Table():
+    def __init__(self, fname, cols):
+        self.fname = fname
+        self.cols = cols
+        self.data = [ ] # "list of dicts"
+        # TODO: should we lock the object??
+
+    # To read from persistent source or something??
+    def populate(self):
+        with open(self.fname, 'r') as f:
+            rdr = csv.DictReader(f, self.cols)
+        self.data.extend(rdr)
+
+    def add_row(self, record):
+        # TODO: sanity check incoming record
+        self.data.extend(record)
+
+    def delete_row(self, filter=None):
+        if filter is None:
+            return
+        del_idx = [i for i,row in self.data if filter(row)]
+        for i in del_idx:
+            del self.data[i]
+
+    def query(self, filter=None, sort_keys=None):
+        if filter is not None:
+            data = (row for row in self.data if filter(row))
+        if sort_keys is not None:
+            data = sorted(self.data,
+                          key=lambda row:[row[key] for key in sort_keys])
+        else:
+            data = list(self.data)
+        return data
+
+    def lookup(self, data, **kw):
+        for row in data:
+            for k,v in kw.iteritems():
+                if row[k] != str(v): break
+            else:
+                return row
+        return None
+
+
 # Client corresponds to Application instance
 class ClientP(process):
-	def setup():
-		self.sub_coord = const.sub_coord_map
+    def setup():
+        self.sub_coord = const.sub_coord_map
 
-	def run():
-		pass
+    def run():
+        output("Starting Application Instance")
 
-	def receive(msg= ()):
-		pass
+    def receive(msg=('APP_EVALUATION_RESPONSE', result)):
+        output("Response received!!")
+
 
 
 
 class SubCoordP(process):
-	def setup():
-		pass
+    def setup():
+        self.cache = Table()
 
-	def run():
-		pass
+    def run():
+        pass
 
-	def receive(msg= ()):
-		pass
+    def receive(msg= ()):
+        pass
 
 
 class ResCoordP(process):
-	def setup():
-		pass
+    def setup():
+        pass
 
-	def run():
-		pass
+    def run():
+        pass
 
-	def receive(msg= ()):
-		pass
+    def receive(msg= ()):
+        pass
 
 
 class WorkerP(process):
-	def setup():
-		pass
+    def setup():
+        pass
 
-	def run():
-		pass
+    def run():
+        pass
 
-	def receive(msg= ()):
-		pass
+    def receive(msg= ()):
+        pass
 
 def main():
-	config_fpath = sys.argv[1] if len(sys.argv) > 1 else "configs/main-config.json"
-	config = cfg.load_config(config_fpath)
-	# do something with config
-	config(channel="fifo", clock="Lamport")
+    config_fpath = sys.argv[1] if len(sys.argv) > 1 else "config/main-config.json"
+    config = cfg.load_config(config_fpath)
+    # do something with config
+    config(channel="fifo", clock="Lamport")
 
-	cli_ps = new(ClientP, num=config['num_clients'])
+    cli_ps = new(ClientP, num=config['num_clients'])
+    for p in cli_ps: setup(p)
+    start(cli_ps)
