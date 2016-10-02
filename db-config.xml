@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<!-- Initial DB config. -->
+<config>
+	<minDBlatency>3</minDBlatency>
+	<maxDBlatency>20</maxDBlatency>
+
+	<!-- possible sample of a record data -->
+	<record id="1">
+		<subjectCondition position="employee" history="empty"></subjectCondition>
+		<resourceCondition name="bank A"></resourceCondition>
+		<action name="read"></action>
+		<subjectUpdate history="bank A"></subjectUpdate>
+	</record>
+
+	<record id="2">
+		<subjectCondition position="employee" history="empty"></subjectCondition>
+		<resourceCondition name="bank A"></resourceCondition>
+		<action name="read"></action>
+		<subjectUpdate history="bank A"></subjectUpdate>
+	</record>
+</config>

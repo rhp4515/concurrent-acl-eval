@@ -1,0 +1,31 @@
+{
+	"minDBlatency": 3,
+	"maxDBlatency": 20,
+	"policy_config": "policy-list.xml",
+	"db_config": "db-config.xml",
+	"num_clients": 5,
+	"num_coords": 10,
+	"num_workers_per_coord": 3,
+	"client_workload": {
+		"1": {
+			"workload": "high"
+		},
+		"2": {
+			"workload": "med"
+		},
+		"3": {
+			"workload": "lite"
+		}
+	},
+	"workload_def": {
+		"high": {
+			"num_msg_per_sec": 12
+		},
+		"med": {
+			"num_msg_per_sec": 8
+		},
+		"lite": {
+			"num_msg_per_sec": 3
+		}
+	}
+}
