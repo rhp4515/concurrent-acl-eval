@@ -1,0 +1,302 @@
+		          CSE535: Asynchronous Systems               2016-09-30
+		       Scott Stoller, Stony Brook University
+
+   Project: Distributed History-Based Access Control Policy Evaluation
+
+======================================================================
+OVERVIEW
+
+This project involves implementing the algorithm described in:
+
+  [Decat+ 2015] Maarten Decat, Bert Lagaisse, Wouter Joosen.  Scalable and 
+  Secure Concurrent Evaluation of History-based Access Control Policies.
+  Proceedings of the 31st Annual Computer Security Applications Conference
+  (ACSAC 2015).  ACM, 2015.
+
+The project also involves design and implementation of an improved version of the algorithm.
+
+======================================================================
+QUESTIONS
+
+I will present other papers in class, but you and your teammate will be reading this paper mostly on your own.  Of course, if you and your teammate are uncertain about any aspects, you are welcome to ask.  Please do not send your questions to the authors.  I already sent them several questions, they graciously answered them, and it would be unfair to bother them again with what are likely to be many of the same questions.  Please ask your questions in the Project forum on Blackboard, during office hours, or at the beginning of class (if you think the question is of general interest).  Please answer questions posted on Blackboard if you can; it will help your classmates, by providing faster responses, and will show me that you understand the paper.  Please ask questions by email only if they require confidentiality.
+
+======================================================================
+PHASE 0: TEAM FORMATION
+
+find exactly one teammate.  exactly one member of each team should send a message to stoller@cs.stonybrook.edu containing the names and email addresses of both team members.  if you cannot find a teammate, don't panic!  just send me a message stating this, and I will find a teammate for you.  every team will have exactly two members.  the only exception to this policy will be: if the number of students in the class is odd, I will choose one person with no teammate and either add them to a team or ask them to work alone.
+
+======================================================================
+PHASE 1: PSEUDO-CODE FOR ORIGINAL ALGORITHM
+
+write complete pseudo-code for the distributed coordinator algorithm described in [Decat+ 2015].  [2016-09-16: you do not need to write pseudocode for the centralized coordinator algorithm.]  keep the pseudo-code (e.g., data structures) at a high level of abstraction.  the pseudo-code should include a reasonable amount of explanatory comments. [2016-09-19: deleted comment about making threads and synchronization explicit.]
+
+[2016-09-19: "high-level" here means "omit implementation details".  it does not mean "omit algorithm details"!  For example, the pseudo-code should clearly indicate the algorithm used for conflict detection at the subject coordinator and resource coordinator."]  [2016-09-20: As another example, the pseudo-code should clearly specify exactly what information is contained in each message.  A general guideline for the expected level of detail and clarity of pseudo-code is: if two competent programmers independently implement the pseudo-code, they should produce functionally equivalent implementations, although the implementations may differ on other dimensions, such as time efficiency, space efficiency, modularity/extensibility, and security. ]
+
+[2016-09-19: Very brief pseudo-code for the worker is sufficient.  You mainly need to specify the interface to the worker, i.e., the type and meaning of messages it sends and receives.]
+
+examples of reasonably good pseudo-code:
+
+  pseudo-code for leader election algorithms in the excerpt from 
+  [Chow and Johnson 1997] posted on Blackboard (and copied into my 
+  lecture notes on leader election).
+
+  pseudo-code for snapshot algorithms in my lecture notes.
+
+  pseudo-code for Chord in [Stoica+ 2003], posted on Blackboard
+  (except that it uses RPC; your pseudocode should use explicit messages)
+
+examples of high-level data structures (appropriate in pseudo-code): tuples, sequences, sets, maps.  examples of low-level data structures (inappropriate in pseudo-code): doubly-linked lists, hashsets, association lists.
+
+this assignment is intended to help you understand the algorithm and convince us that you understand it.
+
+clarity and readability of the pseudocode are paramount and will be considered in grading.
+
+======================================================================
+PHASE 2: IMPLEMENTATION OF ORIGINAL ALGORITHM
+
+The implementation must be in DistAlgo, as stated on the course web page.
+
+------------------------------------------------------------
+POLICY LANGUAGE
+
+the system uses the simple XML-based policy language illustrated in policy-example.xml and explained below.
+
+each policy rule implicitly permits the specified action.  the policy language does not include deny rules.
+
+XML attributes in subjectCondition and resourceCondition tags are interpreted as conditions.  the right side must have the form "constant" (implicitly, this is an equality test), "<constant", or ">constant".  a condition of the form "<constant" or ">constant" is false if the attribute value is not a numeric string according to Python built-in isnumeric() function.  note that the character '<' must be escaped in the .xml file, i.e., represented as '&lt;'.  for example, the following subjectCondition holds if the subject is an employee with age > 17 and level < 3.
+
+<subjectCondition position="employee" age=">17" level="&lt;3"></subjectCondition>
+
+XML attributes in subjectUpdate and resourceUpdate tags are interpreted as assignments.  the right side can be a constant or a special value "++" or "--".  "++" and "--" mean: if the attribute value is a numeric string, then increment or decrement it, respectively, otherwise leave the value unchanged.  for example, the following resourceCondition sets the "viewed" attribute to the constant "true" and increments the "viewCount" attribute.
+
+<resourceUpdate viewed="true" viewCount="++"></resourceUpdate>
+
+sample code for reading a policy appears in policy.py.
+
+------------------------------------------------------------
+DATABASE EMULATOR
+
+the system does not use an actual replicated DBMS.  instead, it uses a database emulator, which you create.  the database emulator runs as a separate process, like a DBMS would.  it is accessed by sending and receiving DistAlgo messages, not through a specialized database API.  it reads the initial content of the database from an XML file; you design the file format.
+
+all coordinators and workers interact with a single database emulator process.  this is a simplification of the system architecture in [Decat+ 2015], in which each server has a local replica of the DBMS.  the database emulator emulates the effects having a local replica of the database at each server, by delaying the visibility of updates to workers.  specifically, there are configuration parameters minDBlatency and maxDBlatency.  for each update, the emulator picks a latency l uniformly at random from the interval between the specified min and max, and makes the update visible to all workers after delay l.  it would be more realistic to use different latencies for workers on different servers, but this is not required.
+
+for simplicity the database emulator's interface provides only operations to read and write attributes of individual records.  it does not provide operations to insert or delete records.  to simplify initialization of the database, a read or write operation implicitly creates a record, if a record with the specified ID does not already exist; if the operation is a read, the values of the attributes are implicitly initialized to 0.
+
+------------------------------------------------------------
+MASTER
+
+I suggest that the system have a "master" process (the initial process) responsible for coordination during system startup.  it should create all of the other processes.
+
+------------------------------------------------------------
+CLIENTS
+
+each client repeatedly sends a request, waits for a response, and then sends another request.
+
+the system supports both of the following ways of specifying each client's workload (i.e., the sequence of requests it sends):
+
+(1) an explicit sequence of requests, given in a configuration file.
+
+(2) a function that creates a pseudo-random sequence of requests.  the function has various parameters whose values are given in a configuration file.  the parameters include, but are not limited to, a seed for the pseudo-random number generator, and the number of requests to generate.
+
+------------------------------------------------------------
+CONFIGURATION
+
+all processes read configuration information from a configuration file whose name is specified on the command line.  for simplicity, all processes read the same configuration file, and each kind of process ignores irrelevant information.
+
+the configuration file contains enough information to specify a test case; thus, a user can run different testcases simply by supplying different configuration files.  information in the configuration file includes, but is not limited to, the number of clients, the number of coordinators, the number of workers per coordinator, the name of the policy file, the name of the database initialization file, minDBlatency, maxDBlatency, and a specification of each client's workload (different clients may have different workloads).
+
+the configuration file should have a self-describing format, in the sense that parameter names are explicit, e.g., minDBlatency=1.  do not use a format in which the value on line 1 implicitly means X, the value on line 2 implicitly means Y, etc.
+
+give configuration files and log files meaningful names!  this will help you keep track of them and help graders understand them.
+
+------------------------------------------------------------
+LOGS
+
+the system should generate comprehensive log files describing its initial settings, the content of every message it received, the content of every message it sent, and full details of every significant internal action.  Examples (not exhaustive!) of significant internal actions are: a request evaluation commits, a request evaluation aborts due to a conflict, tentative updates are performed, a request evaluation aborts due to dependency on an aborted tentative update.  every log entry should contain a real-time timestamp.  every log entry for a sent message should contain a send sequence number n, indicating that it is for the n'th message sent by this process.  every log entry for a received message should contain a receive sequence number n, indicating that it is for the n'th message received by this process.
+
+at the end of each testcase, the entire content of the attribute database should be dumped to the log file.
+
+the log file should have a self-describing format, in the sense described above.  for example, every component of a message should be labeled to indicate its meaning.
+
+processes may write to individual log files or a common log file (in this case, each log entry should be labeled with the process that produced it).
+
+------------------------------------------------------------
+TESTING
+
+testing should be thorough in the sense that all cases in the algorithm are exercised, in clearly described testcases.  Examples (not exhaustive) of cases that should be exercised include: (1) a request evaluation aborts due to a conflict on a subject attribute, (2) a request evaluation aborts due to a conflict on a resource attribute, (3) a request evaluation aborts due to dependency on a tentative update, (4) a request evaluation is delayed because it depends on a tentative update by a request that has not yet committed or aborted. [2016-09-30: deleted testcase (5), due to update in Q&A item 5, below.]
+
+thorough testing requires the ability to exercise these scenarios in a reproducible manner.  to achieve this, the system should contain code that introduces artificial delays, controlled by parameters in the configuration file.  for example, to cause a request evaluation r1 to abort due to a conflict caused by a request evaluation r2 writing a subject attribute read by r1, introduce a delay before the worker sends the result of r1 to the subject coordinator, (so the result arrives after r2 commits).  to support this, the configuration file can specify that specified send events, identified by send sequence number [2016-09-30: or by request ID, if request IDs are specified in the configuration file], in specified processes should be delayed by a specified duration.
+
+test cases targeted at specific algorithm cases should be as simple as possible, so it is easy to analyze the log and determine whether the system passed the test.  in addition to these targeted testcases, testing should include some "stress tests" with more clients (say, 10), more subjects and resources (tens), and more requests (hundreds).  passing the stress tests should require more than absence of runtime errors: you should describe (in testing.txt) some checks on the final content of the attribute database that determine whether all requests were processed.
+
+your submission should contain a file named testing.txt with an entry for every testcase.  each entry should include: (1) the specific aspect of the algorithm targeted by the testcase, (2) description of the workload/scenario (i.e., the pattern of requests and artificial delays, if any), (3) the name of the configuration file used to run the testcase, (4) other information (if any) needed to run the testcase (e.g., other files that should contain certain content), (5) the name of the log file produced by running the testcase, (6) the outcome (pass or fail), with a brief explanation of the problem in case of failure.
+
+in this phase, testing with all processes running on a single host is sufficient, because the current DistAlgo documentation does not describe how to run processes on different hosts.  this feature will be documented in an upcoming release, and we will probably use it in a future phase.
+
+------------------------------------------------------------
+GRADING
+
+grading criteria include:
+
+functional correctness
+
+thorough testing, clearly documented in testing.txt and informative log files.
+
+consistency of code and pseudocode
+
+code quality.  this encompasses all aspects of code quality other than functional correctness, including clarity, readability, maintainability, extensibility, and efficiency.  one general measure of clarity is similarity to high-level pseudo-code.  other factors include:
+
+  Sufficient comments
+
+  Meaningful names for classes, methods, variables, etc.
+
+  Consistent coding conventions
+
+  Modularity.  The code should be structured in a reasonable way into
+  packages (if appropriate), classes and methods.  
+
+  Appropriate use of DistAlgo and Python language features, such as
+  quantification, set comprehension, list comprehension, inheritance,
+  methods, and assertions.  For example, methods, inheritance, and loops
+  should be used to avoid repeating blocks of similar code.
+
+there is sometimes a trade-off between clarity and efficiency.  in many settings, including this class, clarity, readability, maintainability, etc., are more important than minor performance improvements.  therefore, you should eliminate all inefficiencies that can be eliminated without appreciably reducing clarity (by complicating the code), but do not sacrifice clarity for the sake of minor performance improvements.  if you are uncertain whether you are striking the correct balance, you are welcome to ask for guidance, preferably during office hours.
+
+------------------------------------------------------------
+SUBMISSION
+
+the zip (or tar) file should have the following structure and contents:
+
+  README.txt  see details below
+  testing.txt description of testcases
+  config/     configuration files
+  src/        source code
+  logs/       log files from running all testcases described in testing.txt
+  pseudocode/ current version of material from phase1
+
+README.txt should contain the following sections:
+
+  INSTRUCTIONS.  instructions to build and run your system.  the
+  instructions should not assume that an IDE is installed.  provide 
+  a detailed sequence of commands, a shell sript, a Makefile, or something
+  similar.  include a specific example of the command to run a selected
+  testcase.
+
+  MAIN FILES.  The full pathname of the files containing the main code
+  for the client, coordinator, worker, and master.  (this will help 
+  graders look at the most important code first.)
+
+  BUGS AND LIMITATIONS.  a list of all known bugs in and limitations of
+  your code.
+
+  CONTRIBUTIONS.  a list of contributions of each team member to the
+  current submission.  this should reflect how the work was divided between
+  the team members.  generally, a dozen lines or so is sufficient detail.
+
+  OTHER COMMENTS.  anything else you want us to know.
+
+pseudocode/ should contain updated pseudocode, consistent with the code in src/.  the grader may refer to the pseudocode to help understand your code.
+
+======================================================================
+PHASE 3: DESIGN OF IMPROVED ALGORITHM
+
+design and write pseudocode for an improved algorithm that uses fewer messages.  details forthcoming.
+
+======================================================================
+PHASE 4: IMPLEMENTATION OF IMPROVED ALGORITHM
+
+details forthcoming.
+
+======================================================================
+SUBMISSION INSTRUCTIONS
+
+PHASE 0: send the email by 11:59pm on the due date.
+
+PHASES 1 and 3: submit a printout in class on the due date, and submit the document in the Assignments area on Blackboard by 11:59pm on the due date.  the file should be named lastname1-lastname2-phaseN.pdf (or .docx, .txt, or whatever); for example, chandy-lamport-phase1.pdf.
+
+PHASES 2 and 4: submit a .zip or .tar.gz file in the Assignments area in Blackboard by 11:59pm on the due date.  the file should be named lastname1-lastname2-phaseN.zip or lastname1-lastname2-phaseN.tar.gz.
+
+when you submit assignments on Blackboard, please leave the Comment box blank.  we look only at the uploaded files.
+
+======================================================================
+SCHEDULE
+
+sep 14 phase 0: team formation
+sep 23 phase 1: pseudo-code for original algorithm (1.5 weeks)
+oct 14 phase 2: implementation of original algorithm (3 weeks)
+TBD    phase 3: pseudo-code for improved algorithm
+TBD    phase 4: implementation of improved algorithm
+
+the time interval in parentheses is the amount of time allocated for work
+on that phase of the project.
+
+======================================================================
+GRADING WEIGHTS (TENTATIVE)
+
+15% phase 1: pseudo-code for original algorithm
+35% phase 2: implementation of original algorithm
+20% phase 3: design of improved algorithm
+30% phase 4: implementation of improved algorithm
+
+these weights are relative to the weight of the project in the course grade.
+
+======================================================================
+Q & A (copies of selected questions and answers from discussion on Blackboard)
+
+----------------------------------------
+1.
+> section 3, 3rd to last paragaph, "This coordinator then restarts the evaluation as described before and will also restart evaluations that employed the tentatively updated subject attributes (this is checked before checking for conflicting subject updates)."
+
+A1. the parenthetical remark refers to the subject coordinator checking whether the evaluation of the current request r used any tentative updates produced by an evaluation of an earlier request that was aborted and restarted.  the subject coordinator checks for this before checking for conflicting subject updates.
+
+----------------------------------------
+2.
+ > I quote from paper "This coordinator assigns a globally unique id to this evaluation, sets up the administration for the subject, adds any tentatively updated attributes to the request" [Point 3.4 Distributed coordinator's protocol]. Please help us understand what "administration for the subject/resource" refers to in this context?
+
+it just means to update whatever data structures are needed to accomplish the other tasks described as part of the algorithm.
+
+ > Since, to control concurrency, the coordinator checks if the attribute read by worker is recently updated, is it safe to assume that coordinator will read data from attribute database if it doesn't have it on its cache? 
+
+coordinators never read from the attribute database.  in a simple version of the algorithm, each coordinator would permanently store information about the most recent update to each attribute of each subject (or resource) for which it is responsible (but see below for a more practical version).  the coordinator uses this information to check for conflicts.  
+
+note that the coordinator does not necessarily need to know the actual values of the attributes.  it is more efficient to check for conflicting updates by comparing timestamps rather than values.  [2016-09-22: on the other hand, the following optimization is possible if the coordinator stores the value of an attribute together with the timestamp of the most recent update to it: if the next update writes the same value to the attribute, then the timestamp of the most recent update does not need to be modified.]
+
+ > Follow up question on question two: How long does the data stay in the cache of the coordinator after update to attribute database? Does the algorithm assume data is always available on cache?
+
+in a more practical version of the algorithm, the coordinator would discard (garbage collect, you might say) information about the most recent update to some attributes.  for example, information about the most recent updates to the attributes of a particular subject can be discarded (for purposes of conflict detection) if there are no in-progress requests involving that subject (because those updates cannot conflict with future requests).
+
+keep in mind that the coordinator also caches recent updates for an unrelated reason, namely, to deal with the fact that the attribute database has a non-negligible latency before updates are propagated to all replicas.  Recent updates need to be cached (and piggybacked on requests that might read them) by the coordinator until they have propagated to all replicas of the attribute database, as described in section 3.5.  You can assume that this propagation will occur within a specified latency, which is a parameter of the algorithm.
+For clarity, I recommend that the information about recent updates cached for these two different purposes (for conflict detection, or to overcome database latency) be stored in two separate caches, i.e., two separate data structures.
+
+[2016-09-22: note: the information stored for conflict detection is not a "cache" in the traditional sense; perhaps I should have avoided using that term for it.  I called it a "cache", because information needs to be stored in it only temporarily; old information can be garbage-collected.]
+
+----------------------------------------
+3.
+ > In section 3.4 - Step 9 reads, "Subject coordinator checks whether the evaluation employed subject attributes that were updated in the mean while. If not, it tentatively executes the updates of subject attributes".
+
+ > We understand that if there is no conflict (for subject attributes), tentative update of subject attributes happen at this point.
+ > Incase if the current evaluation referred to a tentative update of an earlier evaluation,what happens if the earlier evaluation is not completed - still running? Should we wait or restart in this case?
+
+Good question!  Wait.
+
+----------------------------------------
+4.
+the paper mentions that the subject coordinator checks for dependency on tentative updates before checking for conflicts on subject attributes.  to see why the order of these checks is important, note that the check for dependency on tentative updates can cause a request to be delayed waiting for the commit of requests it depends on, and conflicts can arise while it is waiting.  therefore, the check for conflicts on subject attributes should be done after the check for dependency on tentative updates finishes.
+
+----------------------------------------
+5.
+OLD:
+it is possible that a subject coordinator sc performs a tentative update for request r1 and sends r1 to the appropriate resource coordinator rc1, then sc performs a tentative update for request r2 and then sends r2 to the appropriate resource coordinator rc2, and then sc receives a response from rc2 before receiving a response from rc1.  in this case, sc should delay acting on the response from rc2 until after receiving the response from rc1, to ensure that updates from r1 and r2 get committed to the attribute database in the same order that they were tentatively executed.
+
+NEW:
+even if r1 and r2 access disjoint sets of attributes, the conditions in a policy rule might refer to attributes in both sets, and hence the order in which their updates are performed is still significant.  nevertheless, it is OK to commite the updates to the attribute database in either order.
+
+suppose the rule that refers to attributes in both sets is used to justify the decision for some other request r3 that the subject coordinator received after performing tentative updates by r1 and before performing tentative updates by r2.  thus, r3 sees the (tentative) updates by r1 and not those by r2.
+
+even if the subject coordinator commits the updates from r2 to the attribute database before committing updates from r1, it is impossible for evaluation of some other request r4 to see the updates of r2 but not those of r1, because the subject coordinator will include r1's tentative updates with r4 when it sends r4 to the worker.
+
+so, the delay is unnecessary in this case.  
+
+----------------------------------------
+6. [2016-09-30]
+a single coordinator process can be both a subject coordinator and a resource coordinator.  in other words, the set of subjects and the set of resources are partitioned uniformly across the same set of coordinator processes.  this is implied by the following comment in section 4.2 of the paper: "This is the result of our strategy to uniformly distribute the management responsibilities over the available coordinators (see Section 3.4), which makes the chance that the same coordinator is responsible for both the subject as well as the resource of a single evaluation equal to 1/nbCoordinators."
