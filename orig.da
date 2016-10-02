@@ -1,0 +1,5 @@
+import sys
+
+def main():
+	config_fpath = sys.argv[1] if len(sys.argv) > 1 else "configs/main.json"
+	nprocs =
