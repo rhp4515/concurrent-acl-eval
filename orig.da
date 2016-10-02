@@ -1,5 +1,56 @@
 import sys
+import config as cfg
+import constants as const
+
+# Client corresponds to Application instance
+class ClientP(process):
+	def setup():
+		self.sub_coord = const.sub_coord_map
+
+	def run():
+		pass
+
+	def receive(msg= ()):
+		pass
+
+
+
+class SubCoordP(process):
+	def setup():
+		pass
+
+	def run():
+		pass
+
+	def receive(msg= ()):
+		pass
+
+
+class ResCoordP(process):
+	def setup():
+		pass
+
+	def run():
+		pass
+
+	def receive(msg= ()):
+		pass
+
+
+class WorkerP(process):
+	def setup():
+		pass
+
+	def run():
+		pass
+
+	def receive(msg= ()):
+		pass
 
 def main():
-	config_fpath = sys.argv[1] if len(sys.argv) > 1 else "configs/main.json"
-	nprocs =
+	config_fpath = sys.argv[1] if len(sys.argv) > 1 else "configs/main-config.json"
+	config = cfg.load_config(config_fpath)
+	# do something with config
+	config(channel="fifo", clock="Lamport")
+
+	cli_ps = new(ClientP, num=config['num_clients'])
