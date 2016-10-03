@@ -12,13 +12,14 @@ class DBEmulator(process):
         self.conf = conf
         self.minLatency = minLatency
         self.maxLatency = maxLatency
-        print('SETTING UP DB')
+        # print('SETTING UP DB')
         
         with open(self.conf, 'r') as f:
             db_data = f.read()
         
         json_content = json.loads(json.dumps(xmltodict.parse(db_data)))['db']
         json_data = json_content['data']
+        
         self.employee = pd.read_json(json.dumps(json_data['employee']))
         self.customer = pd.read_json(json.dumps(json_data['customer']))
         self.bank = pd.read_json(json.dumps(json_data['bank']))
@@ -32,40 +33,84 @@ class DBEmulator(process):
         self.cust_movie_hist = pd.DataFrame([], columns=emp_bank_hist_schema)
 
     def run():
-        print(self.employee)
-        print(self.customer)
-        print(self.bank)
-        print(self.movie)
-        print(self.minLatency)
-        print(self.maxLatency)
-        print(self.emp_bank_hist)
-        print(self.cust_movie_hist)
-        print('BUILDING DB')
+        # print(self.employee)
+        # print(self.customer)
+        # print(self.bank)
+        # print(self.movie)
+        # print(self.minLatency)
+        # print(self.maxLatency)
+        # print(self.emp_bank_hist)
+        # print(self.cust_movie_hist)
+        # print('BUILDING DB')
         await(False)
+    
+    def _read(df,data):
+        row = df[(df['id'] == data['id'])]
+        if len(row) > 0:
+            return row.iloc[0].to_json()
+        else:
+            data.pop('table', None)
+            df.loc[len(self.employee)] =  data                
+            return data
+
+    def _write(df, data):
+        index = df.loc[(df['id'] == data['id'])].index.tolist()
+        print(index)
+        data.pop('table', None)
+        print(data)
+        if len(index) > 0:
+            df.ix[index[0], 'id'] =  data['id']
+            df.ix[index[0], 'name'] =  data['name']
+        else:
+            df.loc[len(self.employee)] =  data
+
+        return data
 
     def receive(msg=('DB_READ', data), from_=p):
         print(data)
-        output("Response received!!")
-        send(('DB_READ_RESPONSE',{'key':'value1'}),to=p)
+        payload = None
+        if data['table'] == 'employee':
+            payload = self._read(self.employee, data)
+        elif data['table'] == 'customer':
+            payload = self._read(self.customer, data)
+        elif data['table'] == 'bank':
+            payload = self._read(self.bank, data)
+        elif data['table'] == 'movie':
+            payload = self._read(self.movie, data)
+        # print(self.employee)               
+        # output("Response received!!")
+        send(('DB_READ_RESPONSE', payload),to=p)
 
     def receive(msg=('DB_WRITE', data), from_=p):
         print(data)
-        output("Response received!!")
-        send(('DB_WRITE_RESPONSE',{'key':'value1'}),to=p)
+        if data['table'] == 'employee':
+            payload = self._write(self.employee, data)
+        elif data['table'] == 'customer':
+            payload = self._write(self.customer, data)
+        elif data['table'] == 'bank':
+            payload = self._write(self.bank, data)
+        elif data['table'] == 'movie':
+            payload = self._write(self.movie, data)
+        # print(self.employee)
+        send(('DB_WRITE_RESPONSE', payload),to=p)
 
 # Client corresponds to Application instance
 class ClientP(process):
     def setup(coord_ps):
-        print(coord_ps)
+        # print(coord_ps)
+        pass
 
     def run():
-        send(('DB_WRITE',{'key':'value'}),to=coord_ps)
-        output("Starting Application Instance")
+        send(('DB_WRITE',{'table':'employee', 'id':1, 'name':'emp10'}),to=coord_ps)
+        # output("Starting Application Instance")
         await(False)
 
+    def receive(msg=('DB_READ_RESPONSE',data), from_=p):
+        print(data)
+        # output("Response received in client!!")
     def receive(msg=('DB_WRITE_RESPONSE',data), from_=p):
         print(data)
-        output("Response received in client!!")
+        # output("Response received in client!!")
 
 
 
@@ -114,11 +159,11 @@ def main():
                  config['maxDBlatency']))
     start(db_ps)
 
-    coord_ps = new(SubCoordP, num=config['num_coords'])
-    setup(coord_ps,())
+    # coord_ps = new(SubCoordP, num=config['num_coords'])
+    # setup(coord_ps,())
     
     cli_ps = new(ClientP, num=config['num_clients'])
     setup(cli_ps,(db_ps,))
     
-    start(coord_ps)    
+    # start(coord_ps)    
     start(cli_ps)

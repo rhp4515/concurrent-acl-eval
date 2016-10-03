@@ -1,17 +1,53 @@
 <db>
 	<data>
-		<customer id='1' name='Cust1'></customer>
-		<customer id='2' name='Cust2'></customer>
-		<employee id='1' name='Emp1'></employee>
-		<employee id='2' name='Emp2'></employee>
-		<employee id='3' name='Emp3'></employee>
-		<employee id='4' name='Emp4'></employee>
-		<employee id='5' name='Emp5'></employee>
-		<bank id='1' name='BankA'></bank>
-		<bank id='2' name='BankB'></bank>
-		<bank id='3' name='BankC'></bank>
-		<movie id='1' name='Movie1'></movie>
-		<movie id='2' name='Movie2'></movie>
+		<customer>
+			<id>1</id>
+			<name>'Cust1'</name>
+		</customer>
+		<customer>
+			<id>2</id>
+			<name>'Cust2'</name>
+		</customer>
+		<employee>
+			<id>1</id>
+			<name>'Emp1'</name>
+		</employee>
+		<employee>
+			<id>2</id>
+			<name>'Emp2'</name>
+		</employee>
+		<employee>
+			<id>3</id>
+			<name>'Emp3'</name>
+		</employee>
+		<employee>
+			<id>4</id>
+			<name>'Emp4'</name>
+		</employee>
+		<employee>
+			<id>5</id>
+			<name>'Emp5'</name>
+		</employee>
+		<bank>
+			<id>1</id>
+			<name>'BankA'</name>
+		</bank>
+		<bank>
+			<id>2</id>
+			<name>'BankB'</name>
+		</bank>
+		<bank>
+			<id>3</id>
+			<name>'BankC'</name>
+		</bank>
+		<movie>
+			<id>1</id>
+			<name>'Movie1'</name>
+		</movie>
+		<movie>
+			<id>2</id>
+			<name>'Movie2'</name>
+		</movie>
 	</data>
 	<schema>
 		<emp_bank_hist>
