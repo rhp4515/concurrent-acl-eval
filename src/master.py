@@ -1,18 +1,19 @@
 
 import da
-PatternExpr_571 = da.pat.TuplePattern([da.pat.ConstantPattern('DB_READ'), da.pat.FreePattern('data')])
-PatternExpr_578 = da.pat.FreePattern('p')
-PatternExpr_603 = da.pat.TuplePattern([da.pat.ConstantPattern('DB_WRITE'), da.pat.FreePattern('data')])
-PatternExpr_610 = da.pat.FreePattern('p')
-PatternExpr_670 = da.pat.TuplePattern([da.pat.ConstantPattern('DB_READ_RESPONSE'), da.pat.FreePattern('data')])
-PatternExpr_677 = da.pat.FreePattern('p')
-PatternExpr_686 = da.pat.TuplePattern([da.pat.ConstantPattern('DB_WRITE_RESPONSE'), da.pat.FreePattern('data')])
-PatternExpr_693 = da.pat.FreePattern('p')
-PatternExpr_715 = da.pat.TuplePattern([da.pat.ConstantPattern('APP_EVALUATION_REQUEST')])
-PatternExpr_720 = da.pat.FreePattern('p')
-PatternExpr_742 = da.pat.TuplePattern([])
-PatternExpr_759 = da.pat.TuplePattern([])
+PatternExpr_614 = da.pat.TuplePattern([da.pat.ConstantPattern('DB_READ'), da.pat.FreePattern('data')])
+PatternExpr_621 = da.pat.FreePattern('p')
+PatternExpr_662 = da.pat.TuplePattern([da.pat.ConstantPattern('DB_WRITE'), da.pat.FreePattern('data')])
+PatternExpr_669 = da.pat.FreePattern('p')
+PatternExpr_739 = da.pat.TuplePattern([da.pat.ConstantPattern('DB_READ_RESPONSE'), da.pat.FreePattern('data')])
+PatternExpr_746 = da.pat.FreePattern('p')
+PatternExpr_752 = da.pat.TuplePattern([da.pat.ConstantPattern('DB_WRITE_RESPONSE'), da.pat.FreePattern('data')])
+PatternExpr_759 = da.pat.FreePattern('p')
+PatternExpr_778 = da.pat.TuplePattern([da.pat.ConstantPattern('APP_EVALUATION_REQUEST')])
+PatternExpr_783 = da.pat.FreePattern('p')
+PatternExpr_805 = da.pat.TuplePattern([])
+PatternExpr_822 = da.pat.TuplePattern([])
 _config_object = {'channel': 'fifo', 'clock': 'Lamport'}
+import logging
 import sys
 import csv
 import config as cfg
@@ -22,19 +23,26 @@ import pandas as pd
 import random
 import time
 
+def get_logger(name, path):
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    handler = logging.FileHandler(path, mode='w')
+    handler.setLevel(logging.DEBUG)
+    logger.addHandler(handler)
+    return logger
+
 class DBEmulator(da.DistProcess):
 
     def __init__(self, procimpl, props):
         super().__init__(procimpl, props)
-        self._events.extend([da.pat.EventPattern(da.pat.ReceivedEvent, '_DBEmulatorReceivedEvent_0', PatternExpr_571, sources=[PatternExpr_578], destinations=None, timestamps=None, record_history=None, handlers=[self._DBEmulator_handler_570]), da.pat.EventPattern(da.pat.ReceivedEvent, '_DBEmulatorReceivedEvent_1', PatternExpr_603, sources=[PatternExpr_610], destinations=None, timestamps=None, record_history=None, handlers=[self._DBEmulator_handler_602])])
+        self._events.extend([da.pat.EventPattern(da.pat.ReceivedEvent, '_DBEmulatorReceivedEvent_0', PatternExpr_614, sources=[PatternExpr_621], destinations=None, timestamps=None, record_history=None, handlers=[self._DBEmulator_handler_613]), da.pat.EventPattern(da.pat.ReceivedEvent, '_DBEmulatorReceivedEvent_1', PatternExpr_662, sources=[PatternExpr_669], destinations=None, timestamps=None, record_history=None, handlers=[self._DBEmulator_handler_661])])
 
-    def setup(self, conf, minLatency, maxLatency):
-        self._state.conf = conf
-        self._state.minLatency = minLatency
-        self._state.maxLatency = maxLatency
-        self._state.conf = self._state.conf
-        self._state.minLatency = self._state.minLatency
-        self._state.maxLatency = self._state.maxLatency
+    def setup(self, config):
+        self._state.config = config
+        self._state.conf = self._state.config['db_config']
+        self._state.minLatency = self._state.config['minDBlatency']
+        self._state.maxLatency = self._state.config['maxDBlatency']
+        self._state.logger = get_logger('db_logger', self._state.config['db_log'])
         with open(self._state.conf, 'r') as f:
             db_data = f.read()
         json_content = json.loads(json.dumps(xmltodict.parse(db_data)))['db']
@@ -50,15 +58,15 @@ class DBEmulator(da.DistProcess):
         self._state.cust_movie_hist = pd.DataFrame([], columns=emp_bank_hist_schema)
 
     def run(self):
-        super()._label('_st_label_343', block=False)
-        _st_label_343 = 0
-        while (_st_label_343 == 0):
-            _st_label_343 += 1
+        super()._label('_st_label_403', block=False)
+        _st_label_403 = 0
+        while (_st_label_403 == 0):
+            _st_label_403 += 1
             if False:
-                _st_label_343 += 1
+                _st_label_403 += 1
             else:
-                super()._label('_st_label_343', block=True)
-                _st_label_343 -= 1
+                super()._label('_st_label_403', block=True)
+                _st_label_403 -= 1
 
     def _read(self, df, data):
         row = df[(df['id'] == data['id'])]
@@ -93,30 +101,29 @@ class DBEmulator(da.DistProcess):
             payload = fn(self._state.emp_bank_hist, data['payload'])
         elif (data['table'] == 'cust_movie_hist'):
             payload = fn(self._state.cust_movie_hist, data['payload'])
-        if data['delay']:
-            time.sleep(random.randint(self._state.minLatency, self._state.maxLatency))
         return payload
 
-    def _DBEmulator_handler_570(self, data, p):
-        print(data)
+    def _DBEmulator_handler_613(self, data, p):
+        self._state.logger.info('[DB_READ_REQ] payload:{}'.format(data))
         payload = self._op(self._read, data)
         self._send(('DB_READ_RESPONSE', payload), p)
-    _DBEmulator_handler_570._labels = None
-    _DBEmulator_handler_570._notlabels = None
+        self._state.logger.info('[DB_READ_RESP] payload:{}'.format(data))
+    _DBEmulator_handler_613._labels = None
+    _DBEmulator_handler_613._notlabels = None
 
-    def _DBEmulator_handler_602(self, data, p):
-        print(data)
+    def _DBEmulator_handler_661(self, data, p):
+        self._state.logger.info('[DB_WRITE_REQ] payload:{}'.format(data))
         payload = self._op(self._write, data)
-        print(self._state.employee)
         self._send(('DB_WRITE_RESPONSE', payload), p)
-    _DBEmulator_handler_602._labels = None
-    _DBEmulator_handler_602._notlabels = None
+        self._state.logger.info('[DB_WRITE_RESP] payload:{}'.format(data))
+    _DBEmulator_handler_661._labels = None
+    _DBEmulator_handler_661._notlabels = None
 
 class ClientP(da.DistProcess):
 
     def __init__(self, procimpl, props):
         super().__init__(procimpl, props)
-        self._events.extend([da.pat.EventPattern(da.pat.ReceivedEvent, '_ClientPReceivedEvent_0', PatternExpr_670, sources=[PatternExpr_677], destinations=None, timestamps=None, record_history=None, handlers=[self._ClientP_handler_669]), da.pat.EventPattern(da.pat.ReceivedEvent, '_ClientPReceivedEvent_1', PatternExpr_686, sources=[PatternExpr_693], destinations=None, timestamps=None, record_history=None, handlers=[self._ClientP_handler_685])])
+        self._events.extend([da.pat.EventPattern(da.pat.ReceivedEvent, '_ClientPReceivedEvent_0', PatternExpr_739, sources=[PatternExpr_746], destinations=None, timestamps=None, record_history=None, handlers=[self._ClientP_handler_738]), da.pat.EventPattern(da.pat.ReceivedEvent, '_ClientPReceivedEvent_1', PatternExpr_752, sources=[PatternExpr_759], destinations=None, timestamps=None, record_history=None, handlers=[self._ClientP_handler_751])])
 
     def setup(self, coord_ps):
         self._state.coord_ps = coord_ps
@@ -124,57 +131,57 @@ class ClientP(da.DistProcess):
 
     def run(self):
         self._send(('DB_WRITE', {'table': 'employee', 'payload': {'id': 1, 'name': 'emp10'}, 'delay': True}), self._state.coord_ps)
-        super()._label('_st_label_665', block=False)
-        _st_label_665 = 0
-        while (_st_label_665 == 0):
-            _st_label_665 += 1
+        super()._label('_st_label_734', block=False)
+        _st_label_734 = 0
+        while (_st_label_734 == 0):
+            _st_label_734 += 1
             if False:
-                _st_label_665 += 1
+                _st_label_734 += 1
             else:
-                super()._label('_st_label_665', block=True)
-                _st_label_665 -= 1
+                super()._label('_st_label_734', block=True)
+                _st_label_734 -= 1
 
-    def _ClientP_handler_669(self, data, p):
-        print(data)
-    _ClientP_handler_669._labels = None
-    _ClientP_handler_669._notlabels = None
+    def _ClientP_handler_738(self, data, p):
+        pass
+    _ClientP_handler_738._labels = None
+    _ClientP_handler_738._notlabels = None
 
-    def _ClientP_handler_685(self, data, p):
-        print(data)
-    _ClientP_handler_685._labels = None
-    _ClientP_handler_685._notlabels = None
+    def _ClientP_handler_751(self, data, p):
+        pass
+    _ClientP_handler_751._labels = None
+    _ClientP_handler_751._notlabels = None
 
 class SubCoordP(da.DistProcess):
 
     def __init__(self, procimpl, props):
         super().__init__(procimpl, props)
-        self._events.extend([da.pat.EventPattern(da.pat.ReceivedEvent, '_SubCoordPReceivedEvent_0', PatternExpr_715, sources=[PatternExpr_720], destinations=None, timestamps=None, record_history=None, handlers=[self._SubCoordP_handler_714])])
+        self._events.extend([da.pat.EventPattern(da.pat.ReceivedEvent, '_SubCoordPReceivedEvent_0', PatternExpr_778, sources=[PatternExpr_783], destinations=None, timestamps=None, record_history=None, handlers=[self._SubCoordP_handler_777])])
 
     def setup(self):
         pass
 
     def run(self):
-        super()._label('_st_label_710', block=False)
-        _st_label_710 = 0
-        while (_st_label_710 == 0):
-            _st_label_710 += 1
+        super()._label('_st_label_773', block=False)
+        _st_label_773 = 0
+        while (_st_label_773 == 0):
+            _st_label_773 += 1
             if False:
-                _st_label_710 += 1
+                _st_label_773 += 1
             else:
-                super()._label('_st_label_710', block=True)
-                _st_label_710 -= 1
+                super()._label('_st_label_773', block=True)
+                _st_label_773 -= 1
 
-    def _SubCoordP_handler_714(self, p):
+    def _SubCoordP_handler_777(self, p):
         self.output('Response received in sub process!!')
         self._send(('APP_EVALUATION_RESPONSE',), p)
-    _SubCoordP_handler_714._labels = None
-    _SubCoordP_handler_714._notlabels = None
+    _SubCoordP_handler_777._labels = None
+    _SubCoordP_handler_777._notlabels = None
 
 class ResCoordP(da.DistProcess):
 
     def __init__(self, procimpl, props):
         super().__init__(procimpl, props)
-        self._events.extend([da.pat.EventPattern(da.pat.ReceivedEvent, '_ResCoordPReceivedEvent_0', PatternExpr_742, sources=None, destinations=None, timestamps=None, record_history=None, handlers=[self._ResCoordP_handler_741])])
+        self._events.extend([da.pat.EventPattern(da.pat.ReceivedEvent, '_ResCoordPReceivedEvent_0', PatternExpr_805, sources=None, destinations=None, timestamps=None, record_history=None, handlers=[self._ResCoordP_handler_804])])
 
     def setup(self):
         pass
@@ -182,16 +189,16 @@ class ResCoordP(da.DistProcess):
     def run(self):
         pass
 
-    def _ResCoordP_handler_741(self):
+    def _ResCoordP_handler_804(self):
         pass
-    _ResCoordP_handler_741._labels = None
-    _ResCoordP_handler_741._notlabels = None
+    _ResCoordP_handler_804._labels = None
+    _ResCoordP_handler_804._notlabels = None
 
 class WorkerP(da.DistProcess):
 
     def __init__(self, procimpl, props):
         super().__init__(procimpl, props)
-        self._events.extend([da.pat.EventPattern(da.pat.ReceivedEvent, '_WorkerPReceivedEvent_0', PatternExpr_759, sources=None, destinations=None, timestamps=None, record_history=None, handlers=[self._WorkerP_handler_758])])
+        self._events.extend([da.pat.EventPattern(da.pat.ReceivedEvent, '_WorkerPReceivedEvent_0', PatternExpr_822, sources=None, destinations=None, timestamps=None, record_history=None, handlers=[self._WorkerP_handler_821])])
 
     def setup(self):
         pass
@@ -199,10 +206,10 @@ class WorkerP(da.DistProcess):
     def run(self):
         pass
 
-    def _WorkerP_handler_758(self):
+    def _WorkerP_handler_821(self):
         pass
-    _WorkerP_handler_758._labels = None
-    _WorkerP_handler_758._notlabels = None
+    _WorkerP_handler_821._labels = None
+    _WorkerP_handler_821._notlabels = None
 
 class _NodeMain(da.DistProcess):
 
@@ -210,7 +217,7 @@ class _NodeMain(da.DistProcess):
         config_fpath = (sys.argv[1] if (len(sys.argv) > 1) else '../config/main-config.json')
         config = cfg.load_config(config_fpath)
         db_ps = da.new(DBEmulator, num=1)
-        da.setup(db_ps, (config['db_config'], config['minDBlatency'], config['maxDBlatency']))
+        da.setup(db_ps, (config,))
         da.start(db_ps)
         cli_ps = da.new(ClientP, num=config['num_clients'])
         da.setup(cli_ps, (db_ps,))

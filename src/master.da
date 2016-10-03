@@ -1,3 +1,4 @@
+import logging
 import sys
 import csv
 import config as cfg
@@ -7,12 +8,20 @@ import pandas as pd
 import random
 import time
 
-# Client corresponds to Application instance
+def get_logger(name, path):
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    handler = logging.FileHandler(path, mode='w')
+    handler.setLevel(logging.DEBUG)
+    logger.addHandler(handler)
+    return logger
+
 class DBEmulator(process):
-    def setup(conf, minLatency, maxLatency):
-        self.conf = conf
-        self.minLatency = minLatency
-        self.maxLatency = maxLatency
+    def setup(config):
+        self.conf = config['db_config']
+        self.minLatency = config['minDBlatency']
+        self.maxLatency = config['maxDBlatency']
+        self.logger = get_logger('db_logger', config['db_log'])
         
         with open(self.conf, 'r') as f:
             db_data = f.read()
@@ -43,7 +52,7 @@ class DBEmulator(process):
         # print(self.cust_movie_hist)
         await(False)
     
-    def _read(df,data):
+    def _read(df, data):
         row = df[(df['id'] == data['id'])]
         if len(row) > 0:
             return row.iloc[0].to_json()
@@ -68,8 +77,8 @@ class DBEmulator(process):
         # should we delay the operation or literally mimic the visibility?
         # if later, we gotta think more about the design.. former is jus 
         # removing the condition and jus delay for everything
-        if data['delay']:
-            time.sleep(random.randint(self.minLatency,self.maxLatency))
+        # if data['delay']:
+        #     time.sleep(random.randint(self.minLatency,self.maxLatency))
         
         payload = None
         
@@ -90,16 +99,18 @@ class DBEmulator(process):
         
 
     def receive(msg=('DB_READ', data), from_=p):
-        print(data)
+        self.logger.info('[DB_READ_REQ] payload:{}'.format(data))
         payload = self._op(self._read, data)
-        # print(self.employee)               
+        # print(self.employee)
         send(('DB_READ_RESPONSE', payload),to=p)
+        self.logger.info('[DB_READ_RESP] payload:{}'.format(data))
 
     def receive(msg=('DB_WRITE', data), from_=p):
-        print(data)
+        self.logger.info('[DB_WRITE_REQ] payload:{}'.format(data))
         payload = self._op(self._write, data)
         # print(self.employee)
         send(('DB_WRITE_RESPONSE', payload),to=p)
+        self.logger.info('[DB_WRITE_RESP] payload:{}'.format(data))
 
 # Client corresponds to Application instance
 class ClientP(process):
@@ -115,10 +126,10 @@ class ClientP(process):
         await(False)
 
     def receive(msg=('DB_READ_RESPONSE',data), from_=p):
-        print(data)
+        pass
         # output("Response received in client!!")
     def receive(msg=('DB_WRITE_RESPONSE',data), from_=p):
-        print(data)
+        pass
         # output("Response received in client!!")
 
 
@@ -164,8 +175,7 @@ def main():
     config(channel="fifo", clock="Lamport")
 
     db_ps = new(DBEmulator, num=1)
-    setup(db_ps,(config['db_config'], config['minDBlatency'], 
-                 config['maxDBlatency']))
+    setup(db_ps,(config,))
     start(db_ps)
 
     # coord_ps = new(SubCoordP, num=config['num_coords'])
