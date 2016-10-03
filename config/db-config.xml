@@ -1,21 +1,21 @@
-<?xml version="1.0"?>
-<!-- Initial DB config. -->
-<config>
-	<minDBlatency>3</minDBlatency>
-	<maxDBlatency>20</maxDBlatency>
-
-	<!-- possible sample of a record data -->
-	<record id="1">
-		<subjectCondition position="employee" history="empty"></subjectCondition>
-		<resourceCondition name="bank A"></resourceCondition>
-		<action name="read"></action>
-		<subjectUpdate history="bank A"></subjectUpdate>
-	</record>
-
-	<record id="2">
-		<subjectCondition position="employee" history="empty"></subjectCondition>
-		<resourceCondition name="bank A"></resourceCondition>
-		<action name="read"></action>
-		<subjectUpdate history="bank A"></subjectUpdate>
-	</record>
-</config>
+<db>
+	<data>
+		<employee id='1' name='Emp1'></employee>
+		<employee id='2' name='Emp2'></employee>
+		<employee id='3' name='Emp3'></employee>
+		<employee id='4' name='Emp4'></employee>
+		<employee id='5' name='Emp5'></employee>
+		<bank id='1' name='BankA'></bank>
+		<bank id='2' name='BankB'></bank>
+		<bank id='3' name='BankC'></bank>
+		<movie id='1' name='Movie1'></movie>
+		<movie id='2' name='Movie2'></movie>
+	</data>
+	<schema>
+		<emp_bank_hist>
+			<column>emp_id</column>
+			<column>bank_id</column>
+			<column>timestamp</column>
+		</emp_bank_hist>
+	</schema>
+</db>

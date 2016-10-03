@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ET
 import da
 
 def main():
-    tree = ET.parse('policy-example.xml')
+    tree = ET.parse('../config/policy-list.xml')
     root = tree.getroot()
     for rule in root.iter('rule'):
         print('rule', rule.attrib['name'])
