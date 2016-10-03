@@ -4,7 +4,8 @@ import config as cfg
 import constants as const
 import xmltodict, json
 import pandas as pd
-
+import random
+import time
 
 # Client corresponds to Application instance
 class DBEmulator(process):
@@ -12,7 +13,6 @@ class DBEmulator(process):
         self.conf = conf
         self.minLatency = minLatency
         self.maxLatency = maxLatency
-        # print('SETTING UP DB')
         
         with open(self.conf, 'r') as f:
             db_data = f.read()
@@ -41,7 +41,6 @@ class DBEmulator(process):
         # print(self.maxLatency)
         # print(self.emp_bank_hist)
         # print(self.cust_movie_hist)
-        # print('BUILDING DB')
         await(False)
     
     def _read(df,data):
@@ -49,14 +48,12 @@ class DBEmulator(process):
         if len(row) > 0:
             return row.iloc[0].to_json()
         else:
-            data.pop('table', None)
             df.loc[len(self.employee)] =  data                
             return data
 
     def _write(df, data):
         index = df.loc[(df['id'] == data['id'])].index.tolist()
         print(index)
-        data.pop('table', None)
         print(data)
         if len(index) > 0:
             for k in data:
@@ -69,18 +66,21 @@ class DBEmulator(process):
     def _op(fn, data):
         payload = None
         if data['table'] == 'employee':
-            payload = fn(self.employee, data)
+            payload = fn(self.employee, data['payload'])
         elif data['table'] == 'customer':
-            payload = fn(self.customer, data)
+            payload = fn(self.customer, data['payload'])
         elif data['table'] == 'bank':
-            payload = fn(self.bank, data)
+            payload = fn(self.bank, data['payload'])
         elif data['table'] == 'movie':
-            payload = fn(self.movie, data)
+            payload = fn(self.movie, data['payload'])
         elif data['table'] == 'emp_bank_hist':
-            payload = fn(self.emp_bank_hist, data)
+            payload = fn(self.emp_bank_hist, data['payload'])
         elif data['table'] == 'cust_movie_hist':
-            payload = fn(self.cust_movie_hist, data)
+            payload = fn(self.cust_movie_hist, data['payload'])
 
+        if data['delay']:
+            time.sleep(random.randint(self.minLatency,self.maxLatency))    
+        
         return payload
         
 
@@ -103,7 +103,9 @@ class ClientP(process):
         pass
 
     def run():
-        send(('DB_WRITE',{'table':'employee', 'id':1, 'name':'emp10'}),to=coord_ps)
+        send(('DB_WRITE',{'table':'employee', 
+                          'payload':{'id':1, 'name':'emp10'},
+                          'delay':True}),to=coord_ps)
         # output("Starting Application Instance")
         await(False)
 
