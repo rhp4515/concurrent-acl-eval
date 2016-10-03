@@ -59,8 +59,8 @@ class DBEmulator(process):
         data.pop('table', None)
         print(data)
         if len(index) > 0:
-            df.ix[index[0], 'id'] =  data['id']
-            df.ix[index[0], 'name'] =  data['name']
+            for k in data:
+                df.ix[index[0], k] =  data[k]
         else:
             df.loc[len(self.employee)] =  data
 
@@ -77,6 +77,10 @@ class DBEmulator(process):
             payload = self._read(self.bank, data)
         elif data['table'] == 'movie':
             payload = self._read(self.movie, data)
+        elif data['table'] == 'emp_bank_hist':
+            payload = self._read(self.emp_bank_hist, data)
+        elif data['table'] == 'cust_movie_hist':
+            payload = self._read(self.cust_movie_hist, data)
         # print(self.employee)               
         # output("Response received!!")
         send(('DB_READ_RESPONSE', payload),to=p)
@@ -91,6 +95,10 @@ class DBEmulator(process):
             payload = self._write(self.bank, data)
         elif data['table'] == 'movie':
             payload = self._write(self.movie, data)
+        elif data['table'] == 'emp_bank_hist':
+            payload = self._write(self.emp_bank_hist, data)
+        elif data['table'] == 'cust_movie_hist':
+            payload = self._write(self.cust_movie_hist, data)
         # print(self.employee)
         send(('DB_WRITE_RESPONSE', payload),to=p)
 
@@ -101,7 +109,7 @@ class ClientP(process):
         pass
 
     def run():
-        send(('DB_WRITE',{'table':'employee', 'id':1, 'name':'emp10'}),to=coord_ps)
+        send(('DB_WRITE',{'table':'employee', 'id':10, 'name':'emp10'}),to=coord_ps)
         # output("Starting Application Instance")
         await(False)
 
