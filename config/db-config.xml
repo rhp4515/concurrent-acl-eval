@@ -1,5 +1,7 @@
 <db>
 	<data>
+		<customer id='1' name='Cust1'></customer>
+		<customer id='2' name='Cust2'></customer>
 		<employee id='1' name='Emp1'></employee>
 		<employee id='2' name='Emp2'></employee>
 		<employee id='3' name='Emp3'></employee>
@@ -17,5 +19,11 @@
 			<column>bank_id</column>
 			<column>timestamp</column>
 		</emp_bank_hist>
+		<cust_movie_hist>
+			<column>cust_id</column>
+			<column>movie_id</column>
+			<column>count</column>
+			<column>timestamp</column>
+		</cust_movie_hist>
 	</schema>
 </db>

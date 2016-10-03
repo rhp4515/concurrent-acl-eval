@@ -20,27 +20,38 @@ class DBEmulator(process):
         json_content = json.loads(json.dumps(xmltodict.parse(db_data)))['db']
         json_data = json_content['data']
         self.employee = pd.read_json(json.dumps(json_data['employee']))
+        self.customer = pd.read_json(json.dumps(json_data['customer']))
         self.bank = pd.read_json(json.dumps(json_data['bank']))
         self.movie = pd.read_json(json.dumps(json_data['movie']))
         json_schema = json_content['schema']
+        
         emp_bank_hist_schema = json_schema['emp_bank_hist']['column']
         self.emp_bank_hist = pd.DataFrame([], columns=emp_bank_hist_schema)
 
+        cust_movie_hist_schema = json_schema['cust_movie_hist']['column']
+        self.cust_movie_hist = pd.DataFrame([], columns=emp_bank_hist_schema)
+
     def run():
         print(self.employee)
+        print(self.customer)
         print(self.bank)
         print(self.movie)
         print(self.minLatency)
         print(self.maxLatency)
         print(self.emp_bank_hist)
+        print(self.cust_movie_hist)
         print('BUILDING DB')
         await(False)
 
-    def receive(msg=('DB_READ',), from_=p):
+    def receive(msg=('DB_READ', data), from_=p):
+        print(data)
         output("Response received!!")
+        send(('DB_READ_RESPONSE',{'key':'value1'}),to=p)
 
-    def receive(msg=('DB_WRITE',), from_=p):
+    def receive(msg=('DB_WRITE', data), from_=p):
+        print(data)
         output("Response received!!")
+        send(('DB_WRITE_RESPONSE',{'key':'value1'}),to=p)
 
 # Client corresponds to Application instance
 class ClientP(process):
@@ -48,11 +59,12 @@ class ClientP(process):
         print(coord_ps)
 
     def run():
-        send(('APP_EVALUATION_REQUEST',),to=coord_ps)
+        send(('DB_WRITE',{'key':'value'}),to=coord_ps)
         output("Starting Application Instance")
         await(False)
 
-    def receive(msg=('APP_EVALUATION_RESPONSE',), from_=p):
+    def receive(msg=('DB_WRITE_RESPONSE',data), from_=p):
+        print(data)
         output("Response received in client!!")
 
 
@@ -106,7 +118,7 @@ def main():
     setup(coord_ps,())
     
     cli_ps = new(ClientP, num=config['num_clients'])
-    setup(cli_ps,(coord_ps,))
+    setup(cli_ps,(db_ps,))
     
     start(coord_ps)    
     start(cli_ps)
