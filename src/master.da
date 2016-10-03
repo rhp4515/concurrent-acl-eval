@@ -64,7 +64,15 @@ class DBEmulator(process):
         return data
 
     def _op(fn, data):
+        # should we use this flag or jus delay for every operation ?
+        # should we delay the operation or literally mimic the visibility?
+        # if later, we gotta think more about the design.. former is jus 
+        # removing the condition and jus delay for everything
+        if data['delay']:
+            time.sleep(random.randint(self.minLatency,self.maxLatency))
+        
         payload = None
+        
         if data['table'] == 'employee':
             payload = fn(self.employee, data['payload'])
         elif data['table'] == 'customer':
@@ -77,9 +85,6 @@ class DBEmulator(process):
             payload = fn(self.emp_bank_hist, data['payload'])
         elif data['table'] == 'cust_movie_hist':
             payload = fn(self.cust_movie_hist, data['payload'])
-
-        if data['delay']:
-            time.sleep(random.randint(self.minLatency,self.maxLatency))    
         
         return payload
         
