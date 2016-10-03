@@ -1,17 +1,17 @@
 
 import da
-PatternExpr_453 = da.pat.TuplePattern([da.pat.ConstantPattern('DB_READ'), da.pat.FreePattern('data')])
-PatternExpr_460 = da.pat.FreePattern('p')
-PatternExpr_574 = da.pat.TuplePattern([da.pat.ConstantPattern('DB_WRITE'), da.pat.FreePattern('data')])
-PatternExpr_581 = da.pat.FreePattern('p')
-PatternExpr_723 = da.pat.TuplePattern([da.pat.ConstantPattern('DB_READ_RESPONSE'), da.pat.FreePattern('data')])
-PatternExpr_730 = da.pat.FreePattern('p')
-PatternExpr_739 = da.pat.TuplePattern([da.pat.ConstantPattern('DB_WRITE_RESPONSE'), da.pat.FreePattern('data')])
-PatternExpr_746 = da.pat.FreePattern('p')
-PatternExpr_768 = da.pat.TuplePattern([da.pat.ConstantPattern('APP_EVALUATION_REQUEST')])
-PatternExpr_773 = da.pat.FreePattern('p')
-PatternExpr_795 = da.pat.TuplePattern([])
-PatternExpr_812 = da.pat.TuplePattern([])
+PatternExpr_548 = da.pat.TuplePattern([da.pat.ConstantPattern('DB_READ'), da.pat.FreePattern('data')])
+PatternExpr_555 = da.pat.FreePattern('p')
+PatternExpr_580 = da.pat.TuplePattern([da.pat.ConstantPattern('DB_WRITE'), da.pat.FreePattern('data')])
+PatternExpr_587 = da.pat.FreePattern('p')
+PatternExpr_637 = da.pat.TuplePattern([da.pat.ConstantPattern('DB_READ_RESPONSE'), da.pat.FreePattern('data')])
+PatternExpr_644 = da.pat.FreePattern('p')
+PatternExpr_653 = da.pat.TuplePattern([da.pat.ConstantPattern('DB_WRITE_RESPONSE'), da.pat.FreePattern('data')])
+PatternExpr_660 = da.pat.FreePattern('p')
+PatternExpr_682 = da.pat.TuplePattern([da.pat.ConstantPattern('APP_EVALUATION_REQUEST')])
+PatternExpr_687 = da.pat.FreePattern('p')
+PatternExpr_709 = da.pat.TuplePattern([])
+PatternExpr_726 = da.pat.TuplePattern([])
 _config_object = {'channel': 'fifo', 'clock': 'Lamport'}
 import sys
 import csv
@@ -24,7 +24,7 @@ class DBEmulator(da.DistProcess):
 
     def __init__(self, procimpl, props):
         super().__init__(procimpl, props)
-        self._events.extend([da.pat.EventPattern(da.pat.ReceivedEvent, '_DBEmulatorReceivedEvent_0', PatternExpr_453, sources=[PatternExpr_460], destinations=None, timestamps=None, record_history=None, handlers=[self._DBEmulator_handler_452]), da.pat.EventPattern(da.pat.ReceivedEvent, '_DBEmulatorReceivedEvent_1', PatternExpr_574, sources=[PatternExpr_581], destinations=None, timestamps=None, record_history=None, handlers=[self._DBEmulator_handler_573])])
+        self._events.extend([da.pat.EventPattern(da.pat.ReceivedEvent, '_DBEmulatorReceivedEvent_0', PatternExpr_548, sources=[PatternExpr_555], destinations=None, timestamps=None, record_history=None, handlers=[self._DBEmulator_handler_547]), da.pat.EventPattern(da.pat.ReceivedEvent, '_DBEmulatorReceivedEvent_1', PatternExpr_580, sources=[PatternExpr_587], destinations=None, timestamps=None, record_history=None, handlers=[self._DBEmulator_handler_579])])
 
     def setup(self, conf, minLatency, maxLatency):
         self._state.conf = conf
@@ -48,15 +48,15 @@ class DBEmulator(da.DistProcess):
         self._state.cust_movie_hist = pd.DataFrame([], columns=emp_bank_hist_schema)
 
     def run(self):
-        super()._label('_st_label_336', block=False)
-        _st_label_336 = 0
-        while (_st_label_336 == 0):
-            _st_label_336 += 1
+        super()._label('_st_label_337', block=False)
+        _st_label_337 = 0
+        while (_st_label_337 == 0):
+            _st_label_337 += 1
             if False:
-                _st_label_336 += 1
+                _st_label_337 += 1
             else:
-                super()._label('_st_label_336', block=True)
-                _st_label_336 -= 1
+                super()._label('_st_label_337', block=True)
+                _st_label_337 -= 1
 
     def _read(self, df, data):
         row = df[(df['id'] == data['id'])]
@@ -79,107 +79,99 @@ class DBEmulator(da.DistProcess):
             df.loc[len(self._state.employee)] = data
         return data
 
-    def _DBEmulator_handler_452(self, data, p):
-        print(data)
+    def _op(self, fn, data):
         payload = None
         if (data['table'] == 'employee'):
-            payload = self._read(self._state.employee, data)
+            payload = fn(self._state.employee, data)
         elif (data['table'] == 'customer'):
-            payload = self._read(self._state.customer, data)
+            payload = fn(self._state.customer, data)
         elif (data['table'] == 'bank'):
-            payload = self._read(self._state.bank, data)
+            payload = fn(self._state.bank, data)
         elif (data['table'] == 'movie'):
-            payload = self._read(self._state.movie, data)
+            payload = fn(self._state.movie, data)
         elif (data['table'] == 'emp_bank_hist'):
-            payload = self._read(self._state.emp_bank_hist, data)
+            payload = fn(self._state.emp_bank_hist, data)
         elif (data['table'] == 'cust_movie_hist'):
-            payload = self._read(self._state.cust_movie_hist, data)
-        self._send(('DB_READ_RESPONSE', payload), p)
-    _DBEmulator_handler_452._labels = None
-    _DBEmulator_handler_452._notlabels = None
+            payload = fn(self._state.cust_movie_hist, data)
+        return payload
 
-    def _DBEmulator_handler_573(self, data, p):
+    def _DBEmulator_handler_547(self, data, p):
         print(data)
-        if (data['table'] == 'employee'):
-            payload = self._write(self._state.employee, data)
-        elif (data['table'] == 'customer'):
-            payload = self._write(self._state.customer, data)
-        elif (data['table'] == 'bank'):
-            payload = self._write(self._state.bank, data)
-        elif (data['table'] == 'movie'):
-            payload = self._write(self._state.movie, data)
-        elif (data['table'] == 'emp_bank_hist'):
-            payload = self._write(self._state.emp_bank_hist, data)
-        elif (data['table'] == 'cust_movie_hist'):
-            payload = self._write(self._state.cust_movie_hist, data)
-        print(self._state.employee)
+        payload = self._op(self._read, data)
+        self._send(('DB_READ_RESPONSE', payload), p)
+    _DBEmulator_handler_547._labels = None
+    _DBEmulator_handler_547._notlabels = None
+
+    def _DBEmulator_handler_579(self, data, p):
+        print(data)
+        payload = self._op(self._write, data)
         self._send(('DB_WRITE_RESPONSE', payload), p)
-    _DBEmulator_handler_573._labels = None
-    _DBEmulator_handler_573._notlabels = None
+    _DBEmulator_handler_579._labels = None
+    _DBEmulator_handler_579._notlabels = None
 
 class ClientP(da.DistProcess):
 
     def __init__(self, procimpl, props):
         super().__init__(procimpl, props)
-        self._events.extend([da.pat.EventPattern(da.pat.ReceivedEvent, '_ClientPReceivedEvent_0', PatternExpr_723, sources=[PatternExpr_730], destinations=None, timestamps=None, record_history=None, handlers=[self._ClientP_handler_722]), da.pat.EventPattern(da.pat.ReceivedEvent, '_ClientPReceivedEvent_1', PatternExpr_739, sources=[PatternExpr_746], destinations=None, timestamps=None, record_history=None, handlers=[self._ClientP_handler_738])])
+        self._events.extend([da.pat.EventPattern(da.pat.ReceivedEvent, '_ClientPReceivedEvent_0', PatternExpr_637, sources=[PatternExpr_644], destinations=None, timestamps=None, record_history=None, handlers=[self._ClientP_handler_636]), da.pat.EventPattern(da.pat.ReceivedEvent, '_ClientPReceivedEvent_1', PatternExpr_653, sources=[PatternExpr_660], destinations=None, timestamps=None, record_history=None, handlers=[self._ClientP_handler_652])])
 
     def setup(self, coord_ps):
         self._state.coord_ps = coord_ps
         pass
 
     def run(self):
-        self._send(('DB_WRITE', {'table': 'employee', 'id': 10, 'name': 'emp10'}), self._state.coord_ps)
-        super()._label('_st_label_718', block=False)
-        _st_label_718 = 0
-        while (_st_label_718 == 0):
-            _st_label_718 += 1
+        self._send(('DB_WRITE', {'table': 'employee', 'id': 1, 'name': 'emp10'}), self._state.coord_ps)
+        super()._label('_st_label_632', block=False)
+        _st_label_632 = 0
+        while (_st_label_632 == 0):
+            _st_label_632 += 1
             if False:
-                _st_label_718 += 1
+                _st_label_632 += 1
             else:
-                super()._label('_st_label_718', block=True)
-                _st_label_718 -= 1
+                super()._label('_st_label_632', block=True)
+                _st_label_632 -= 1
 
-    def _ClientP_handler_722(self, data, p):
+    def _ClientP_handler_636(self, data, p):
         print(data)
-    _ClientP_handler_722._labels = None
-    _ClientP_handler_722._notlabels = None
+    _ClientP_handler_636._labels = None
+    _ClientP_handler_636._notlabels = None
 
-    def _ClientP_handler_738(self, data, p):
+    def _ClientP_handler_652(self, data, p):
         print(data)
-    _ClientP_handler_738._labels = None
-    _ClientP_handler_738._notlabels = None
+    _ClientP_handler_652._labels = None
+    _ClientP_handler_652._notlabels = None
 
 class SubCoordP(da.DistProcess):
 
     def __init__(self, procimpl, props):
         super().__init__(procimpl, props)
-        self._events.extend([da.pat.EventPattern(da.pat.ReceivedEvent, '_SubCoordPReceivedEvent_0', PatternExpr_768, sources=[PatternExpr_773], destinations=None, timestamps=None, record_history=None, handlers=[self._SubCoordP_handler_767])])
+        self._events.extend([da.pat.EventPattern(da.pat.ReceivedEvent, '_SubCoordPReceivedEvent_0', PatternExpr_682, sources=[PatternExpr_687], destinations=None, timestamps=None, record_history=None, handlers=[self._SubCoordP_handler_681])])
 
     def setup(self):
         pass
 
     def run(self):
-        super()._label('_st_label_763', block=False)
-        _st_label_763 = 0
-        while (_st_label_763 == 0):
-            _st_label_763 += 1
+        super()._label('_st_label_677', block=False)
+        _st_label_677 = 0
+        while (_st_label_677 == 0):
+            _st_label_677 += 1
             if False:
-                _st_label_763 += 1
+                _st_label_677 += 1
             else:
-                super()._label('_st_label_763', block=True)
-                _st_label_763 -= 1
+                super()._label('_st_label_677', block=True)
+                _st_label_677 -= 1
 
-    def _SubCoordP_handler_767(self, p):
+    def _SubCoordP_handler_681(self, p):
         self.output('Response received in sub process!!')
         self._send(('APP_EVALUATION_RESPONSE',), p)
-    _SubCoordP_handler_767._labels = None
-    _SubCoordP_handler_767._notlabels = None
+    _SubCoordP_handler_681._labels = None
+    _SubCoordP_handler_681._notlabels = None
 
 class ResCoordP(da.DistProcess):
 
     def __init__(self, procimpl, props):
         super().__init__(procimpl, props)
-        self._events.extend([da.pat.EventPattern(da.pat.ReceivedEvent, '_ResCoordPReceivedEvent_0', PatternExpr_795, sources=None, destinations=None, timestamps=None, record_history=None, handlers=[self._ResCoordP_handler_794])])
+        self._events.extend([da.pat.EventPattern(da.pat.ReceivedEvent, '_ResCoordPReceivedEvent_0', PatternExpr_709, sources=None, destinations=None, timestamps=None, record_history=None, handlers=[self._ResCoordP_handler_708])])
 
     def setup(self):
         pass
@@ -187,16 +179,16 @@ class ResCoordP(da.DistProcess):
     def run(self):
         pass
 
-    def _ResCoordP_handler_794(self):
+    def _ResCoordP_handler_708(self):
         pass
-    _ResCoordP_handler_794._labels = None
-    _ResCoordP_handler_794._notlabels = None
+    _ResCoordP_handler_708._labels = None
+    _ResCoordP_handler_708._notlabels = None
 
 class WorkerP(da.DistProcess):
 
     def __init__(self, procimpl, props):
         super().__init__(procimpl, props)
-        self._events.extend([da.pat.EventPattern(da.pat.ReceivedEvent, '_WorkerPReceivedEvent_0', PatternExpr_812, sources=None, destinations=None, timestamps=None, record_history=None, handlers=[self._WorkerP_handler_811])])
+        self._events.extend([da.pat.EventPattern(da.pat.ReceivedEvent, '_WorkerPReceivedEvent_0', PatternExpr_726, sources=None, destinations=None, timestamps=None, record_history=None, handlers=[self._WorkerP_handler_725])])
 
     def setup(self):
         pass
@@ -204,10 +196,10 @@ class WorkerP(da.DistProcess):
     def run(self):
         pass
 
-    def _WorkerP_handler_811(self):
+    def _WorkerP_handler_725(self):
         pass
-    _WorkerP_handler_811._labels = None
-    _WorkerP_handler_811._notlabels = None
+    _WorkerP_handler_725._labels = None
+    _WorkerP_handler_725._notlabels = None
 
 class _NodeMain(da.DistProcess):
 
