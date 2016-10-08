@@ -22,34 +22,24 @@ class DBEmulator(process):
         self.minLatency = config['minDBlatency']
         self.maxLatency = config['maxDBlatency']
         self.logger = get_logger('db_logger', config['db_log'])
+        self.tables = {}
         
         with open(self.conf, 'r') as f:
             db_data = f.read()
         
         json_content = json.loads(json.dumps(xmltodict.parse(db_data)))['db']
-        json_data = json_content['data']
         
-        self.employee = pd.read_json(json.dumps(json_data['employee']))
-        self.customer = pd.read_json(json.dumps(json_data['customer']))
-        self.bank = pd.read_json(json.dumps(json_data['bank']))
-        self.movie = pd.read_json(json.dumps(json_data['movie']))
         json_schema = json_content['schema']
+        for schema in json_schema:
+            self.tables[schema] = pd.DataFrame([], columns=json_schema[schema]['column'])
+
+        json_data = json_content['data']    
+
+        for table in json_data:
+            self.tables[table] = pd.read_json(json.dumps(json_data[table]))
         
-        emp_bank_hist_schema = json_schema['emp_bank_hist']['column']
-        self.emp_bank_hist = pd.DataFrame([], columns=emp_bank_hist_schema)
-
-        cust_movie_hist_schema = json_schema['cust_movie_hist']['column']
-        self.cust_movie_hist = pd.DataFrame([], columns=emp_bank_hist_schema)
-
     def run():
-        # print(self.employee)
-        # print(self.customer)
-        # print(self.bank)
-        # print(self.movie)
-        # print(self.minLatency)
-        # print(self.maxLatency)
-        # print(self.emp_bank_hist)
-        # print(self.cust_movie_hist)
+        print(self.tables)
         await(False)
     
     def _read(df, data):
@@ -57,18 +47,24 @@ class DBEmulator(process):
         if len(row) > 0:
             return row.iloc[0].to_json()
         else:
-            df.loc[len(self.employee)] =  data                
+            new_data = []
+            # print( list(df.cols))
+            cols = df.columns
+            
+            for col in cols:
+                for k in data:
+                    df.ix[len(df), k] =  data[k]
+
+            # df.loc[] = data                
             return data
 
     def _write(df, data):
         index = df.loc[(df['id'] == data['id'])].index.tolist()
-        print(index)
-        print(data)
         if len(index) > 0:
             for k in data:
                 df.ix[index[0], k] =  data[k]
         else:
-            df.loc[len(self.employee)] =  data
+            df.loc[len(df)] =  data
 
         return data
 
@@ -77,23 +73,11 @@ class DBEmulator(process):
         # should we delay the operation or literally mimic the visibility?
         # if later, we gotta think more about the design.. former is jus 
         # removing the condition and jus delay for everything
-        # if data['delay']:
-        #     time.sleep(random.randint(self.minLatency,self.maxLatency))
+        if data['delay']:
+            time.sleep(random.randint(self.minLatency,self.maxLatency))
         
-        payload = None
-        
-        if data['table'] == 'employee':
-            payload = fn(self.employee, data['payload'])
-        elif data['table'] == 'customer':
-            payload = fn(self.customer, data['payload'])
-        elif data['table'] == 'bank':
-            payload = fn(self.bank, data['payload'])
-        elif data['table'] == 'movie':
-            payload = fn(self.movie, data['payload'])
-        elif data['table'] == 'emp_bank_hist':
-            payload = fn(self.emp_bank_hist, data['payload'])
-        elif data['table'] == 'cust_movie_hist':
-            payload = fn(self.cust_movie_hist, data['payload'])
+        payload = fn(self.tables[data['table']], data['payload'])
+        print (self.tables[data['table']])
         
         return payload
         
@@ -101,14 +85,12 @@ class DBEmulator(process):
     def receive(msg=('DB_READ', data), from_=p):
         self.logger.info('[DB_READ_REQ] payload:{}'.format(data))
         payload = self._op(self._read, data)
-        # print(self.employee)
         send(('DB_READ_RESPONSE', payload),to=p)
         self.logger.info('[DB_READ_RESP] payload:{}'.format(data))
 
     def receive(msg=('DB_WRITE', data), from_=p):
         self.logger.info('[DB_WRITE_REQ] payload:{}'.format(data))
         payload = self._op(self._write, data)
-        # print(self.employee)
         send(('DB_WRITE_RESPONSE', payload),to=p)
         self.logger.info('[DB_WRITE_RESP] payload:{}'.format(data))
 
@@ -119,8 +101,11 @@ class ClientP(process):
         pass
 
     def run():
-        send(('DB_WRITE',{'table':'employee', 
-                          'payload':{'id':1, 'name':'emp10'},
+        # send(('DB_WRITE',{'table':'employee', 
+        #                   'payload':{'id':1, 'name':'emp10'},
+        #                   'delay':True}),to=coord_ps)
+        send(('DB_READ',{'table':'employee', 
+                          'payload':{'id':10},
                           'delay':True}),to=coord_ps)
         # output("Starting Application Instance")
         await(False)

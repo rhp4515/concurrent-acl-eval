@@ -1,11 +1,11 @@
 {
 	"minDBlatency": 1,
-	"maxDBlatency": 5,
+	"maxDBlatency": 2,
 	"policy_config": "../config/policy-list.xml",
 	"db_config": "../config/db-config.xml",
 	"db_log": "../logs/db.log",
-	"num_clients": 5,
-	"num_coords": 10,
+	"num_clients": 1,
+	"num_coords": 5,
 	"num_workers_per_coord": 3,
 	"client_workload": {
 		"1": {

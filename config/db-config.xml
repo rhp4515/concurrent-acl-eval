@@ -50,16 +50,30 @@
 		</movie>
 	</data>
 	<schema>
+		<employee>
+			<column>id</column>
+			<column>name</column>
+		</employee>
+		<bank>
+			<column>id</column>
+			<column>name</column>
+		</bank>
+		<movie>
+			<column>id</column>
+			<column>name</column>
+		</movie>
+		<cutomer>
+			<column>id</column>
+			<column>name</column>
+		</cutomer>
 		<emp_bank_hist>
 			<column>emp_id</column>
 			<column>bank_id</column>
-			<column>timestamp</column>
 		</emp_bank_hist>
 		<cust_movie_hist>
 			<column>cust_id</column>
 			<column>movie_id</column>
 			<column>count</column>
-			<column>timestamp</column>
 		</cust_movie_hist>
 	</schema>
 </db>
