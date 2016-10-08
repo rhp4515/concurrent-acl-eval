@@ -6,6 +6,7 @@ import constants as const
 import xmltodict, json
 import pandas as pd
 import random
+import uuid
 import time
 
 def get_logger(name, path):
@@ -95,62 +96,103 @@ class DBEmulator(process):
         self.logger.info('[DB_WRITE_RESP] payload:{}'.format(data))
 
 # Client corresponds to Application instance
-class ClientP(process):
-    def setup(coord_ps):
+class Application(process):
+    def setup(sub_coord_ps, config):
+        self.logger = get_logger('app_logger', config['app_log'])
         # print(coord_ps)
         pass
 
+    def get_sub_coord(sub):
+        return list(sub_coord_ps)[0]
+
+    def authorize(sub, res):
+        app_id = str(uuid.uuid4())
+        payload = {
+            'sub':sub,
+            'res':res,
+            'app_id': app_id
+        }
+        p = get_sub_coord(sub)
+        print(p)
+        send(('APP_EVALUATION_REQUEST',payload), to=p)
+        self.logger.info('[SENT][APP_EVALUATION_REQUEST][{}] payload:{}'
+                         .format(app_id, payload))
+    
     def run():
-        # send(('DB_WRITE',{'table':'employee', 
-        #                   'payload':{'id':1, 'name':'emp10'},
-        #                   'delay':True}),to=coord_ps)
-        send(('DB_READ',{'table':'employee', 
-                          'payload':{'id':10},
-                          'delay':True}),to=coord_ps)
-        # output("Starting Application Instance")
+        sub = {
+            'type':'customer',
+            'id':'1'
+        }
+        res = {
+            'type':'movie',
+            'id':'1'
+        }
+        authorize(sub, res)
         await(False)
 
-    def receive(msg=('DB_READ_RESPONSE',data), from_=p):
-        pass
-        # output("Response received in client!!")
-    def receive(msg=('DB_WRITE_RESPONSE',data), from_=p):
-        pass
-        # output("Response received in client!!")
+    def receive(msg=('APP_EVALUATION_RESPONSE', payload), from_=p):
+        app_id = payload['app_id']
+        self.logger.info('[RECEIVED][APP_EVALUATION_RESPONSE][{}] payload:{}'
+                         .format(app_id, payload))
 
 
 
 class SubCoordP(process):
-    def setup():
-        pass
+    def setup(config):
+        self.logger = get_logger('sub_coord_logger', config['sub_coord_log'])
 
     def run():
         await(False)
 
-    def receive(msg= ('APP_EVALUATION_REQUEST',),from_=p):
-        output("Response received in sub process!!")
-        send(('APP_EVALUATION_RESPONSE',),to=p)
+    def receive(msg= ('APP_EVALUATION_REQUEST', payload), from_=p):
+        self.logger.info('[RECEIVED][APP_EVALUATION_REQUEST][{}] payload:{}'
+                         .format(payload['app_id'], payload))
+        send(('APP_EVALUATION_RESPONSE', payload),to=p)
+        self.logger.info('[SENT][APP_EVALUATION_RESPONSE][{}] payload:{}'
+                         .format(payload['app_id'], payload))
+
+    def receive(msg= ('WORKER_EVALUATION_RESPONSE', payload), from_=p):
+        self.logger.info('[RECEIVED][WORKER_EVALUATION_RESPONSE][{}] payload:{}'
+                         .format(payload['app_id'], payload))
+        # send(('APP_EVALUATION_RESPONSE', payload),to=p)
+        output('Need to process the worker response')
+
+    def receive(msg= ('RES_COMMIT_RESPONSE', payload), from_=p):
+        self.logger.info('[RECEIVED][RES_COMMIT_RESPONSE][{}] payload:{}'
+                         .format(payload['app_id'], payload))
+        output('Need to process the resource commit response')
 
 
 class ResCoordP(process):
-    def setup():
-        pass
+    def setup(workers, config):
+        self.logger = get_logger('res_coord_logger', config['res_coord_log'])
+        output('Number of workers = ', len(workers))
 
     def run():
-        pass
+        await(False)
 
-    def receive(msg= ()):
-        pass
+    def receive(msg= ('SUB_EVALUATION_REQUEST', payload), from_=p):
+        self.logger.info('[RECEIVED][SUB_EVALUATION_REQUEST][{}] payload:{}'
+                         .format(payload['app_id'], payload))
+        output('Need to process the subject evaluation request')
+
+    def receive(msg= ('RES_COMMIT_REQUEST', payload), from_=p):
+        self.logger.info('[RECEIVED][RES_COMMIT_REQUEST][{}] payload:{}'
+                         .format(payload['app_id'], payload))
+        output('Need to verify resource commit request')
 
 
 class WorkerP(process):
-    def setup():
-        pass
+    def setup(config):
+        self.logger = get_logger('worker_logger', config['worker_log'])
 
     def run():
-        pass
+        await(False)
 
-    def receive(msg= ()):
-        pass
+    def receive(msg= ('WORKER_EVALUATION_REQUEST', payload), from_=p):
+        self.logger.info('[RECEIVED][WORKER_EVALUATION_REQUEST][{}] payload:{}'
+                         .format(payload['app_id'], payload))
+        output('Need to process the worker evaluation request')
 
 
 def main():
@@ -163,11 +205,19 @@ def main():
     setup(db_ps,(config,))
     start(db_ps)
 
-    # coord_ps = new(SubCoordP, num=config['num_coords'])
-    # setup(coord_ps,())
-    
-    cli_ps = new(ClientP, num=config['num_clients'])
-    setup(cli_ps,(db_ps,))
-    
-    # start(coord_ps)    
-    start(cli_ps)
+    sub_coord_ps = new(SubCoordP, num=config['num_coords'])
+    setup(sub_coord_ps,(config,))
+    start(sub_coord_ps)
+
+    worker_ps = new(WorkerP, num=config['num_coords']*config['worker_count'])
+    setup(worker_ps,(config,))
+    start(worker_ps)
+
+    res_coord_ps = new(ResCoordP, num=config['num_coords'])
+    setup(res_coord_ps,(worker_ps, config,))
+    start(res_coord_ps)
+
+
+    app_ps = new(Application, num=config['num_clients'])
+    setup(app_ps,(sub_coord_ps, config,))
+    start(app_ps)

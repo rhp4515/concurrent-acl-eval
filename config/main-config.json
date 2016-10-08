@@ -4,9 +4,13 @@
 	"policy_config": "../config/policy-list.xml",
 	"db_config": "../config/db-config.xml",
 	"db_log": "../logs/db.log",
+	"app_log": "../logs/app.log",
+	"sub_coord_log": "../logs/sub_coord.log",
+	"res_coord_log": "../logs/res_coord.log",
+	"worker_log": "../logs/worker.log",
 	"num_clients": 1,
 	"num_coords": 5,
-	"num_workers_per_coord": 3,
+	"worker_count": 1,
 	"client_workload": {
 		"1": {
 			"workload": "high"

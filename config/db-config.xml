@@ -8,6 +8,14 @@
 			<id>2</id>
 			<name>'Cust2'</name>
 		</customer>
+		<movie>
+			<id>1</id>
+			<name>'Movie1'</name>
+		</movie>
+		<movie>
+			<id>2</id>
+			<name>'Movie2'</name>
+		</movie>
 		<employee>
 			<id>1</id>
 			<name>'Emp1'</name>
@@ -40,14 +48,6 @@
 			<id>3</id>
 			<name>'BankC'</name>
 		</bank>
-		<movie>
-			<id>1</id>
-			<name>'Movie1'</name>
-		</movie>
-		<movie>
-			<id>2</id>
-			<name>'Movie2'</name>
-		</movie>
 	</data>
 	<schema>
 		<employee>
