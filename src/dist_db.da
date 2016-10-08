@@ -1,0 +1,88 @@
+import sys
+import csv
+import config as cfg
+import constants as const
+import xmltodict, json
+import pandas as pd
+import random
+import time
+from utils import get_logger
+
+class DBEmulator(process):
+    def setup(config):
+        self.conf = config['db_config']
+        self.minLatency = config['minDBlatency']
+        self.maxLatency = config['maxDBlatency']
+        self.logger = get_logger('db_logger', config['db_log'])
+        self.tables = {}
+        
+        with open(self.conf, 'r') as f:
+            db_data = f.read()
+        
+        json_content = json.loads(json.dumps(xmltodict.parse(db_data)))['db']
+        
+        json_schema = json_content['schema']
+        for schema in json_schema:
+            self.tables[schema] = pd.DataFrame([], columns=json_schema[schema]['column'])
+
+        json_data = json_content['data']    
+
+        for table in json_data:
+            self.tables[table] = pd.read_json(json.dumps(json_data[table]))
+        
+    def run():
+        print(self.tables)
+        await(False)
+    
+    def _read(df, data):
+        row = df[(df['id'] == data['id'])]
+        if len(row) > 0:
+            return row.iloc[0].to_json()
+        else:
+            new_data = []
+            # print( list(df.cols))
+            cols = df.columns
+            
+            for col in cols:
+                for k in data:
+                    df.ix[len(df), k] =  data[k]
+
+            # df.loc[] = data                
+            return data
+
+    def _write(df, data):
+        index = df.loc[(df['id'] == data['id'])].index.tolist()
+        if len(index) > 0:
+            for k in data:
+                df.ix[index[0], k] =  data[k]
+        else:
+            df.loc[len(df)] =  data
+
+        return data
+
+    def _op(fn, data):
+        # should we use this flag or jus delay for every operation ?
+        # should we delay the operation or literally mimic the visibility?
+        # if later, we gotta think more about the design.. former is jus 
+        # removing the condition and jus delay for everything
+        if data['delay']:
+            time.sleep(random.randint(self.minLatency,self.maxLatency))
+        
+        payload = fn(self.tables[data['table']], data['payload'])
+        print (self.tables[data['table']])
+        
+        return payload
+        
+
+    def receive(msg=('DB_READ', data), from_=p):
+        print(">>>>>>>>>>>>>>>>",p)
+        self.logger.info('[DB_READ_REQ] payload:{}'.format(data))
+        payload = self._op(self._read, data)
+        send(('DB_READ_RESPONSE', payload),to=p)
+        self.logger.info('[DB_READ_RESP] payload:{}'.format(data))
+
+    def receive(msg=('DB_WRITE', data), from_=p):
+        self.logger.info('[DB_WRITE_REQ] payload:{}'.format(data))
+        payload = self._op(self._write, data)
+        send(('DB_WRITE_RESPONSE', payload),to=p)
+        self.logger.info('[DB_WRITE_RESP] payload:{}'.format(data))
