@@ -138,53 +138,181 @@ class Application(process):
 
 
 class SubCoordP(process):
-    def setup(config):
+    def setup(res_coord_ps, config):
         self.logger = get_logger('sub_coord_logger', config['sub_coord_log'])
+        self.app_req_map = dict()
+
+    def get_res_coord(res):
+        return list(res_coord_ps)[0]
+
+    def get_eval(eval_id, sub):
+        return sub
 
     def run():
         await(False)
 
+    def setup_cache(eval_id, sub, res, dependent_eval_ids, status):
+        pass
+
+    def update_cache(eval_id):
+        pass
+
+    def restart(eval_id):
+        pass
+
+    def add_tentative_attr_updates_to_req(sub):
+        return sub, []
+    
+    def has_subject_attr_updates(eval_id):
+        pass    
+
+    def evaluate(app_id, sub, res, p):
+        eval_id = str(uuid.uuid4())
+        app_req_map[eval_id] = dict(app_id=app_id, sub=sub, res=res, app_p=p)
+        sub, dependent_eval_ids = add_tentative_attr_updates_to_req(sub)
+        setup_cache(eval_id, sub, res, dependent_eval_ids, const.PENDING)
+        return eval_id, sub
+
+    def get_tentative_evals(eval):
+        return []
+
+    def get_app(eval_id):
+        return self.app_req_map[eval_id]['app_p']
+
+    def process_worker_response(eval_id, result):
+        if has_subject_attr_updates(eval_id):
+            restart(eval_id)
+        else:
+            update_cache(eval_id)
+            curr_eval = get_eval(eval_id, "sub_from_local_cache")
+            tentative_evals = get_tentative_evals(curr_eval)
+            
+            for eval in tentative_evals:
+                # add await condition
+                # Need to restart upon failure
+                pass
+        res = 'take res from cache'
+        return res
+
+    def process_res_commit_response(eval_id, result):
+        return True
+
     def receive(msg= ('APP_EVALUATION_REQUEST', payload), from_=p):
         self.logger.info('[RECEIVED][APP_EVALUATION_REQUEST][{}] payload:{}'
                          .format(payload['app_id'], payload))
-        send(('APP_EVALUATION_RESPONSE', payload),to=p)
-        self.logger.info('[SENT][APP_EVALUATION_RESPONSE][{}] payload:{}'
-                         .format(payload['app_id'], payload))
+        
+        res = payload['res']
+        eval_id, sub = evaluate(payload['app_id'], 
+                                payload['sub'], 
+                                payload['res'], 
+                                p)
+        res_req_payload = dict(app_id=payload['app_id'], 
+                               eval_id=eval_id, 
+                               sub=sub, 
+                               res=res)
+
+        send(('RES_EVALUATION_REQUEST', res_req_payload),to=get_res_coord(res))
+        self.logger.info('[SENT][RES_EVALUATION_REQUEST][{}] payload:{}'
+                         .format(res_req_payload['app_id'], res_req_payload))
 
     def receive(msg= ('WORKER_EVALUATION_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][WORKER_EVALUATION_RESPONSE][{}] payload:{}'
                          .format(payload['app_id'], payload))
-        # send(('APP_EVALUATION_RESPONSE', payload),to=p)
-        output('Need to process the worker response')
+        res = process_worker_response(payload['eval_id'], payload['result'])
+
+        res_commit_payload = dict(eval_id=payload['eval_id'], 
+                                  app_id=payload['app_id'], 
+                                  res=res)
+        send(('RES_COMMIT_REQUEST', res_commit_payload),to=get_res_coord(res))
+        self.logger.info('[SENT][RES_COMMIT_REQUEST][{}] payload:{}'
+                         .format(res_commit_payload['app_id'], res_commit_payload))
+
 
     def receive(msg= ('RES_COMMIT_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][RES_COMMIT_RESPONSE][{}] payload:{}'
                          .format(payload['app_id'], payload))
-        output('Need to process the resource commit response')
+        result = process_res_commit_response(payload['eval_id'], payload['result'])
+        if result:
+            app_eval_payload = dict(result=payload['result'], app_id=payload['app_id'])
+            send(('APP_EVALUATION_RESPONSE', app_eval_payload),to=get_app(payload['eval_id']))
+            self.logger.info('[SENT][APP_EVALUATION_RESPONSE][{}] payload:{}'
+                         .format(app_eval_payload['app_id'], app_eval_payload))
+        else:
+            # Restart myself
+            pass
 
 
 class ResCoordP(process):
     def setup(workers, config):
         self.logger = get_logger('res_coord_logger', config['res_coord_log'])
-        output('Number of workers = ', len(workers))
+        self.eval_cache = dict()
 
     def run():
         await(False)
 
-    def receive(msg= ('SUB_EVALUATION_REQUEST', payload), from_=p):
-        self.logger.info('[RECEIVED][SUB_EVALUATION_REQUEST][{}] payload:{}'
+    def get_worker():
+        return list(workers)[0]
+
+    def get_eval(eval_id, res):
+        return res
+
+    def setup_cache(eval_id, sub, res):
+        pass
+
+    def clear_cache(eval_id):
+        del self.eval_cache[eval_id]
+
+    def evaluate(eval_id, sub, res):
+        if eval_id in self.eval_cache:
+            clear_cache(eval_id)
+
+        setup_cache(eval_id, sub, res)
+
+    def conflict_exists(eval_id, res):
+        eval = get_eval(eval_id, res)
+        return True
+
+    def update_attr_db(eval_id, res):
+        pass
+
+    def commit_evaluation(eval_id, res):
+        if conflict_exists(eval_id, res):
+            return True
+        else:
+            update_attr_db(eval_id, res)
+            clear_cache(eval_id)
+            return True
+
+    def receive(msg= ('RES_EVALUATION_REQUEST', payload), from_=p):
+        self.logger.info('[RECEIVED][RES_EVALUATION_REQUEST][{}] payload:{}'
                          .format(payload['app_id'], payload))
-        output('Need to process the subject evaluation request')
+        evaluate(payload['eval_id'], payload['sub'], payload['res'])
+        payload['sub_coord'] = p
+        send(('WORKER_EVALUATION_REQUEST', payload),to=get_worker())
+
+        self.logger.info('[SENT][WORKER_EVALUATION_REQUEST][{}] payload:{}'
+                         .format(payload['app_id'], payload))
 
     def receive(msg= ('RES_COMMIT_REQUEST', payload), from_=p):
         self.logger.info('[RECEIVED][RES_COMMIT_REQUEST][{}] payload:{}'
                          .format(payload['app_id'], payload))
-        output('Need to verify resource commit request')
+        
+        result = commit_evaluation(payload['eval_id'], payload['res'])
+        res_commit_payload = dict(eval_id=payload['eval_id'], 
+                                  result=result,
+                                  app_id=payload['app_id'])
 
+        send(('RES_COMMIT_RESPONSE', res_commit_payload),to=p)
 
+        self.logger.info('[SENT][RES_COMMIT_RESPONSE][{}] payload:{}'
+                             .format(res_commit_payload['app_id'], res_commit_payload))
+        
 class WorkerP(process):
     def setup(config):
         self.logger = get_logger('worker_logger', config['worker_log'])
+
+    def evaluate(sub, res):
+        return False
 
     def run():
         await(False)
@@ -192,7 +320,17 @@ class WorkerP(process):
     def receive(msg= ('WORKER_EVALUATION_REQUEST', payload), from_=p):
         self.logger.info('[RECEIVED][WORKER_EVALUATION_REQUEST][{}] payload:{}'
                          .format(payload['app_id'], payload))
-        output('Need to process the worker evaluation request')
+
+        result = evaluate(payload['sub'], payload['res'])
+        
+        worker_resp_payload = dict(eval_id=payload['eval_id'], 
+                                   result=result,
+                                   app_id=payload['app_id'])
+
+        send(('WORKER_EVALUATION_RESPONSE', worker_resp_payload),to=payload['sub_coord'])
+
+        self.logger.info('[SENT][WORKER_EVALUATION_RESPONSE][{}] payload:{}'
+                         .format(worker_resp_payload['app_id'], worker_resp_payload))
 
 
 def main():
@@ -205,10 +343,6 @@ def main():
     setup(db_ps,(config,))
     start(db_ps)
 
-    sub_coord_ps = new(SubCoordP, num=config['num_coords'])
-    setup(sub_coord_ps,(config,))
-    start(sub_coord_ps)
-
     worker_ps = new(WorkerP, num=config['num_coords']*config['worker_count'])
     setup(worker_ps,(config,))
     start(worker_ps)
@@ -217,6 +351,9 @@ def main():
     setup(res_coord_ps,(worker_ps, config,))
     start(res_coord_ps)
 
+    sub_coord_ps = new(SubCoordP, num=config['num_coords'])
+    setup(sub_coord_ps,(res_coord_ps, config,))
+    start(sub_coord_ps)
 
     app_ps = new(Application, num=config['num_clients'])
     setup(app_ps,(sub_coord_ps, config,))
