@@ -123,14 +123,28 @@ class Application(process):
     def run():
         sub = {
             'type':'customer',
+            'attr': {'count':2},
             'id':'1'
         }
         res = {
             'type':'movie',
+            'attr': {'count':0},
             'id':'1'
         }
         authorize(sub, res)
-        time.sleep(2)
+        time.sleep(1)
+        sub = {
+            'type':'customer',
+            'attr': {'count':1},
+            'id':'1'
+        }
+        authorize(sub, res)
+        time.sleep(1)
+        sub = {
+            'type':'customer',
+            'attr': {'value':2},
+            'id':'1'
+        }
         authorize(sub, res)
         await(False)
 
@@ -187,6 +201,12 @@ class SubCoordP(process):
     def add_tentative_attr_updates_to_req(sub, req_no):
         # TODO: use sub to find dependencies
         tentative_evals = get_tentative_evals(req_no)
+        for eval in tentative_evals:
+            attrs = eval['sub']['attr']
+            for k in attrs:
+                if k in sub['attr']:
+                    print(k, attrs[k])
+                    sub['attr'][k] = attrs[k]
         return sub, [eval['eval_id'] for eval in tentative_evals]
 
     def has_subject_attr_updates(eval_id):
@@ -201,6 +221,8 @@ class SubCoordP(process):
 
     def get_tentative_evals(req_no):
         evals = self.eval_cache[(self.eval_cache['status'] == const.WORKER_COMPLETE) & (self.eval_cache['req_no'] < req_no)]
+        evals = evals.sort(['req_no'], ascending=[True])
+        print("$$$$$$", json.loads(evals.to_json(orient="records")))
         return json.loads(evals.to_json(orient="records"))
 
     def get_app(eval_id):
