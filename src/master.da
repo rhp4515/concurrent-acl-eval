@@ -107,13 +107,15 @@ class Application(process):
 
     def authorize(sub, res):
         app_id = str(uuid.uuid4())
+        clk = logical_clock()
         payload = {
             'sub':sub,
             'res':res,
-            'app_id': app_id
+            'app_id':app_id,
+            'req_no':clk
         }
         p = get_sub_coord(sub)
-        print(p)
+        
         send(('APP_EVALUATION_REQUEST',payload), to=p)
         self.logger.info('[SENT][APP_EVALUATION_REQUEST][{}] payload:{}'
                          .format(app_id, payload))
@@ -128,6 +130,7 @@ class Application(process):
             'id':'1'
         }
         authorize(sub, res)
+        authorize(sub, res)
         await(False)
 
     def receive(msg=('APP_EVALUATION_RESPONSE', payload), from_=p):
@@ -141,21 +144,41 @@ class SubCoordP(process):
     def setup(res_coord_ps, config):
         self.logger = get_logger('sub_coord_logger', config['sub_coord_log'])
         self.app_req_map = dict()
+        columns = ['eval_id','sub','res', 'dep_eval_ids', 'status', 'req_no']
+        self.eval_cache = pd.DataFrame([], columns=columns)
 
     def get_res_coord(res):
         return list(res_coord_ps)[0]
 
     def get_eval(eval_id, sub):
-        return sub
+        row = self.eval_cache[(self.eval_cache['eval_id'] == eval_id)]
+        if len(row) > 0:
+            return json.loads(row.iloc[0].to_json())
+        else:
+            return None
+
 
     def run():
         await(False)
 
-    def setup_cache(eval_id, sub, res, dependent_eval_ids, status):
-        pass
+    def setup_cache(eval_id, sub, res, dep_eval_ids, req_no, status):
+        data = {'eval_id': eval_id, 
+                'sub': sub, 
+                'res': res, 
+                'dep_eval_ids': dep_eval_ids,
+                'req_no': req_no, 
+                'status':status}
+        
+        self.eval_cache.loc[len(self.eval_cache)] = data 
 
     def update_cache(eval_id):
-        pass
+        indices = self.eval_cache.loc[(self.eval_cache['eval_id'] == eval_id)].index.tolist()
+        if indices:
+            self.eval_cache.ix[indices[0], 'status'] = const.WORKER_COMPLETE
+
+    def clear_cache(eval_id):
+        del self.eval_cache[eval_id]
+        del app_req_map[eval_id]
 
     def restart(eval_id):
         pass
@@ -166,15 +189,16 @@ class SubCoordP(process):
     def has_subject_attr_updates(eval_id):
         pass
 
-    def evaluate(app_id, sub, res, p):
+    def evaluate(app_id, sub, res, req_no, p):
         eval_id = str(uuid.uuid4())
-        app_req_map[eval_id] = dict(app_id=app_id, sub=sub, res=res, app_p=p)
+        app_req_map[eval_id] = dict(app_id=app_id, sub=sub, res=res, req_no=req_no, app_p=p)
         sub, dependent_eval_ids = add_tentative_attr_updates_to_req(sub)
-        setup_cache(eval_id, sub, res, dependent_eval_ids, const.PENDING)
+        setup_cache(eval_id, sub, res, dependent_eval_ids, req_no, const.PENDING)
         return eval_id, sub
 
     def get_tentative_evals(eval):
-        return []
+        evals = self.eval_cache[(self.eval_cache['status'] == const.WORKER_COMPLETE) & (self.eval_cache['req_no'] < eval['req_no'])]
+        return evals.to_json(orient="records")
 
     def get_app(eval_id):
         return self.app_req_map[eval_id]['app_p']
@@ -205,6 +229,7 @@ class SubCoordP(process):
         eval_id, sub = evaluate(payload['app_id'],
                                 payload['sub'],
                                 payload['res'],
+                                payload['req_no'],
                                 p)
         res_req_payload = dict(app_id=payload['app_id'],
                                eval_id=eval_id,
@@ -353,10 +378,11 @@ def main():
     config = cfg.load_config(config_fpath)
     # do something with config
     config(channel="fifo", clock="Lamport")
+    
 
-    db_ps = new(DBEmulator, num=1)
-    setup(db_ps,(config,))
-    start(db_ps)
+    # db_ps = new(DBEmulator, num=1)
+    # setup(db_ps,(config,))
+    # start(db_ps)
 
     worker_ps = new(WorkerP, num=config['num_coords']*config['worker_count'])
     setup(worker_ps,(config,))
