@@ -130,6 +130,7 @@ class Application(process):
             'id':'1'
         }
         authorize(sub, res)
+        time.sleep(2)
         authorize(sub, res)
         await(False)
 
@@ -183,8 +184,10 @@ class SubCoordP(process):
     def restart(eval_id):
         pass
 
-    def add_tentative_attr_updates_to_req(sub):
-        return sub, []
+    def add_tentative_attr_updates_to_req(sub, req_no):
+        # TODO: use sub to find dependencies
+        tentative_evals = get_tentative_evals(req_no)
+        return sub, [eval['eval_id'] for eval in tentative_evals]
 
     def has_subject_attr_updates(eval_id):
         pass
@@ -192,13 +195,13 @@ class SubCoordP(process):
     def evaluate(app_id, sub, res, req_no, p):
         eval_id = str(uuid.uuid4())
         app_req_map[eval_id] = dict(app_id=app_id, sub=sub, res=res, req_no=req_no, app_p=p)
-        sub, dependent_eval_ids = add_tentative_attr_updates_to_req(sub)
+        sub, dependent_eval_ids = add_tentative_attr_updates_to_req(sub, req_no)
         setup_cache(eval_id, sub, res, dependent_eval_ids, req_no, const.PENDING)
         return eval_id, sub
 
-    def get_tentative_evals(eval):
-        evals = self.eval_cache[(self.eval_cache['status'] == const.WORKER_COMPLETE) & (self.eval_cache['req_no'] < eval['req_no'])]
-        return evals.to_json(orient="records")
+    def get_tentative_evals(req_no):
+        evals = self.eval_cache[(self.eval_cache['status'] == const.WORKER_COMPLETE) & (self.eval_cache['req_no'] < req_no)]
+        return json.loads(evals.to_json(orient="records"))
 
     def get_app(eval_id):
         return self.app_req_map[eval_id]['app_p']
@@ -209,7 +212,8 @@ class SubCoordP(process):
         else:
             update_cache(eval_id)
             curr_eval = get_eval(eval_id, "sub_from_local_cache")
-            tentative_evals = get_tentative_evals(curr_eval)
+            # TODO: use sub to find dependencies
+            tentative_evals = get_tentative_evals(curr_eval['req_no'])
 
             for eval in tentative_evals:
                 # add await condition
@@ -245,12 +249,12 @@ class SubCoordP(process):
                          .format(payload['app_id'], payload))
         res = process_worker_response(payload['eval_id'], payload['result'])
 
-        res_commit_payload = dict(eval_id=payload['eval_id'],
-                                  app_id=payload['app_id'],
-                                  res=res)
-        send(('RES_COMMIT_REQUEST', res_commit_payload),to=get_res_coord(res))
-        self.logger.info('[SENT][RES_COMMIT_REQUEST][{}] payload:{}'
-                         .format(res_commit_payload['app_id'], res_commit_payload))
+        # res_commit_payload = dict(eval_id=payload['eval_id'],
+        #                           app_id=payload['app_id'],
+        #                           res=res)
+        # send(('RES_COMMIT_REQUEST', res_commit_payload),to=get_res_coord(res))
+        # self.logger.info('[SENT][RES_COMMIT_REQUEST][{}] payload:{}'
+        #                  .format(res_commit_payload['app_id'], res_commit_payload))
 
 
     def receive(msg= ('RES_COMMIT_RESPONSE', payload), from_=p):
