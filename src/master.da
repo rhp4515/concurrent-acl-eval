@@ -24,25 +24,25 @@ class DBEmulator(process):
         self.maxLatency = config['maxDBlatency']
         self.logger = get_logger('db_logger', config['db_log'])
         self.tables = {}
-        
+
         with open(self.conf, 'r') as f:
             db_data = f.read()
-        
+
         json_content = json.loads(json.dumps(xmltodict.parse(db_data)))['db']
-        
+
         json_schema = json_content['schema']
         for schema in json_schema:
             self.tables[schema] = pd.DataFrame([], columns=json_schema[schema]['column'])
 
-        json_data = json_content['data']    
+        json_data = json_content['data']
 
         for table in json_data:
             self.tables[table] = pd.read_json(json.dumps(json_data[table]))
-        
+
     def run():
         print(self.tables)
         await(False)
-    
+
     def _read(df, data):
         row = df[(df['id'] == data['id'])]
         if len(row) > 0:
@@ -51,12 +51,12 @@ class DBEmulator(process):
             new_data = []
             # print( list(df.cols))
             cols = df.columns
-            
+
             for col in cols:
                 for k in data:
                     df.ix[len(df), k] =  data[k]
 
-            # df.loc[] = data                
+            # df.loc[] = data
             return data
 
     def _write(df, data):
@@ -72,16 +72,16 @@ class DBEmulator(process):
     def _op(fn, data):
         # should we use this flag or jus delay for every operation ?
         # should we delay the operation or literally mimic the visibility?
-        # if later, we gotta think more about the design.. former is jus 
+        # if later, we gotta think more about the design.. former is jus
         # removing the condition and jus delay for everything
         if data['delay']:
             time.sleep(random.randint(self.minLatency,self.maxLatency))
-        
+
         payload = fn(self.tables[data['table']], data['payload'])
         print (self.tables[data['table']])
-        
+
         return payload
-        
+
 
     def receive(msg=('DB_READ', data), from_=p):
         self.logger.info('[DB_READ_REQ] payload:{}'.format(data))
@@ -117,7 +117,7 @@ class Application(process):
         send(('APP_EVALUATION_REQUEST',payload), to=p)
         self.logger.info('[SENT][APP_EVALUATION_REQUEST][{}] payload:{}'
                          .format(app_id, payload))
-    
+
     def run():
         sub = {
             'type':'customer',
@@ -162,9 +162,9 @@ class SubCoordP(process):
 
     def add_tentative_attr_updates_to_req(sub):
         return sub, []
-    
+
     def has_subject_attr_updates(eval_id):
-        pass    
+        pass
 
     def evaluate(app_id, sub, res, p):
         eval_id = str(uuid.uuid4())
@@ -186,7 +186,7 @@ class SubCoordP(process):
             update_cache(eval_id)
             curr_eval = get_eval(eval_id, "sub_from_local_cache")
             tentative_evals = get_tentative_evals(curr_eval)
-            
+
             for eval in tentative_evals:
                 # add await condition
                 # Need to restart upon failure
@@ -200,15 +200,15 @@ class SubCoordP(process):
     def receive(msg= ('APP_EVALUATION_REQUEST', payload), from_=p):
         self.logger.info('[RECEIVED][APP_EVALUATION_REQUEST][{}] payload:{}'
                          .format(payload['app_id'], payload))
-        
+
         res = payload['res']
-        eval_id, sub = evaluate(payload['app_id'], 
-                                payload['sub'], 
-                                payload['res'], 
+        eval_id, sub = evaluate(payload['app_id'],
+                                payload['sub'],
+                                payload['res'],
                                 p)
-        res_req_payload = dict(app_id=payload['app_id'], 
-                               eval_id=eval_id, 
-                               sub=sub, 
+        res_req_payload = dict(app_id=payload['app_id'],
+                               eval_id=eval_id,
+                               sub=sub,
                                res=res)
 
         send(('RES_EVALUATION_REQUEST', res_req_payload),to=get_res_coord(res))
@@ -220,8 +220,8 @@ class SubCoordP(process):
                          .format(payload['app_id'], payload))
         res = process_worker_response(payload['eval_id'], payload['result'])
 
-        res_commit_payload = dict(eval_id=payload['eval_id'], 
-                                  app_id=payload['app_id'], 
+        res_commit_payload = dict(eval_id=payload['eval_id'],
+                                  app_id=payload['app_id'],
                                   res=res)
         send(('RES_COMMIT_REQUEST', res_commit_payload),to=get_res_coord(res))
         self.logger.info('[SENT][RES_COMMIT_REQUEST][{}] payload:{}'
@@ -246,18 +246,22 @@ class ResCoordP(process):
     def setup(workers, config):
         self.logger = get_logger('res_coord_logger', config['res_coord_log'])
         self.eval_cache = dict()
+        self.next_worker_idx = -1
+        self.workers = list(workers)
 
     def run():
         await(False)
 
+    # Select worker in a round robin fashion
     def get_worker():
-        return list(workers)[0]
+        self.next_worker_idx += 1
+        return self.workers[next_worker_idx%len(self.workers)]
 
-    def get_eval(eval_id, res):
-        return res
+    def get_eval(eval_id):
+        return self.eval_cache.get(eval_id, None)
 
     def setup_cache(eval_id, sub, res):
-        pass
+        self.eval_cache[eval_id] = dict(sub=sub, res=res)
 
     def clear_cache(eval_id):
         del self.eval_cache[eval_id]
@@ -269,11 +273,22 @@ class ResCoordP(process):
         setup_cache(eval_id, sub, res)
 
     def conflict_exists(eval_id, res):
-        eval = get_eval(eval_id, res)
-        return True
+        eval = get_eval(eval_id)
+        if not eval:
+            return True
+
+        for attr in self.eval['res']:
+            if not (attr in res and res[attr] == self.eval['res'][attr]):
+                return True
+
+        return False
+
 
     def update_attr_db(eval_id, res):
-        pass
+        # TODO: Write the updates to db after constructing db
+        eval = get_eval(eval_id)
+        sub_id = eval['sub']['id']
+        return
 
     def commit_evaluation(eval_id, res):
         if conflict_exists(eval_id, res):
@@ -296,9 +311,9 @@ class ResCoordP(process):
     def receive(msg= ('RES_COMMIT_REQUEST', payload), from_=p):
         self.logger.info('[RECEIVED][RES_COMMIT_REQUEST][{}] payload:{}'
                          .format(payload['app_id'], payload))
-        
+
         result = commit_evaluation(payload['eval_id'], payload['res'])
-        res_commit_payload = dict(eval_id=payload['eval_id'], 
+        res_commit_payload = dict(eval_id=payload['eval_id'],
                                   result=result,
                                   app_id=payload['app_id'])
 
@@ -306,7 +321,7 @@ class ResCoordP(process):
 
         self.logger.info('[SENT][RES_COMMIT_RESPONSE][{}] payload:{}'
                              .format(res_commit_payload['app_id'], res_commit_payload))
-        
+
 class WorkerP(process):
     def setup(config):
         self.logger = get_logger('worker_logger', config['worker_log'])
@@ -322,8 +337,8 @@ class WorkerP(process):
                          .format(payload['app_id'], payload))
 
         result = evaluate(payload['sub'], payload['res'])
-        
-        worker_resp_payload = dict(eval_id=payload['eval_id'], 
+
+        worker_resp_payload = dict(eval_id=payload['eval_id'],
                                    result=result,
                                    app_id=payload['app_id'])
 
