@@ -142,7 +142,7 @@ class Application(process):
         time.sleep(1)
         sub = {
             'type':'customer',
-            'attr': {'value':2},
+            'attr': {'value':2,'count':3},
             'id':'1'
         }
         authorize(sub, res)
@@ -200,12 +200,11 @@ class SubCoordP(process):
 
     def add_tentative_attr_updates_to_req(sub, req_no):
         # TODO: use sub to find dependencies
-        tentative_evals = get_tentative_evals(req_no)
+        tentative_evals = get_tentative_evals(sub, req_no)
         for eval in tentative_evals:
             attrs = eval['sub']['attr']
             for k in attrs:
                 if k in sub['attr']:
-                    print(k, attrs[k])
                     sub['attr'][k] = attrs[k]
         return sub, [eval['eval_id'] for eval in tentative_evals]
 
@@ -213,7 +212,7 @@ class SubCoordP(process):
         curr_eval = get_eval(eval_id, "sub_from_local_cache")
         sub_attrs = curr_eval['sub']['attr']
         # TODO: use sub to find dependencies
-        tentative_evals = get_tentative_evals(curr_eval['req_no'])
+        tentative_evals = get_tentative_evals(curr_eval['sub'], curr_eval['req_no'])
         tentative_attrs = {}
         for eval in tentative_evals:
             for k in sub_attrs:
@@ -234,11 +233,19 @@ class SubCoordP(process):
         setup_cache(eval_id, sub, res, dependent_eval_ids, req_no, const.PENDING)
         return eval_id, sub
 
-    def get_tentative_evals(req_no):
+    def get_tentative_evals(sub, req_no):
         evals = self.eval_cache[(self.eval_cache['status'] == const.WORKER_COMPLETE) & (self.eval_cache['req_no'] < req_no)]
         evals = evals.sort(['req_no'], ascending=[True])
-        print("$$$$$$", json.loads(evals.to_json(orient="records")))
-        return json.loads(evals.to_json(orient="records"))
+        evals = json.loads(evals.to_json(orient="records"))
+        eval_with_sub_attrs = []
+        
+        for eval in evals:
+            for k in sub['attr']:
+                if k in eval['sub']['attr']:
+                    eval_with_sub_attrs.append(eval)
+                    break
+
+        return eval_with_sub_attrs
 
     def get_app(eval_id):
         return self.app_req_map[eval_id]['app_p']
@@ -250,7 +257,7 @@ class SubCoordP(process):
             update_cache(eval_id)
             curr_eval = get_eval(eval_id, "sub_from_local_cache")
             # TODO: use sub to find dependencies
-            tentative_evals = get_tentative_evals(curr_eval['req_no'])
+            tentative_evals = get_tentative_evals(curr_eval['sub'], curr_eval['req_no'])
 
             for eval in tentative_evals:
                 # add await condition
@@ -286,12 +293,12 @@ class SubCoordP(process):
                          .format(payload['app_id'], payload))
         res = process_worker_response(payload['eval_id'], payload['result'])
 
-        # res_commit_payload = dict(eval_id=payload['eval_id'],
-        #                           app_id=payload['app_id'],
-        #                           res=res)
-        # send(('RES_COMMIT_REQUEST', res_commit_payload),to=get_res_coord(res))
-        # self.logger.info('[SENT][RES_COMMIT_REQUEST][{}] payload:{}'
-        #                  .format(res_commit_payload['app_id'], res_commit_payload))
+        res_commit_payload = dict(eval_id=payload['eval_id'],
+                                  app_id=payload['app_id'],
+                                  res=res)
+        send(('RES_COMMIT_REQUEST', res_commit_payload),to=get_res_coord(res))
+        self.logger.info('[SENT][RES_COMMIT_REQUEST][{}] payload:{}'
+                         .format(res_commit_payload['app_id'], res_commit_payload))
 
 
     def receive(msg= ('RES_COMMIT_RESPONSE', payload), from_=p):
