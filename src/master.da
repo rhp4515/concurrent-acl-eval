@@ -107,15 +107,13 @@ class Application(process):
 
     def authorize(sub, res):
         app_id = str(uuid.uuid4())
-        clk = logical_clock()
         payload = {
             'sub':sub,
             'res':res,
-            'app_id':app_id,
-            'req_no':clk
+            'app_id':app_id
         }
         p = get_sub_coord(sub)
-        
+
         send(('APP_EVALUATION_REQUEST',payload), to=p)
         self.logger.info('[SENT][APP_EVALUATION_REQUEST][{}] payload:{}'
                          .format(app_id, payload))
@@ -165,7 +163,7 @@ class SubCoordP(process):
     def get_res_coord(res):
         return list(res_coord_ps)[0]
 
-    def get_eval(eval_id, sub):
+    def get_eval(eval_id):
         row = self.eval_cache[(self.eval_cache['eval_id'] == eval_id)]
         if len(row) > 0:
             return json.loads(row.iloc[0].to_json())
@@ -177,14 +175,14 @@ class SubCoordP(process):
         await(False)
 
     def setup_cache(eval_id, sub, res, dep_eval_ids, req_no, status):
-        data = {'eval_id': eval_id, 
-                'sub': sub, 
-                'res': res, 
+        data = {'eval_id': eval_id,
+                'sub': sub,
+                'res': res,
                 'dep_eval_ids': dep_eval_ids,
-                'req_no': req_no, 
+                'req_no': req_no,
                 'status':status}
-        
-        self.eval_cache.loc[len(self.eval_cache)] = data 
+
+        self.eval_cache.loc[len(self.eval_cache)] = data
 
     def update_cache(eval_id):
         indices = self.eval_cache.loc[(self.eval_cache['eval_id'] == eval_id)].index.tolist()
@@ -195,8 +193,18 @@ class SubCoordP(process):
         del self.eval_cache[eval_id]
         del app_req_map[eval_id]
 
-    def restart(eval_id):
-        pass
+    def restart(eval_id, sub):
+        eval = get_eval(eval_id)
+        app_id = app_req_map[eval_id]['app_id']
+        clear_cache(eval_id)
+        print('****** WILL HAVE TO RESTART ******')
+        payload = {
+            'sub': app_req_map[eval_id]['sub'],
+            'res': app_req_map[eval_id]['res'],
+            'app_id': app_id
+        }
+        send(('APP_EVALUATION_REQUEST',payload), to=self.id)
+
 
     def add_tentative_attr_updates_to_req(sub, req_no):
         # TODO: use sub to find dependencies
@@ -214,6 +222,7 @@ class SubCoordP(process):
 
     def evaluate(app_id, sub, res, req_no, p):
         eval_id = str(uuid.uuid4())
+        print('rclk ****** = ', req_no)
         app_req_map[eval_id] = dict(app_id=app_id, sub=sub, res=res, req_no=req_no, app_p=p)
         sub, dependent_eval_ids = add_tentative_attr_updates_to_req(sub, req_no)
         setup_cache(eval_id, sub, res, dependent_eval_ids, req_no, const.PENDING)
@@ -229,6 +238,10 @@ class SubCoordP(process):
         return self.app_req_map[eval_id]['app_p']
 
     def process_worker_response(eval_id, result):
+        res = self.eval_cache.get(eval_id, None)
+        if res:
+            res = res['res']
+
         if has_subject_attr_updates(eval_id):
             restart(eval_id)
         else:
@@ -237,17 +250,20 @@ class SubCoordP(process):
             # TODO: use sub to find dependencies
             tentative_evals = get_tentative_evals(curr_eval['req_no'])
 
-            for eval in tentative_evals:
-                # add await condition
-                # Need to restart upon failure
-                pass
-        res = 'take res from cache'
-        return res
+            tentative_eval_ids = set([x['eval_id'] for x in tentative_evals])
+            if some(received(('RES_COMMIT_RESPONSE', payload)), has= payload['eval_id'] in tentative_eval_ids and payload['result'] == False):
+                # print('********-------', payload)
+                print('restarting eval_id = ', eval_id)
+                restart(eval_id)
+            else:
+                return True, res
+        return False, res
+
 
     def process_res_commit_response(eval_id, result):
         return True
 
-    def receive(msg= ('APP_EVALUATION_REQUEST', payload), from_=p):
+    def receive(msg= ('APP_EVALUATION_REQUEST', payload), from_=p, clk=rclk):
         self.logger.info('[RECEIVED][APP_EVALUATION_REQUEST][{}] payload:{}'
                          .format(payload['app_id'], payload))
 
@@ -255,7 +271,7 @@ class SubCoordP(process):
         eval_id, sub = evaluate(payload['app_id'],
                                 payload['sub'],
                                 payload['res'],
-                                payload['req_no'],
+                                rclk,
                                 p)
         res_req_payload = dict(app_id=payload['app_id'],
                                eval_id=eval_id,
@@ -269,14 +285,17 @@ class SubCoordP(process):
     def receive(msg= ('WORKER_EVALUATION_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][WORKER_EVALUATION_RESPONSE][{}] payload:{}'
                          .format(payload['app_id'], payload))
-        res = process_worker_response(payload['eval_id'], payload['result'])
+        status, res = process_worker_response(payload['eval_id'], payload['result'])
 
-        # res_commit_payload = dict(eval_id=payload['eval_id'],
-        #                           app_id=payload['app_id'],
-        #                           res=res)
-        # send(('RES_COMMIT_REQUEST', res_commit_payload),to=get_res_coord(res))
-        # self.logger.info('[SENT][RES_COMMIT_REQUEST][{}] payload:{}'
-        #                  .format(res_commit_payload['app_id'], res_commit_payload))
+        # If control comes here then it should have been successful
+        # Upon failure the process is restarted
+        if status:
+            res_commit_payload = dict(eval_id=payload['eval_id'],
+                                      app_id=payload['app_id'],
+                                      res=res)
+            send(('RES_COMMIT_REQUEST', res_commit_payload),to=get_res_coord(res))
+            self.logger.info('[SENT][RES_COMMIT_REQUEST][{}] payload:{}'
+                             .format(res_commit_payload['app_id'], res_commit_payload))
 
 
     def receive(msg= ('RES_COMMIT_RESPONSE', payload), from_=p):
@@ -404,7 +423,7 @@ def main():
     config = cfg.load_config(config_fpath)
     # do something with config
     config(channel="fifo", clock="Lamport")
-    
+
 
     # db_ps = new(DBEmulator, num=1)
     # setup(db_ps,(config,))
