@@ -193,7 +193,7 @@ class SubCoordP(process):
         del self.eval_cache[eval_id]
         del app_req_map[eval_id]
 
-    def restart(eval_id, sub):
+    def restart(eval_id):
         eval = get_eval(eval_id)
         app_id = app_req_map[eval_id]['app_id']
         clear_cache(eval_id)
@@ -217,7 +217,7 @@ class SubCoordP(process):
         return sub, [eval['eval_id'] for eval in tentative_evals]
 
     def has_subject_attr_updates(eval_id):
-        curr_eval = get_eval(eval_id, "sub_from_local_cache")
+        curr_eval = get_eval(eval_id)
         sub_attrs = curr_eval['sub']['attr']
         # TODO: use sub to find dependencies
         tentative_evals = get_tentative_evals(curr_eval['sub'], curr_eval['req_no'])
@@ -259,15 +259,15 @@ class SubCoordP(process):
         return self.app_req_map[eval_id]['app_p']
 
     def process_worker_response(eval_id, result):
-        res = self.eval_cache.get(eval_id, None)
-        if res:
-            res = res['res']
+        res = None
+        if eval_id in self.eval_cache:
+            res = self.eval_cache['eval_id']['res']
 
         if has_subject_attr_updates(eval_id):
             restart(eval_id)
         else:
             update_cache(eval_id)
-            curr_eval = get_eval(eval_id, "sub_from_local_cache")
+            curr_eval = get_eval(eval_id)
             # TODO: use sub to find dependencies
             tentative_evals = get_tentative_evals(curr_eval['sub'], curr_eval['req_no'])
 
@@ -365,7 +365,7 @@ class ResCoordP(process):
 
     def conflict_exists(eval_id, res):
         eval = get_eval(eval_id)
-        if not eval:
+        if not eval or not res:
             return True
 
         for attr in self.eval['res']:
