@@ -210,7 +210,22 @@ class SubCoordP(process):
         return sub, [eval['eval_id'] for eval in tentative_evals]
 
     def has_subject_attr_updates(eval_id):
-        pass
+        curr_eval = get_eval(eval_id, "sub_from_local_cache")
+        sub_attrs = curr_eval['sub']['attr']
+        # TODO: use sub to find dependencies
+        tentative_evals = get_tentative_evals(curr_eval['req_no'])
+        tentative_attrs = {}
+        for eval in tentative_evals:
+            for k in sub_attrs:
+                if k in eval['sub']['attr']:
+                    tentative_attrs[k] = sub_attrs[k]
+
+        for k in tentative_attrs:
+            if tentative_attrs[k] != sub_attrs[k]:
+                return True
+
+        return False
+
 
     def evaluate(app_id, sub, res, req_no, p):
         eval_id = str(uuid.uuid4())
