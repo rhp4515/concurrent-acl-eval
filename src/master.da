@@ -23,77 +23,75 @@ class DBEmulator(process):
         self.minLatency = config['minDBlatency']
         self.maxLatency = config['maxDBlatency']
         self.logger = get_logger('db_logger', config['db_log'])
-        self.tables = {}
+        self.attr_db = {}
 
-        with open(self.conf, 'r') as f:
-            db_data = f.read()
+        # with open(self.conf, 'r') as f:
+        #     db_data = f.read()
 
-        json_content = json.loads(json.dumps(xmltodict.parse(db_data)))['db']
+        # json_content = json.loads(json.dumps(xmltodict.parse(db_data)))['db']
 
-        json_schema = json_content['schema']
-        for schema in json_schema:
-            self.tables[schema] = pd.DataFrame([], columns=json_schema[schema]['column'])
+        # json_schema = json_content['schema']
+        # for schema in json_schema:
+        #     self.tables[schema] = pd.DataFrame([], columns=json_schema[schema]['column'])
 
-        json_data = json_content['data']
+        # json_data = json_content['data']
 
-        for table in json_data:
-            self.tables[table] = pd.read_json(json.dumps(json_data[table]))
+        # for table in json_data:
+        #     self.tables[table] = pd.read_json(json.dumps(json_data[table]))
 
     def run():
-        print(self.tables)
+        # print(self.tables)
         await(False)
 
-    def _read(df, data):
-        row = df[(df['id'] == data['id'])]
-        if len(row) > 0:
-            return row.iloc[0].to_json()
-        else:
-            new_data = []
-            # print( list(df.cols))
-            cols = df.columns
+    def _read(data):
+        resp = dict(type=data['type'], id=data['id'], attr=dict())
+        for attr_name in data['attr']:
+            key = (data['type'], data['id'], attr_name)
+            val = None
+            if key in self.attr_db:
+                data = self.attr_db[key]
+            else:
+                if attr_name in const.NUMERICAL_ATTR:
+                    val = 0
+                else:
+                    val = ''
+                self.attr_db[key] = val
+            
+            resp['attr'][attr_name] = val
 
-            for col in cols:
-                for k in data:
-                    df.ix[len(df), k] =  data[k]
+        return resp
 
-            # df.loc[] = data
-            return data
 
-    def _write(df, data):
-        index = df.loc[(df['id'] == data['id'])].index.tolist()
-        if len(index) > 0:
-            for k in data:
-                df.ix[index[0], k] =  data[k]
-        else:
-            df.loc[len(df)] =  data
+    def _write(data):
+        for attr in data['attr']:
+            key = (data['type'], data['id'], attr)
+            self.attr_db[key] = data['attr'][attr]
 
-        return data
+        return None
 
     def _op(fn, data):
         # should we use this flag or jus delay for every operation ?
         # should we delay the operation or literally mimic the visibility?
         # if later, we gotta think more about the design.. former is jus
         # removing the condition and jus delay for everything
-        if data['delay']:
-            time.sleep(random.randint(self.minLatency,self.maxLatency))
+        # if data['delay']:
+        #     time.sleep(random.randint(self.minLatency,self.maxLatency))
 
-        payload = fn(self.tables[data['table']], data['payload'])
-        print (self.tables[data['table']])
-
+        payload = fn(data)
+        print ("************ ATTR DB **************")
+        print (self.attr_db)
         return payload
 
 
-    def receive(msg=('DB_READ', data), from_=p):
-        self.logger.info('[DB_READ_REQ] payload:{}'.format(data))
+    def receive(msg=('DB_READ_REQUEST', data), from_=p):
+        self.logger.info('[RECEIVED][DB_READ_REQUEST] payload:{}'.format(data))
         payload = self._op(self._read, data)
-        send(('DB_READ_RESPONSE', payload),to=p)
-        self.logger.info('[DB_READ_RESP] payload:{}'.format(data))
+        send(('DB_READ_RESPONSE', payload), to=p)
+        self.logger.info('[SENT][DB_READ_RESPONSE] payload:{}'.format(payload))
 
-    def receive(msg=('DB_WRITE', data), from_=p):
-        self.logger.info('[DB_WRITE_REQ] payload:{}'.format(data))
-        payload = self._op(self._write, data)
-        send(('DB_WRITE_RESPONSE', payload),to=p)
-        self.logger.info('[DB_WRITE_RESP] payload:{}'.format(data))
+    def receive(msg=('DB_WRITE_REQUEST', data), from_=p):
+        self.logger.info('[RECEIVED][DB_WRITE_REQUEST] payload:{}'.format(data))
+        self._op(self._write, data)
 
 # Client corresponds to Application instance
 class Application(process):
@@ -153,7 +151,7 @@ class Application(process):
 
 
 class SubCoordP(process):
-    def setup(res_coord_ps, config):
+    def setup(db_ps, res_coord_ps, config):
         self.logger = get_logger('sub_coord_logger', config['sub_coord_log'])
         self.app_req_map = dict()
         columns = ['eval_id','sub','res', 'dep_eval_ids', 'status', 'req_no']
@@ -301,8 +299,14 @@ class SubCoordP(process):
         return evals
     
     def update_attr_db(sub):
-        # TODO implement once db is in shape
-        pass
+        send(('DB_WRITE_REQUEST', sub),to=db_ps)
+        self.logger.info('[SENT][DB_WRITE_REQUEST] payload:{}'.format(sub))
+        payload = {
+            'type':'customer',
+            'id':'2',
+            'attr':['count', 'v']
+        }
+        send(('DB_READ_REQUEST', payload), to=db_ps)
     
     def commit_eval(eval_id):
         curr_eval = get_eval(eval_id)
@@ -380,7 +384,7 @@ class ResCoordP(process):
     def run():
         await(False)
 
-    # Select worker in a round robin fashion
+    # Selects worker in a round robin fashion
     def get_worker():
         self.next_worker_idx += 1
         return self.workers[next_worker_idx%len(self.workers)]
@@ -451,7 +455,7 @@ class ResCoordP(process):
                              .format(res_commit_payload['app_id'], res_commit_payload))
 
 class WorkerP(process):
-    def setup(config):
+    def setup(db_ps, config):
         self.logger = get_logger('worker_logger', config['worker_log'])
 
     def evaluate(sub, res):
@@ -483,12 +487,12 @@ def main():
     config(channel="fifo", clock="Lamport")
 
 
-    # db_ps = new(DBEmulator, num=1)
-    # setup(db_ps,(config,))
-    # start(db_ps)
+    db_ps = new(DBEmulator, num=1)
+    setup(db_ps,(config,))
+    start(db_ps)
 
     worker_ps = new(WorkerP, num=config['num_coords']*config['worker_count'])
-    setup(worker_ps,(config,))
+    setup(worker_ps,(db_ps, config,))
     start(worker_ps)
 
     res_coord_ps = new(ResCoordP, num=config['num_coords'])
@@ -496,7 +500,7 @@ def main():
     start(res_coord_ps)
 
     sub_coord_ps = new(SubCoordP, num=config['num_coords'])
-    setup(sub_coord_ps,(res_coord_ps, config,))
+    setup(sub_coord_ps,(db_ps, res_coord_ps, config,))
     start(sub_coord_ps)
 
     app_ps = new(Application, num=config['num_clients'])
