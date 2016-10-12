@@ -129,20 +129,20 @@ class Application(process):
             'id':'1'
         }
         authorize(sub, res)
-        time.sleep(1)
-        sub = {
-            'type':'customer',
-            'attr': {'count':1},
-            'id':'1'
-        }
-        authorize(sub, res)
-        time.sleep(1)
-        sub = {
-            'type':'customer',
-            'attr': {'value':2,'count':3},
-            'id':'1'
-        }
-        authorize(sub, res)
+        # time.sleep(1)
+        # sub = {
+        #     'type':'customer',
+        #     'attr': {'count':1},
+        #     'id':'1'
+        # }
+        # authorize(sub, res)
+        # time.sleep(1)
+        # sub = {
+        #     'type':'customer',
+        #     'attr': {'value':2,'count':3},
+        #     'id':'1'
+        # }
+        # authorize(sub, res)
         await(False)
 
     def receive(msg=('APP_EVALUATION_RESPONSE', payload), from_=p):
@@ -260,14 +260,23 @@ class SubCoordP(process):
 
         return eval_with_sub_attrs
 
+    def get_evals_dependent_on(eval_id):
+        curr_eval = get_eval(eval_id)
+        evals = self.eval_cache[(eval_id in self.eval_cache['dep_eval_ids']) & (self.eval_cache['req_no'] > curr_eval['req_no'])]
+        evals = evals.sort_values('req_no', ascending=True)
+        evals = json.loads(evals.to_json(orient="records"))
+        return evals
+
     def get_app(eval_id):
         return self.app_req_map[eval_id]['app_p']
 
     def process_worker_response(eval_id, result):
+
         res = None
-        # TODO: Change it to Pandas stuff
-        if eval_id in self.eval_cache:
-            res = self.eval_cache.loc([self.eval_cache['eval_id'] == eval_id])['res']
+
+        eval = get_eval(eval_id)
+        if eval:
+            res = eval['res']
 
         if has_subject_attr_updates(eval_id):
             restart(eval_id)
@@ -285,9 +294,31 @@ class SubCoordP(process):
                 return True, res
         return False, res
 
+    def get_previous_evals(req_no):
+        evals = self.eval_cache[self.eval_cache['req_no'] < req_no]
+        evals = evals.sort_values('req_no', ascending=True)
+        evals = json.loads(evals.to_json(orient="records"))
+        return evals
+    
+    def update_attr_db(sub):
+        # TODO implement once db is in shape
+        pass
+    
+    def commit_eval(eval_id):
+        curr_eval = get_eval(eval_id)
+        previous_evals = get_previous_evals(curr_eval['req_no'])
+        
+        # TODO: wait for all previous evals
+        for eval in previous_evals:
+            pass
 
-    def process_res_commit_response(eval_id, result):
-        return True
+        update_attr_db(curr_eval['sub'])
+        clear_cache(eval_id)
+
+    def restart_dependent_evals(eval_id):
+        evals = get_evals_dependent_on(eval_id)
+        for eval in evals:
+            restart(eval_id)
 
     def receive(msg= ('APP_EVALUATION_REQUEST', payload), from_=p, clk=rclk):
         self.logger.info('[RECEIVED][APP_EVALUATION_REQUEST][{}] payload:{}'
@@ -327,15 +358,16 @@ class SubCoordP(process):
     def receive(msg= ('RES_COMMIT_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][RES_COMMIT_RESPONSE][{}] payload:{}'
                          .format(payload['app_id'], payload))
-        result = process_res_commit_response(payload['eval_id'], payload['result'])
+        result = payload['result']
         if result:
+            app = get_app(payload['eval_id'])
+            commit_eval(payload['eval_id'])
             app_eval_payload = dict(result=payload['result'], app_id=payload['app_id'])
-            send(('APP_EVALUATION_RESPONSE', app_eval_payload),to=get_app(payload['eval_id']))
+            send(('APP_EVALUATION_RESPONSE', app_eval_payload),to=app)
             self.logger.info('[SENT][APP_EVALUATION_RESPONSE][{}] payload:{}'
                          .format(app_eval_payload['app_id'], app_eval_payload))
         else:
-            restart(payload['eval_id'])
-            pass
+            restart_dependent_evals(payload['eval_id'])
 
 
 class ResCoordP(process):
@@ -374,7 +406,7 @@ class ResCoordP(process):
             return True
 
         for attr in self.eval['res']:
-            if not (attr in res and res[attr] == self.eval['res'][attr]):
+            if res.get(attr) != self.eval['res'][attr]:
                 return True
 
         return False
@@ -388,7 +420,7 @@ class ResCoordP(process):
 
     def commit_evaluation(eval_id, res):
         if conflict_exists(eval_id, res):
-            return True
+            return False
         else:
             update_attr_db(eval_id, res)
             clear_cache(eval_id)
