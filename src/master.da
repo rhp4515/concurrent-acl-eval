@@ -84,14 +84,16 @@ class DBEmulator(process):
 
 
     def receive(msg=('DB_READ_REQUEST', data), from_=p):
-        self.logger.info('[RECEIVED][DB_READ_REQUEST] payload:{}'.format(data))
-        payload = self._op(self._read, data)
+        self.logger.info('[RECEIVED][DB_READ_REQUEST][{}] payload:{}'.format(data['app_id'], data))
+        sub = self._op(self._read, data['sub'])
+        res = self._op(self._read, data['res'])
+        payload = dict(sub=sub, res=res, eval_id=data['eval_id'], app_id=data['app_id'])
         send(('DB_READ_RESPONSE', payload), to=p)
-        self.logger.info('[SENT][DB_READ_RESPONSE] payload:{}'.format(payload))
+        self.logger.info('[SENT][DB_READ_RESPONSE][{}] payload:{}'.format(data['app_id'],payload))
 
     def receive(msg=('DB_WRITE_REQUEST', data), from_=p):
-        self.logger.info('[RECEIVED][DB_WRITE_REQUEST] payload:{}'.format(data))
-        self._op(self._write, data)
+        self.logger.info('[RECEIVED][DB_WRITE_REQUEST][{}] payload:{}'.format(data['app_id'], data))
+        self._op(self._write, data['sub'])
 
 # Client corresponds to Application instance
 class Application(process):
@@ -304,17 +306,12 @@ class SubCoordP(process):
         evals = json.loads(evals.to_json(orient="records"))
         return evals
 
-    def update_attr_db(sub):
-        send(('DB_WRITE_REQUEST', sub),to=db_ps)
-        self.logger.info('[SENT][DB_WRITE_REQUEST] payload:{}'.format(sub))
-        payload = {
-            'type':'customer',
-            'id':'2',
-            'attr':['count', 'v']
-        }
-        send(('DB_READ_REQUEST', payload), to=db_ps)
+    def update_attr_db(app_id, sub):
+        payload = dict(app_id=app_id, sub=sub)
+        send(('DB_WRITE_REQUEST', payload),to=db_ps)
+        self.logger.info('[SENT][DB_WRITE_REQUEST][{}] payload:{}'.format(app_id, payload))
 
-    def commit_eval(eval_id):
+    def commit_eval(app_id, eval_id):
         curr_eval = get_eval(eval_id)
         previous_evals = get_previous_evals(curr_eval['req_no'])
         previous_eval_ids = [x['eval_id'] for x in previous_evals]
@@ -325,7 +322,7 @@ class SubCoordP(process):
             previous_eval_ids.remove(payload['eval_id'])
             prev_evals_len -= 1
 
-        update_attr_db(curr_eval['sub'])
+        update_attr_db(app_id, curr_eval['sub'])
         clear_cache(eval_id)
 
     def restart_dependent_evals(eval_id):
@@ -374,7 +371,7 @@ class SubCoordP(process):
         result = payload['result']
         if result:
             app = get_app(payload['eval_id'])
-            commit_eval(payload['eval_id'])
+            commit_eval(payload['app_id'], payload['eval_id'])
             app_eval_payload = dict(result=payload['result'], app_id=payload['app_id'])
             send(('APP_EVALUATION_RESPONSE', app_eval_payload),to=app)
             self.logger.info('[SENT][APP_EVALUATION_RESPONSE][{}] payload:{}'
@@ -429,6 +426,8 @@ class ResCoordP(process):
         # TODO: Write the updates to db after constructing db
         eval = get_eval(eval_id)
         sub_id = eval['sub']['id']
+        # send(('DB_WRITE_REQUEST', sub),to=db_ps)
+        # self.logger.info('[SENT][DB_WRITE_REQUEST] payload:{}'.format(sub))
         return
 
     def commit_evaluation(eval_id, res):
@@ -466,9 +465,28 @@ class ResCoordP(process):
 class WorkerP(process):
     def setup(db_ps, config):
         self.logger = get_logger('worker_logger', config['worker_log'])
+        self.requests = dict()
 
     def evaluate(sub, res):
         return False
+
+    def setup_payload(app_id, eval_id, sub, res):
+        payload = {
+        'app_id' : app_id,
+        'eval_id' : eval_id,
+        'sub':{
+            'type':'customer',
+            'id':'2',
+            'attr':['count', 'v']
+        },
+        'res':{
+            'type':'movie',
+            'id':'1',
+            'attr':['count']
+        }
+        }
+        return payload
+
 
     def run():
         await(False)
@@ -476,14 +494,27 @@ class WorkerP(process):
     def receive(msg= ('WORKER_EVALUATION_REQUEST', payload), from_=p):
         self.logger.info('[RECEIVED][WORKER_EVALUATION_REQUEST][{}] payload:{}'
                          .format(payload['app_id'], payload))
+        self.requests[payload['eval_id']] = payload['sub_coord']
+        # print (p)
+        db_payload = setup_payload(payload['app_id'], payload['eval_id'], payload['sub'], payload['res'])
 
+        send(('DB_READ_REQUEST', db_payload), to=db_ps)
+        self.logger.info('[SENT][DB_READ_REQUEST][{}] payload:{}'.format(payload['app_id'], payload))
+
+
+
+    def receive(msg= ('DB_READ_RESPONSE', payload), from_=p):
+        self.logger.info('[RECEIVED][DB_READ_RESPONSE][{}] payload:{}'.format(payload['app_id'], payload))
+
+        sub_coord_ps = self.requests[payload['eval_id']]
+        # print (sub_coord_ps)
         result = evaluate(payload['sub'], payload['res'])
 
         worker_resp_payload = dict(eval_id=payload['eval_id'],
                                    result=result,
                                    app_id=payload['app_id'])
 
-        send(('WORKER_EVALUATION_RESPONSE', worker_resp_payload),to=payload['sub_coord'])
+        send(('WORKER_EVALUATION_RESPONSE', worker_resp_payload),to=sub_coord_ps)
 
         self.logger.info('[SENT][WORKER_EVALUATION_RESPONSE][{}] payload:{}'
                          .format(worker_resp_payload['app_id'], worker_resp_payload))
