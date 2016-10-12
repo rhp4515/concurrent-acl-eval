@@ -11,7 +11,7 @@ import time
 
 def get_logger(name, path):
     logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
+    # logger.setLevel(logging.DEBUG)
     handler = logging.FileHandler(path, mode='w')
     handler.setLevel(logging.DEBUG)
     logger.addHandler(handler)
@@ -56,7 +56,7 @@ class DBEmulator(process):
                 else:
                     val = ''
                 self.attr_db[key] = val
-            
+
             resp['attr'][attr_name] = val
 
         return resp
@@ -97,10 +97,15 @@ class DBEmulator(process):
 class Application(process):
     def setup(sub_coord_ps, config):
         self.logger = get_logger('app_logger', config['app_log'])
-        # print(coord_ps)
 
+    # Assuming sub coordinator id as INTEGER
     def get_sub_coord(sub):
-        return list(sub_coord_ps)[0]
+        sub_coords = list(sub_coord_ps)
+        sub_coords.sort(key= lambda k: k._address[1])
+        output(sub_coords)
+        chosen = sub_coords[int(sub['id'])%len(sub_coords)]
+        output('SENDING SUB ID - {} TO PROCESS {}'.format(sub['id'], chosen))
+        return chosen
 
     def authorize(sub, res):
         app_id = str(uuid.uuid4())
@@ -154,11 +159,16 @@ class SubCoordP(process):
     def setup(db_ps, res_coord_ps, config):
         self.logger = get_logger('sub_coord_logger', config['sub_coord_log'])
         self.app_req_map = dict()
-        columns = ['eval_id','sub','res', 'dep_eval_ids', 'status', 'req_no']
+        columns = ['eval_id','sub', 'res', 'dep_eval_ids', 'status', 'req_no']
         self.eval_cache = pd.DataFrame([], columns=columns)
 
     def get_res_coord(res):
-        return list(res_coord_ps)[0]
+        res_coords = list(res_coord_ps)
+        res_coords.sort(key= lambda k: k._address[1])
+        output(res_coords)
+        chosen = res_coords[int(res['id'])%len(res_coords)]
+        self.logger.info('SENDING RES ID - {} TO PROCESS {}'.format(res['id'], chosen))
+        return chosen
 
     def get_eval(eval_id):
         row = self.eval_cache[(self.eval_cache['eval_id'] == eval_id)]
@@ -203,14 +213,12 @@ class SubCoordP(process):
             'app_id': app_req_map[eval_id]['app_id']
         }
         clear_cache(eval_id)
-        # print(payload)
         send(('APP_EVALUATION_REQUEST',payload), to=self.id)
         self.logger.info('[SENT[APP_EVALUATION_REQUEST][{}] to [{}] payload:{}'
                          .format(payload['app_id'], self.id, payload))
 
 
     def add_tentative_attr_updates_to_req(sub, req_no):
-        # TODO: use sub to find dependencies
         tentative_evals = get_tentative_evals(sub, req_no)
         for eval in tentative_evals:
             attrs = eval['sub']['attr']
@@ -222,7 +230,6 @@ class SubCoordP(process):
     def has_subject_attr_updates(eval_id):
         curr_eval = get_eval(eval_id)
         sub_attrs = curr_eval['sub']['attr']
-        # TODO: use sub to find dependencies
         tentative_evals = get_tentative_evals(curr_eval['sub'], curr_eval['req_no'])
         tentative_attrs = {}
         for eval in tentative_evals:
@@ -281,7 +288,6 @@ class SubCoordP(process):
         else:
             update_cache(eval_id)
             curr_eval = get_eval(eval_id)
-            # TODO: use sub to find dependencies
             tentative_evals = get_tentative_evals(curr_eval['sub'], curr_eval['req_no'])
 
             tentative_eval_ids = set([x['eval_id'] for x in tentative_evals])
@@ -297,7 +303,7 @@ class SubCoordP(process):
         evals = evals.sort_values('req_no', ascending=True)
         evals = json.loads(evals.to_json(orient="records"))
         return evals
-    
+
     def update_attr_db(sub):
         send(('DB_WRITE_REQUEST', sub),to=db_ps)
         self.logger.info('[SENT][DB_WRITE_REQUEST] payload:{}'.format(sub))
@@ -307,14 +313,17 @@ class SubCoordP(process):
             'attr':['count', 'v']
         }
         send(('DB_READ_REQUEST', payload), to=db_ps)
-    
+
     def commit_eval(eval_id):
         curr_eval = get_eval(eval_id)
         previous_evals = get_previous_evals(curr_eval['req_no'])
-        
-        # TODO: wait for all previous evals
-        for eval in previous_evals:
-            pass
+        previous_eval_ids = [x['eval_id'] for x in previous_evals]
+        prev_evals_len = len(previous_evals)
+
+        while prev_evals_len > 0:
+            await(some(received(('RES_COMMIT_RESPONSE', payload)), has= payload['eval_id'] in previous_eval_ids and payload['result'] == True))
+            previous_eval_ids.remove(payload['eval_id'])
+            prev_evals_len -= 1
 
         update_attr_db(curr_eval['sub'])
         clear_cache(eval_id)
