@@ -100,7 +100,6 @@ class Application(process):
     def setup(sub_coord_ps, config):
         self.logger = get_logger('app_logger', config['app_log'])
         # print(coord_ps)
-        pass
 
     def get_sub_coord(sub):
         return list(sub_coord_ps)[0]
@@ -175,6 +174,7 @@ class SubCoordP(process):
         await(False)
 
     def setup_cache(eval_id, sub, res, dep_eval_ids, req_no, status):
+        self.logger.info('[SETUP CACHE] [{}]'.format(eval_id))
         data = {'eval_id': eval_id,
                 'sub': sub,
                 'res': res,
@@ -185,25 +185,30 @@ class SubCoordP(process):
         self.eval_cache.loc[len(self.eval_cache)] = data
 
     def update_cache(eval_id):
+        self.logger.info('[UPDATING CACHE] [{}]'.format(eval_id))
         indices = self.eval_cache.loc[(self.eval_cache['eval_id'] == eval_id)].index.tolist()
         if indices:
             self.eval_cache.ix[indices[0], 'status'] = const.WORKER_COMPLETE
 
     def clear_cache(eval_id):
-        del self.eval_cache[eval_id]
-        del app_req_map[eval_id]
+        self.logger.info('[CLEAR CACHE] [{}]'.format(eval_id))
+        idx = self.eval_cache.loc[self.eval_cache['eval_id'] == eval_id].index.tolist()
+        self.eval_cache.drop(idx, inplace=True)
+        del self.app_req_map[eval_id]
 
     def restart(eval_id):
+        self.logger.info('***[RESTARTING SELF]***')
         eval = get_eval(eval_id)
-        app_id = app_req_map[eval_id]['app_id']
-        clear_cache(eval_id)
-        print('****** WILL HAVE TO RESTART ******')
         payload = {
             'sub': app_req_map[eval_id]['sub'],
             'res': app_req_map[eval_id]['res'],
-            'app_id': app_id
+            'app_id': app_req_map[eval_id]['app_id']
         }
+        clear_cache(eval_id)
+        # print(payload)
         send(('APP_EVALUATION_REQUEST',payload), to=self.id)
+        self.logger.info('[SENT[APP_EVALUATION_REQUEST][{}] to [{}] payload:{}'
+                         .format(payload['app_id'], self.id, payload))
 
 
     def add_tentative_attr_updates_to_req(sub, req_no):
@@ -243,7 +248,7 @@ class SubCoordP(process):
 
     def get_tentative_evals(sub, req_no):
         evals = self.eval_cache[(self.eval_cache['status'] == const.WORKER_COMPLETE) & (self.eval_cache['req_no'] < req_no)]
-        evals = evals.sort(['req_no'], ascending=[True])
+        evals = evals.sort_values('req_no', ascending=True)
         evals = json.loads(evals.to_json(orient="records"))
         eval_with_sub_attrs = []
 
@@ -260,8 +265,9 @@ class SubCoordP(process):
 
     def process_worker_response(eval_id, result):
         res = None
+        # TODO: Change it to Pandas stuff
         if eval_id in self.eval_cache:
-            res = self.eval_cache['eval_id']['res']
+            res = self.eval_cache.loc([self.eval_cache['eval_id'] == eval_id])['res']
 
         if has_subject_attr_updates(eval_id):
             restart(eval_id)
@@ -273,7 +279,6 @@ class SubCoordP(process):
 
             tentative_eval_ids = set([x['eval_id'] for x in tentative_evals])
             if some(received(('RES_COMMIT_RESPONSE', payload)), has= payload['eval_id'] in tentative_eval_ids and payload['result'] == False):
-                # print('********-------', payload)
                 print('restarting eval_id = ', eval_id)
                 restart(eval_id)
             else:
@@ -307,7 +312,7 @@ class SubCoordP(process):
         self.logger.info('[RECEIVED][WORKER_EVALUATION_RESPONSE][{}] payload:{}'
                          .format(payload['app_id'], payload))
         status, res = process_worker_response(payload['eval_id'], payload['result'])
-
+        print("*********",status, res, "***********")
         # If control comes here then it should have been successful
         # Upon failure the process is restarted
         if status:
@@ -329,7 +334,7 @@ class SubCoordP(process):
             self.logger.info('[SENT][APP_EVALUATION_RESPONSE][{}] payload:{}'
                          .format(app_eval_payload['app_id'], app_eval_payload))
         else:
-            # Restart myself
+            restart(payload['eval_id'])
             pass
 
 
