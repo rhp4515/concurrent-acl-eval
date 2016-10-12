@@ -8,6 +8,7 @@ import pandas as pd
 import random
 import uuid
 import time
+from tabulate import tabulate
 
 def get_logger(name, path):
     logger = logging.getLogger(name)
@@ -46,10 +47,11 @@ class DBEmulator(process):
     def _read(data):
         resp = dict(type=data['type'], id=data['id'], attr=dict())
         for attr_name in data['attr']:
+            print (attr_name)
             key = (data['type'], data['id'], attr_name)
             val = None
             if key in self.attr_db:
-                data = self.attr_db[key]
+                val = self.attr_db[key]
             else:
                 if attr_name in const.NUMERICAL_ATTR:
                     val = 0
@@ -114,6 +116,7 @@ class Application(process):
         payload = {
             'sub':sub,
             'res':res,
+            'action':'read',
             'app_id':app_id
         }
         p = get_sub_coord(sub)
@@ -125,12 +128,12 @@ class Application(process):
     def run():
         sub = {
             'type':'customer',
-            'attr': {'count':2},
+            'attr': {},
             'id':'1'
         }
         res = {
             'type':'movie',
-            'attr': {'count':0},
+            'attr': {},
             'id':'1'
         }
         authorize(sub, res)
@@ -199,6 +202,13 @@ class SubCoordP(process):
         indices = self.eval_cache.loc[(self.eval_cache['eval_id'] == eval_id)].index.tolist()
         if indices:
             self.eval_cache.ix[indices[0], 'status'] = const.WORKER_COMPLETE
+
+    def update_attr(eval_id, sub, res):
+        self.logger.info('[UPDATING CACHE] [{}]'.format(eval_id))
+        indices = self.eval_cache.loc[(self.eval_cache['eval_id'] == eval_id)].index.tolist()
+        if indices:
+            self.eval_cache.set_value(indices[0],'sub', sub) 
+            self.eval_cache.set_value(indices[0],'res', res) 
 
     def clear_cache(eval_id):
         self.logger.info('[CLEAR CACHE] [{}]'.format(eval_id))
@@ -326,11 +336,13 @@ class SubCoordP(process):
         clear_cache(eval_id)
 
     def restart_dependent_evals(eval_id):
+        print ("restarting dependant eva;s")
         evals = get_evals_dependent_on(eval_id)
         for eval in evals:
-            restart(eval_id)
+            restart(eval['eval_id'])
 
     def receive(msg= ('APP_EVALUATION_REQUEST', payload), from_=p, clk=rclk):
+        print (tabulate(self.eval_cache, headers='keys',tablefmt='psql'))
         self.logger.info('[RECEIVED][APP_EVALUATION_REQUEST][{}] payload:{}'
                          .format(payload['app_id'], payload))
 
@@ -352,6 +364,7 @@ class SubCoordP(process):
     def receive(msg= ('WORKER_EVALUATION_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][WORKER_EVALUATION_RESPONSE][{}] payload:{}'
                          .format(payload['app_id'], payload))
+        update_attr(payload['eval_id'], payload['sub'], payload['res'])
         status, res = process_worker_response(payload['eval_id'], payload['result'])
         print("*********",status, res, "***********")
         # If control comes here then it should have been successful
@@ -378,6 +391,7 @@ class SubCoordP(process):
                          .format(app_eval_payload['app_id'], app_eval_payload))
         else:
             restart_dependent_evals(payload['eval_id'])
+            restart(payload['eval_id'])
 
 
 class ResCoordP(process):
@@ -412,6 +426,7 @@ class ResCoordP(process):
 
     def conflict_exists(eval_id, res):
         eval = get_eval(eval_id)
+
         if not eval or not res:
             return True
 
@@ -432,6 +447,7 @@ class ResCoordP(process):
 
     def commit_evaluation(eval_id, res):
         if conflict_exists(eval_id, res):
+            print ("exist conflict")
             return False
         else:
             update_attr_db(eval_id, res)
@@ -468,15 +484,16 @@ class WorkerP(process):
         self.requests = dict()
 
     def evaluate(sub, res):
-        return False
-
+        # change attr values based on policy rules
+        return False, sub, res
+    
     def setup_payload(app_id, eval_id, sub, res):
         payload = {
         'app_id' : app_id,
         'eval_id' : eval_id,
         'sub':{
             'type':'customer',
-            'id':'2',
+            'id':'1',
             'attr':['count', 'v']
         },
         'res':{
@@ -508,10 +525,12 @@ class WorkerP(process):
 
         sub_coord_ps = self.requests[payload['eval_id']]
         # print (sub_coord_ps)
-        result = evaluate(payload['sub'], payload['res'])
-
+        result, sub, res = evaluate(payload['sub'], payload['res'])
+        
         worker_resp_payload = dict(eval_id=payload['eval_id'],
                                    result=result,
+                                   sub=sub,
+                                   res=res,
                                    app_id=payload['app_id'])
 
         send(('WORKER_EVALUATION_RESPONSE', worker_resp_payload),to=sub_coord_ps)
