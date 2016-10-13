@@ -397,7 +397,7 @@ class SubCoordP(process):
 class ResCoordP(process):
     def setup(workers, config):
         self.logger = get_logger('res_coord_logger', config['res_coord_log'])
-        self.eval_cache = dict()
+        self.res_cache = dict()
         self.next_worker_idx = -1
         self.workers = list(workers)
 
@@ -409,62 +409,65 @@ class ResCoordP(process):
         self.next_worker_idx += 1
         return self.workers[next_worker_idx%len(self.workers)]
 
-    def get_eval(eval_id):
-        return self.eval_cache.get(eval_id, None)
+    def setup_res_attr(res):
+        key = (res['type'], res['id'])
+        if key in self.res_cache:
+            res['attr'] = self.res_cache[key]
+        
+        return res
 
-    def setup_cache(eval_id, sub, res):
-        self.eval_cache[eval_id] = dict(sub=sub, res=res)
+    def update_cache(res):
+        key = (res['type'], res['id'])
+        self.res_cache[key] = res['attr']
 
-    def clear_cache(eval_id):
-        del self.eval_cache[eval_id]
 
-    def evaluate(eval_id, sub, res):
-        if eval_id in self.eval_cache:
-            clear_cache(eval_id)
+    def conflict_exists(res):
+        key = (res['type'], res['id'])
+        if key not in self.res_cache:
+            return False
 
-        setup_cache(eval_id, sub, res)
-
-    def conflict_exists(eval_id, res):
-        eval = get_eval(eval_id)
-
-        if not eval or not res:
-            return True
-
-        for attr in self.eval['res']:
-            if res.get(attr) != self.eval['res'][attr]:
+        cache_res = self.res_cache[key]     
+        for attr in res['old_attr']:
+            if attr in cache_res and res['old_attr'][attr] != cache_res[attr]:
                 return True
 
         return False
 
 
-    def update_attr_db(eval_id, res):
+    def update_attr_db(res):
         # TODO: Write the updates to db after constructing db
-        eval = get_eval(eval_id)
-        sub_id = eval['sub']['id']
         # send(('DB_WRITE_REQUEST', sub),to=db_ps)
         # self.logger.info('[SENT][DB_WRITE_REQUEST] payload:{}'.format(sub))
+
+        # jus update the resource attrs
         return
 
     def commit_evaluation(eval_id, res):
-        if conflict_exists(eval_id, res):
+        if conflict_exists(res):
             print ("exist conflict")
             return False
         else:
-            update_attr_db(eval_id, res)
-            clear_cache(eval_id)
+            update_cache(res)
+            update_attr_db(res)
             return True
 
     def receive(msg= ('RES_EVALUATION_REQUEST', payload), from_=p):
+        print ("**************************************************")
+        print (self.res_cache)
         self.logger.info('[RECEIVED][RES_EVALUATION_REQUEST][{}] payload:{}'
                          .format(payload['app_id'], payload))
-        evaluate(payload['eval_id'], payload['sub'], payload['res'])
+        setup_res_attr(payload['res'])
         payload['sub_coord'] = p
         send(('WORKER_EVALUATION_REQUEST', payload),to=get_worker())
 
         self.logger.info('[SENT][WORKER_EVALUATION_REQUEST][{}] payload:{}'
                          .format(payload['app_id'], payload))
+        print (self.res_cache)
+        print ("**************************************************")
 
     def receive(msg= ('RES_COMMIT_REQUEST', payload), from_=p):
+        print ("**************************************************")
+        print (self.res_cache)
         self.logger.info('[RECEIVED][RES_COMMIT_REQUEST][{}] payload:{}'
                          .format(payload['app_id'], payload))
 
@@ -477,14 +480,18 @@ class ResCoordP(process):
 
         self.logger.info('[SENT][RES_COMMIT_RESPONSE][{}] payload:{}'
                              .format(res_commit_payload['app_id'], res_commit_payload))
+        print (self.res_cache)
+        print ("**************************************************")
 
 class WorkerP(process):
     def setup(db_ps, config):
         self.logger = get_logger('worker_logger', config['worker_log'])
         self.requests = dict()
 
-    def evaluate(sub, res):
+    def evaluate(eval_id, sub, res, orig_res):
+        # orig_res, _ = self.requests[eval_id] 
         # change attr values based on policy rules
+        res['old_attr'] = orig_res['attr']
         return False, sub, res
     
     def setup_payload(app_id, eval_id, sub, res):
@@ -499,7 +506,7 @@ class WorkerP(process):
         'res':{
             'type':'movie',
             'id':'1',
-            'attr':['count']
+            'attr':['count'],
         }
         }
         return payload
@@ -511,7 +518,7 @@ class WorkerP(process):
     def receive(msg= ('WORKER_EVALUATION_REQUEST', payload), from_=p):
         self.logger.info('[RECEIVED][WORKER_EVALUATION_REQUEST][{}] payload:{}'
                          .format(payload['app_id'], payload))
-        self.requests[payload['eval_id']] = payload['sub_coord']
+        self.requests[payload['eval_id']] = (payload['res'], payload['sub_coord'])
         # print (p)
         db_payload = setup_payload(payload['app_id'], payload['eval_id'], payload['sub'], payload['res'])
 
@@ -523,9 +530,9 @@ class WorkerP(process):
     def receive(msg= ('DB_READ_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][DB_READ_RESPONSE][{}] payload:{}'.format(payload['app_id'], payload))
 
-        sub_coord_ps = self.requests[payload['eval_id']]
+        orig_res, sub_coord_ps = self.requests[payload['eval_id']]
         # print (sub_coord_ps)
-        result, sub, res = evaluate(payload['sub'], payload['res'])
+        result, sub, res = evaluate(payload['eval_id'], payload['sub'], payload['res'], orig_res)
         
         worker_resp_payload = dict(eval_id=payload['eval_id'],
                                    result=result,
