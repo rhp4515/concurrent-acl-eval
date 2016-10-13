@@ -491,23 +491,31 @@ class WorkerP(process):
     def evaluate(eval_id, sub, res, orig_res):
         # orig_res, _ = self.requests[eval_id] 
         # change attr values based on policy rules
+        # evaluate the policies
         res['old_attr'] = orig_res['attr']
+        
         return False, sub, res
     
+    def get_sub_attr(sub, res):
+        return []
+
+    def get_res_attr(sub, res):
+        return []
+
     def setup_payload(app_id, eval_id, sub, res):
         payload = {
-        'app_id' : app_id,
-        'eval_id' : eval_id,
-        'sub':{
-            'type':'customer',
-            'id':'1',
-            'attr':['count', 'v']
-        },
-        'res':{
-            'type':'movie',
-            'id':'1',
-            'attr':['count'],
-        }
+            'app_id' : app_id,
+            'eval_id' : eval_id,
+            'sub':{
+                'type':sub['type'],
+                'id':sub['type'],
+                'attr': get_sub_attr(sub, res)
+            },
+            'res':{
+                'type':res['type'],
+                'id':res['id'],
+                'attr':get_res_attr(sub, res),
+            }
         }
         return payload
 
