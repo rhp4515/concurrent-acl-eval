@@ -12,7 +12,7 @@ from tabulate import tabulate
 
 def get_logger(name, path):
     logger = logging.getLogger(name)
-    # logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.DEBUG)
     handler = logging.FileHandler(path, mode='w')
     handler.setLevel(logging.DEBUG)
     logger.addHandler(handler)
@@ -106,9 +106,8 @@ class Application(process):
     def get_sub_coord(sub):
         sub_coords = list(sub_coord_ps)
         sub_coords.sort(key= lambda k: k._address[1])
-        output(sub_coords)
         chosen = sub_coords[int(sub['id'])%len(sub_coords)]
-        output('SENDING SUB ID - {} TO PROCESS {}'.format(sub['id'], chosen))
+        self.logger.info('SENDING SUB ID - {} TO PROCESS {}'.format(sub['id'], chosen))
         return chosen
 
     def authorize(sub, res):
@@ -137,13 +136,13 @@ class Application(process):
             'id':'1'
         }
         authorize(sub, res)
-        # time.sleep(1)
-        # sub = {
-        #     'type':'customer',
-        #     'attr': {'count':1},
-        #     'id':'1'
-        # }
-        # authorize(sub, res)
+        time.sleep(1)
+        sub = {
+            'type':'customer',
+            'attr': {},
+            'id':'1'
+        }
+        authorize(sub, res)
         # time.sleep(1)
         # sub = {
         #     'type':'customer',
@@ -159,7 +158,6 @@ class Application(process):
                          .format(app_id, payload))
 
 
-
 class SubCoordP(process):
     def setup(db_ps, res_coord_ps, config):
         self.logger = get_logger('sub_coord_logger', config['sub_coord_log'])
@@ -170,7 +168,6 @@ class SubCoordP(process):
     def get_res_coord(res):
         res_coords = list(res_coord_ps)
         res_coords.sort(key= lambda k: k._address[1])
-        output(res_coords)
         chosen = res_coords[int(res['id'])%len(res_coords)]
         self.logger.info('SENDING RES ID - {} TO PROCESS {}'.format(res['id'], chosen))
         return chosen
@@ -184,6 +181,7 @@ class SubCoordP(process):
 
 
     def run():
+        # await(received(('done', )))
         await(False)
 
     def setup_cache(eval_id, sub, res, dep_eval_ids, req_no, status):
@@ -201,14 +199,14 @@ class SubCoordP(process):
         self.logger.info('[UPDATING CACHE] [{}]'.format(eval_id))
         indices = self.eval_cache.loc[(self.eval_cache['eval_id'] == eval_id)].index.tolist()
         if indices:
-            self.eval_cache.ix[indices[0], 'status'] = const.WORKER_COMPLETE
+            self.eval_cache.set_value(indices[0], 'status', const.WORKER_COMPLETE)
 
     def update_attr(eval_id, sub, res):
-        self.logger.info('[UPDATING CACHE] [{}]'.format(eval_id))
+        self.logger.info('[UPDATING ATTR] [{}]'.format(eval_id))
         indices = self.eval_cache.loc[(self.eval_cache['eval_id'] == eval_id)].index.tolist()
         if indices:
-            self.eval_cache.set_value(indices[0],'sub', sub) 
-            self.eval_cache.set_value(indices[0],'res', res) 
+            self.eval_cache.set_value(indices[0],'sub', sub)
+            self.eval_cache.set_value(indices[0],'res', res)
 
     def clear_cache(eval_id):
         self.logger.info('[CLEAR CACHE] [{}]'.format(eval_id))
@@ -366,7 +364,7 @@ class SubCoordP(process):
                          .format(payload['app_id'], payload))
         update_attr(payload['eval_id'], payload['sub'], payload['res'])
         status, res = process_worker_response(payload['eval_id'], payload['result'])
-        print("*********",status, res, "***********")
+        # print("*********",status, res, "***********")
         # If control comes here then it should have been successful
         # Upon failure the process is restarted
         if status:
@@ -413,7 +411,7 @@ class ResCoordP(process):
         key = (res['type'], res['id'])
         if key in self.res_cache:
             res['attr'] = self.res_cache[key]
-        
+
         return res
 
     def update_cache(res):
@@ -426,7 +424,7 @@ class ResCoordP(process):
         if key not in self.res_cache:
             return False
 
-        cache_res = self.res_cache[key]     
+        cache_res = self.res_cache[key]
         for attr in res['old_attr']:
             if attr in cache_res and res['old_attr'][attr] != cache_res[attr]:
                 return True
@@ -452,8 +450,8 @@ class ResCoordP(process):
             return True
 
     def receive(msg= ('RES_EVALUATION_REQUEST', payload), from_=p):
-        print ("**************************************************")
-        print (self.res_cache)
+        # print ("**************************************************")
+        # print (self.res_cache)
         self.logger.info('[RECEIVED][RES_EVALUATION_REQUEST][{}] payload:{}'
                          .format(payload['app_id'], payload))
         setup_res_attr(payload['res'])
@@ -462,12 +460,12 @@ class ResCoordP(process):
 
         self.logger.info('[SENT][WORKER_EVALUATION_REQUEST][{}] payload:{}'
                          .format(payload['app_id'], payload))
-        print (self.res_cache)
-        print ("**************************************************")
+        # print (self.res_cache)
+        # print ("**************************************************")
 
     def receive(msg= ('RES_COMMIT_REQUEST', payload), from_=p):
-        print ("**************************************************")
-        print (self.res_cache)
+        # print ("**************************************************")
+        # print (self.res_cache)
         self.logger.info('[RECEIVED][RES_COMMIT_REQUEST][{}] payload:{}'
                          .format(payload['app_id'], payload))
 
@@ -480,8 +478,8 @@ class ResCoordP(process):
 
         self.logger.info('[SENT][RES_COMMIT_RESPONSE][{}] payload:{}'
                              .format(res_commit_payload['app_id'], res_commit_payload))
-        print (self.res_cache)
-        print ("**************************************************")
+        # print (self.res_cache)
+        # print ("**************************************************")
 
 class WorkerP(process):
     def setup(db_ps, config):
@@ -489,14 +487,15 @@ class WorkerP(process):
         self.requests = dict()
 
     def evaluate(eval_id, sub, res, orig_res):
-        # orig_res, _ = self.requests[eval_id] 
+        # orig_res, _ = self.requests[eval_id]
         # change attr values based on policy rules
         # evaluate the policies
         res['old_attr'] = orig_res['attr']
-        
+
         return False, sub, res
-    
+
     def get_sub_attr(sub, res):
+
         return []
 
     def get_res_attr(sub, res):
@@ -539,9 +538,8 @@ class WorkerP(process):
         self.logger.info('[RECEIVED][DB_READ_RESPONSE][{}] payload:{}'.format(payload['app_id'], payload))
 
         orig_res, sub_coord_ps = self.requests[payload['eval_id']]
-        # print (sub_coord_ps)
         result, sub, res = evaluate(payload['eval_id'], payload['sub'], payload['res'], orig_res)
-        
+
         worker_resp_payload = dict(eval_id=payload['eval_id'],
                                    result=result,
                                    sub=sub,
@@ -558,7 +556,7 @@ def main():
     config_fpath = sys.argv[1] if len(sys.argv) > 1 else "../config/main-config.json"
     config = cfg.load_config(config_fpath)
     # do something with config
-    config(channel="fifo", clock="Lamport")
+    config(channel="reliable", clock="Lamport")
 
 
     db_ps = new(DBEmulator, num=1)
