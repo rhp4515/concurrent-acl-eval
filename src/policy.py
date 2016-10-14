@@ -7,24 +7,30 @@ class PolicyParser():
         tree = ET.parse('../config/policy-list.xml')
         self.root = tree.getroot()
 
-    def get_sub_attr(self, sub):
-        sub_attrs = {}
+    def get_sub_attr(self, sub, res):
+        sub_attrs = set()
         for rule in self.root.iter('rule'):
             sc = rule.find('subjectCondition')
-            if sub['name'] == sc.attrib['name']:
-                for attr in sc.attrib:
-                    if attr not in ['id', 'name']:
-                        sub_attrs[attr] = sc.attrib[attr]
+            rc = rule.find('resourceCondition')
+            if sub['name'] == sc.attrib['name'] and res['name'] == rc.attrib['name']:
+                su = rule.find('subjectUpdate')
+                if su != None:
+                    for attr in su.attrib:
+                        if attr not in const.KEY_ATTRS:
+                            sub_attrs.add(attr)
         return sub_attrs
 
-    def get_res_attr(self, res):
-        res_attrs = {}
+    def get_res_attr(self, sub, res):
+        res_attrs = set()
         for rule in self.root.iter('rule'):
+            sc = rule.find('subjectCondition')
             rc = rule.find('resourceCondition')
-            if 'name' in res and 'name' in rc.attrib and res['name'] == rc.attrib['name']:
-                for attr in rc.attrib:
-                    if attr not in ['id', 'name']:
-                        res_attrs[attr] = rc.attrib[attr]
+            if sub['name'] == sc.attrib['name'] and res['name'] == rc.attrib['name']:
+                ru = rule.find('resourceUpdate')
+                if ru != None:
+                    for attr in ru.attrib:
+                        if attr not in const.KEY_ATTRS:
+                            res_attrs.add(attr)
         return res_attrs
 
     def check_sub_cond(self, sc, sub):
@@ -115,13 +121,13 @@ class PolicyParser():
                 print('resource update', ru.attrib)
             print()
 
-p = PolicyParser()
-sub = {'name':'customer', 'attr': {}, 'id':'2'}
-res = {'name':'movie', 'attr': {'viewCount': 5}, 'id':'1' }
-act = 'view'
+# p = PolicyParser()
+# sub = {'name':'customer', 'attr': {}, 'id':'2'}
+# res = {'name':'movie', 'attr': {'viewCount': 5}, 'id':'1' }
+# act = 'view'
+# # print(p.evaluate(sub, res, act))
+# sub = {'name':'employee', 'attr': {'history': 'bank A'}}
+# res = {'name':'bank B', 'attr': {}}
+# act = 'read'
+# # update res attrs only if the status is True
 # print(p.evaluate(sub, res, act))
-sub = {'name':'employee', 'attr': {'history': 'bank A'}}
-res = {'name':'bank B', 'attr': {}}
-act = 'read'
-# update res attrs only if the status is True
-print(p.evaluate(sub, res, act))
