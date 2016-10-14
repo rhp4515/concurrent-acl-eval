@@ -46,19 +46,24 @@ class DBEmulator(process):
         self.logger = get_logger('db_logger', config['db_log'])
         self.attr_db = {}
 
-        # with open(self.conf, 'r') as f:
-        #     db_data = f.read()
+        with open(self.conf, 'r') as f:
+            db_data = f.read()
 
-        # json_content = json.loads(json.dumps(xmltodict.parse(db_data)))['db']
+        json_content = json.loads(json.dumps(xmltodict.parse(db_data)))['db']
 
-        # json_schema = json_content['schema']
-        # for schema in json_schema:
-        #     self.tables[schema] = pd.DataFrame([], columns=json_schema[schema]['column'])
+        json_data = json_content['data']
+        for name in json_data:
+            print( json_data[name])
+            for data in json_data[name]:
+                for attr in data['attr']:    
+                    key = (name, data['id'], attr)
+                    val = data['attr'][attr]
+                    if not val:
+                        val = 0 if attr in const.NUMERICAL_ATTR else ''
+                            
+                    self.attr_db[key] = int(val) if attr in const.NUMERICAL_ATTR else val
 
-        # json_data = json_content['data']
-
-        # for table in json_data:
-        #     self.tables[table] = pd.read_json(json.dumps(json_data[table]))
+        print (self.attr_db)
 
     def run():
         # print(self.tables)
@@ -73,10 +78,7 @@ class DBEmulator(process):
             if key in self.attr_db:
                 val = self.attr_db[key]
             else:
-                if attr_name in const.NUMERICAL_ATTR:
-                    val = 0
-                else:
-                    val = ''
+                val = 0 if attr_name in const.NUMERICAL_ATTR else ''
                 self.attr_db[key] = val
 
             resp['attr'][attr_name] = val
@@ -92,18 +94,7 @@ class DBEmulator(process):
         return None
 
     def _op(fn, data):
-        # should we use this flag or jus delay for every operation ?
-        # should we delay the operation or literally mimic the visibility?
-        # if later, we gotta think more about the design.. former is jus
-        # removing the condition and jus delay for everything
-        # if data['delay']:
-        #     time.sleep(random.randint(self.minLatency,self.maxLatency))
-
-        payload = fn(data)
-        # print ("************ ATTR DB **************")
-        # print (self.attr_db)
-        return payload
-
+        return fn(data)
 
     def receive(msg=('DB_READ_REQUEST', data), from_=p):
         self.logger.info('[RECEIVED][DB_READ_REQUEST][{}] payload:{}'.format(data['app_id'], data))
@@ -157,35 +148,41 @@ class Application(process):
         }
         res = {
             'name':'movie',
-            'attr': {'viewCount': 5},
+            'attr': {},
             'id':'1'
         }
         action = {
             'name': 'view'
         }
         authorize(sub, res, action)
-        # time.sleep(1)
-        # sub = {
-        #     'name':'employee',
-        #     'attr': {},
-        #     'id':'1'
-        # }
-        # res = {
-        #     'name': 'bank A',
-        #     'attr': {},
-        #     'id': '1'
-        # }
-        # action = {
-        #     'name': 'read'
-        # }
-        # authorize(sub, res, action)
-        # time.sleep(1)
-        # sub = {
-        #     'name':'customer',
-        #     'attr': {'value':2,'count':3},
-        #     'id':'1'
-        # }
-        # authorize(sub, res)
+        sub = {
+            'name':'customer',
+            'attr': {},
+            'id':'1'
+        }
+        res = {
+            'name':'movie',
+            'attr': {},
+            'id':'2'
+        }
+        action = {
+            'name': 'view'
+        }
+        authorize(sub, res, action)
+        sub = {
+            'name':'customer',
+            'attr': {},
+            'id':'1'
+        }
+        res = {
+            'name':'movie',
+            'attr': {},
+            'id':'3'
+        }
+        action = {
+            'name': 'view'
+        }
+        authorize(sub, res, action)
         await(False)
 
     def receive(msg=('APP_EVALUATION_RESPONSE', payload), from_=p):
@@ -194,7 +191,7 @@ class Application(process):
                          .format(app_id, payload))
 
 
-class SubCoordP(process):
+class SubCoord(process):
     def setup(db_ps, res_coord_ps, config):
         self.logger = get_logger('sub_coord_logger', config['sub_coord_log'])
         self.app_req_map = dict()
@@ -483,7 +480,7 @@ class SubCoordP(process):
         send(('DB_WRITE_REQUEST', write_payload),to=db_ps)
         self.logger.info('[SENT][DB_WRITE_REQUEST][{}] payload:{}'.format(payload['app_id'], write_payload))
 
-class ResCoordP(process):
+class ResCoord(process):
     def setup(db_ps, workers, config):
         self.logger = get_logger('res_coord_logger', config['res_coord_log'])
         self.res_cache = dict()
@@ -607,7 +604,7 @@ class ResCoordP(process):
         send(('DB_WRITE_REQUEST', write_payload),to=db_ps)
         self.logger.info('[SENT][DB_WRITE_REQUEST][{}] payload:{}'.format(payload['app_id'], write_payload))
 
-class WorkerP(process):
+class Worker(process):
     def setup(db_ps, config):
         self.logger = get_logger('worker_logger', config['worker_log'])
         self.requests = dict()
@@ -690,15 +687,15 @@ def main():
     setup(db_ps,(config,))
     start(db_ps)
 
-    worker_ps = new(WorkerP, num=config['num_coords']*config['worker_count'])
+    worker_ps = new(Worker, num=config['num_coords']*config['worker_count'])
     setup(worker_ps,(db_ps, config,))
     start(worker_ps)
 
-    res_coord_ps = new(ResCoordP, num=config['num_coords'])
+    res_coord_ps = new(ResCoord, num=config['num_coords'])
     setup(res_coord_ps,(db_ps, worker_ps, config,))
     start(res_coord_ps)
 
-    sub_coord_ps = new(SubCoordP, num=config['num_coords'])
+    sub_coord_ps = new(SubCoord, num=config['num_coords'])
     setup(sub_coord_ps,(db_ps, res_coord_ps, config,))
     start(sub_coord_ps)
 

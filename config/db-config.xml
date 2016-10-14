@@ -1,79 +1,40 @@
 <db>
 	<data>
-		<customer>
-			<id>1</id>
-			<name>'Cust1'</name>
-		</customer>
-		<customer>
-			<id>2</id>
-			<name>'Cust2'</name>
-		</customer>
-		<movie>
-			<id>1</id>
-			<name>'Movie1'</name>
-		</movie>
-		<movie>
-			<id>2</id>
-			<name>'Movie2'</name>
-		</movie>
 		<employee>
 			<id>1</id>
-			<name>'Emp1'</name>
+			<attr>
+				<history></history>
+			</attr>
 		</employee>
 		<employee>
 			<id>2</id>
-			<name>'Emp2'</name>
+			<attr>
+				<history>bank A</history>
+			</attr>
 		</employee>
 		<employee>
 			<id>3</id>
-			<name>'Emp3'</name>
+			<attr>
+				<history>bank B</history>
+			</attr>
 		</employee>
-		<employee>
-			<id>4</id>
-			<name>'Emp4'</name>
-		</employee>
-		<employee>
-			<id>5</id>
-			<name>'Emp5'</name>
-		</employee>
-		<bank>
+		<movie>
 			<id>1</id>
-			<name>'BankA'</name>
-		</bank>
-		<bank>
+			<attr>
+				<viewCount>0</viewCount>
+			</attr>
+		</movie>
+		<movie>
 			<id>2</id>
-			<name>'BankB'</name>
-		</bank>
-		<bank>
+			<attr>
+				<viewCount>10</viewCount>
+			</attr>
+		</movie>
+		<movie>
 			<id>3</id>
-			<name>'BankC'</name>
-		</bank>
+			<attr>
+				<viewCount>5</viewCount>
+			</attr>
+		</movie>
 	</data>
-	<schema>
-		<employee>
-			<column>id</column>
-			<column>name</column>
-		</employee>
-		<bank>
-			<column>id</column>
-			<column>name</column>
-		</bank>
-		<movie>
-			<column>id</column>
-			<column>name</column>
-		</movie>
-		<cutomer>
-			<column>id</column>
-			<column>name</column>
-		</cutomer>
-		<emp_bank_hist>
-			<column>emp_id</column>
-			<column>bank_id</column>
-		</emp_bank_hist>
-		<cust_movie_hist>
-			<column>cust_id</column>
-			<column>movie_id</column>
-			<column>count</column>
-		</cust_movie_hist>
-	</schema>
 </db>
