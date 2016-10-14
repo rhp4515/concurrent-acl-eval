@@ -9,6 +9,7 @@ import random
 import uuid
 import time
 from tabulate import tabulate
+from policy import PolicyParser
 
 def get_logger(name, path):
     logger = logging.getLogger(name)
@@ -16,6 +17,7 @@ def get_logger(name, path):
     handler = logging.FileHandler(path, mode='w')
     handler.setLevel(logging.DEBUG)
     logger.addHandler(handler)
+    logger.disabled = True
     return logger
 
 class DBEmulator(process):
@@ -45,10 +47,10 @@ class DBEmulator(process):
         await(False)
 
     def _read(data):
-        resp = dict(type=data['type'], id=data['id'], attr=dict())
+        resp = dict(name=data['name'], id=data['id'], attr=dict())
         for attr_name in data['attr']:
             print (attr_name)
-            key = (data['type'], data['id'], attr_name)
+            key = (data['name'], data['id'], attr_name)
             val = None
             if key in self.attr_db:
                 val = self.attr_db[key]
@@ -66,7 +68,7 @@ class DBEmulator(process):
 
     def _write(data):
         for attr in data['attr']:
-            key = (data['type'], data['id'], attr)
+            key = (data['name'], data['id'], attr)
             self.attr_db[key] = data['attr'][attr]
 
         return None
@@ -80,8 +82,8 @@ class DBEmulator(process):
         #     time.sleep(random.randint(self.minLatency,self.maxLatency))
 
         payload = fn(data)
-        print ("************ ATTR DB **************")
-        print (self.attr_db)
+        # print ("************ ATTR DB **************")
+        # print (self.attr_db)
         return payload
 
 
@@ -126,26 +128,31 @@ class Application(process):
 
     def run():
         sub = {
-            'type':'customer',
+            'name':'customer',
             'attr': {},
             'id':'1'
         }
         res = {
-            'type':'movie',
+            'name':'movie',
             'attr': {},
             'id':'1'
         }
         authorize(sub, res)
         time.sleep(1)
         sub = {
-            'type':'customer',
+            'name':'employee',
             'attr': {},
             'id':'1'
+        }
+        res = {
+            'name': 'bank A',
+            'attr': {},
+            'id': '1'
         }
         authorize(sub, res)
         # time.sleep(1)
         # sub = {
-        #     'type':'customer',
+        #     'name':'customer',
         #     'attr': {'value':2,'count':3},
         #     'id':'1'
         # }
@@ -408,19 +415,19 @@ class ResCoordP(process):
         return self.workers[next_worker_idx%len(self.workers)]
 
     def setup_res_attr(res):
-        key = (res['type'], res['id'])
+        key = (res['name'], res['id'])
         if key in self.res_cache:
             res['attr'] = self.res_cache[key]
 
         return res
 
     def update_cache(res):
-        key = (res['type'], res['id'])
+        key = (res['name'], res['id'])
         self.res_cache[key] = res['attr']
 
 
     def conflict_exists(res):
-        key = (res['type'], res['id'])
+        key = (res['name'], res['id'])
         if key not in self.res_cache:
             return False
 
@@ -485,6 +492,7 @@ class WorkerP(process):
     def setup(db_ps, config):
         self.logger = get_logger('worker_logger', config['worker_log'])
         self.requests = dict()
+        self.policy = PolicyParser()
 
     def evaluate(eval_id, sub, res, orig_res):
         # orig_res, _ = self.requests[eval_id]
@@ -495,23 +503,22 @@ class WorkerP(process):
         return False, sub, res
 
     def get_sub_attr(sub, res):
-
-        return []
+        return list(self.policy.get_sub_attr(sub))
 
     def get_res_attr(sub, res):
-        return []
+        return list(self.policy.get_res_attr(res))
 
     def setup_payload(app_id, eval_id, sub, res):
         payload = {
             'app_id' : app_id,
             'eval_id' : eval_id,
             'sub':{
-                'type':sub['type'],
-                'id':sub['type'],
+                'name':sub['name'],
+                'id':sub['name'],
                 'attr': get_sub_attr(sub, res)
             },
             'res':{
-                'type':res['type'],
+                'name':res['name'],
                 'id':res['id'],
                 'attr':get_res_attr(sub, res),
             }
@@ -526,7 +533,7 @@ class WorkerP(process):
         self.logger.info('[RECEIVED][WORKER_EVALUATION_REQUEST][{}] payload:{}'
                          .format(payload['app_id'], payload))
         self.requests[payload['eval_id']] = (payload['res'], payload['sub_coord'])
-        # print (p)
+
         db_payload = setup_payload(payload['app_id'], payload['eval_id'], payload['sub'], payload['res'])
 
         send(('DB_READ_REQUEST', db_payload), to=db_ps)
