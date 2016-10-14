@@ -17,7 +17,7 @@ def get_logger(name, path):
     handler = logging.FileHandler(path, mode='w')
     handler.setLevel(logging.DEBUG)
     logger.addHandler(handler)
-    logger.disabled = True
+    # logger.disabled = True
     return logger
 
 class TimerP(process):
@@ -352,7 +352,7 @@ class SubCoordP(process):
         payload = dict(app_id=app_id, sub=sub)
         for attr in sub['attr']:
             key = (sub['name'], sub['id'], attr)
-            self.attr_cache[key] = sub[attr]
+            self.attr_cache[key] = sub['attr'][attr]
 
         seconds = random.randint(self.minLatency,self.maxLatency)
         payload = dict(app_id=app_id, latency_in_secs=seconds, sub=sub)
@@ -441,9 +441,16 @@ class SubCoordP(process):
                          .format(payload['app_id'], payload))
 
         sub = payload['sub']
+        ignore_attrs = []
         for attr in sub['attr']:
-            key = (sub['name'], sub['id'], sub[attr])
-            sub[attr] = self.attr_cache[key]
+            key = (sub['name'], sub['id'], attr)
+            if key in self.attr_cache:
+                sub['attr'][attr] = self.attr_cache[key]
+            else:
+                ignore_attrs.append(attr)
+
+        for attr in ignore_attrs:
+            del sub['attr'][attr]
 
         write_payload = dict(app_id=payload['app_id'], data=sub)
         send(('DB_WRITE_REQUEST', write_payload),to=db_ps)
