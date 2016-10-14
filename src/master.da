@@ -20,6 +20,24 @@ def get_logger(name, path):
     logger.disabled = True
     return logger
 
+class TimerP(process):
+    def setup(config):
+        self.logger = get_logger('timer_logger', config['timer_log'])
+    
+    def run():
+        # Kill after sending one message
+        await(received(('DONE',)))
+
+
+    def receive(msg= ('TIMER_REQUEST', payload), from_=p):
+        self.logger.info('[RECEIVED][TIMER_REQUEST][{}] payload:{}'
+                         .format(payload['app_id'], payload))
+        time.sleep(payload['latency_in_secs'])
+        del payload['latency_in_secs']
+        send(('TIMER_RESPONSE', payload),to=p)
+        self.logger.info('[SENT][TIMER_RESPONSE][{}] payload:{}'.format(payload['app_id'], payload))
+        send(('DONE',),to=self.id)
+
 class DBEmulator(process):
     def setup(config):
         self.conf = config['db_config']
@@ -97,7 +115,7 @@ class DBEmulator(process):
 
     def receive(msg=('DB_WRITE_REQUEST', data), from_=p):
         self.logger.info('[RECEIVED][DB_WRITE_REQUEST][{}] payload:{}'.format(data['app_id'], data))
-        self._op(self._write, data['sub'])
+        self._op(self._write, data['data'])
 
 # Client corresponds to Application instance
 class Application(process):
@@ -171,6 +189,9 @@ class SubCoordP(process):
         self.app_req_map = dict()
         columns = ['eval_id','sub', 'res', 'dep_eval_ids', 'status', 'req_no']
         self.eval_cache = pd.DataFrame([], columns=columns)
+        self.attr_cache = dict()
+        self.minLatency = config['minDBlatency']
+        self.maxLatency = config['maxDBlatency']
 
     def get_res_coord(res):
         res_coords = list(res_coord_ps)
@@ -235,13 +256,13 @@ class SubCoordP(process):
                          .format(payload['app_id'], self.id, payload))
 
 
+
     def add_tentative_attr_updates_to_req(sub, req_no):
-        tentative_evals = get_tentative_evals(sub, req_no)
+        tentative_evals = get_previous_committed_evals(req_no)
         for eval in tentative_evals:
             attrs = eval['sub']['attr']
             for k in attrs:
-                if k in sub['attr']:
-                    sub['attr'][k] = attrs[k]
+                sub['attr'][k] = attrs[k]
         return sub, [eval['eval_id'] for eval in tentative_evals]
 
     def has_subject_attr_updates(eval_id):
@@ -314,7 +335,13 @@ class SubCoordP(process):
             else:
                 return True, res
         return False, res
-
+    
+    def get_previous_committed_evals(req_no):
+        evals = self.eval_cache[(self.eval_cache['status'] == const.WORKER_COMPLETE) & (self.eval_cache['req_no'] < req_no)]
+        evals = evals.sort_values('req_no', ascending=True)
+        evals = json.loads(evals.to_json(orient="records"))
+        return evals
+            
     def get_previous_evals(req_no):
         evals = self.eval_cache[self.eval_cache['req_no'] < req_no]
         evals = evals.sort_values('req_no', ascending=True)
@@ -323,8 +350,19 @@ class SubCoordP(process):
 
     def update_attr_db(app_id, sub):
         payload = dict(app_id=app_id, sub=sub)
-        send(('DB_WRITE_REQUEST', payload),to=db_ps)
-        self.logger.info('[SENT][DB_WRITE_REQUEST][{}] payload:{}'.format(app_id, payload))
+        for attr in sub['attr']:
+            key = (sub['name'], sub['id'], attr)
+            self.attr_cache[key] = sub[attr]
+
+        seconds = random.randint(self.minLatency,self.maxLatency)
+        payload = dict(app_id=app_id, latency_in_secs=seconds, sub=sub)
+
+        timer_ps = new(TimerP, num=1)
+        setup(timer_ps,(config,))
+        start(timer_ps)
+
+        send(('TIMER_REQUEST', payload),to=timer_ps)
+        self.logger.info('[SENT][TIMER_REQUEST][{}] payload:{}'.format(app_id, payload))
 
     def commit_eval(app_id, eval_id):
         curr_eval = get_eval(eval_id)
@@ -398,6 +436,18 @@ class SubCoordP(process):
             restart_dependent_evals(payload['eval_id'])
             restart(payload['eval_id'])
 
+    def receive(msg= ('TIMER_RESPONSE', payload), from_=p):
+        self.logger.info('[RECEIVED][TIMER_RESPONSE][{}] payload:{}'
+                         .format(payload['app_id'], payload))
+
+        sub = payload['sub']
+        for attr in sub['attr']:
+            key = (sub['name'], sub['id'], sub[attr])
+            sub[attr] = self.attr_cache[key]
+
+        write_payload = dict(app_id=payload['app_id'], data=sub)
+        send(('DB_WRITE_REQUEST', write_payload),to=db_ps)
+        self.logger.info('[SENT][DB_WRITE_REQUEST][{}] payload:{}'.format(payload['app_id'], write_payload))
 
 class ResCoordP(process):
     def setup(workers, config):
