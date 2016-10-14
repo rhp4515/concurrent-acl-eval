@@ -23,7 +23,7 @@ def get_logger(name, path):
 class TimerP(process):
     def setup(config):
         self.logger = get_logger('timer_logger', config['timer_log'])
-    
+
     def run():
         # Kill after sending one message
         await(received(('DONE',)))
@@ -109,6 +109,7 @@ class DBEmulator(process):
         self.logger.info('[RECEIVED][DB_READ_REQUEST][{}] payload:{}'.format(data['app_id'], data))
         sub = self._op(self._read, data['sub'])
         res = self._op(self._read, data['res'])
+        print(data)
         payload = dict(sub=sub, res=res, eval_id=data['eval_id'], app_id=data['app_id'])
         send(('DB_READ_RESPONSE', payload), to=p)
         self.logger.info('[SENT][DB_READ_RESPONSE][{}] payload:{}'.format(data['app_id'],payload))
@@ -130,12 +131,12 @@ class Application(process):
         self.logger.info('SENDING SUB ID - {} TO PROCESS {}'.format(sub['id'], chosen))
         return chosen
 
-    def authorize(sub, res):
+    def authorize(sub, res, action):
         app_id = str(uuid.uuid4())
         payload = {
-            'sub':sub,
-            'res':res,
-            'action':'read',
+            'sub': sub,
+            'res': res,
+            'action': action,
             'app_id':app_id
         }
         p = get_sub_coord(sub)
@@ -152,22 +153,28 @@ class Application(process):
         }
         res = {
             'name':'movie',
-            'attr': {},
+            'attr': {'viewCount': 5},
             'id':'1'
         }
-        authorize(sub, res)
-        time.sleep(1)
-        sub = {
-            'name':'employee',
-            'attr': {},
-            'id':'1'
+        action = {
+            'name': 'view'
         }
-        res = {
-            'name': 'bank A',
-            'attr': {},
-            'id': '1'
-        }
-        authorize(sub, res)
+        authorize(sub, res, action)
+        # time.sleep(1)
+        # sub = {
+        #     'name':'employee',
+        #     'attr': {},
+        #     'id':'1'
+        # }
+        # res = {
+        #     'name': 'bank A',
+        #     'attr': {},
+        #     'id': '1'
+        # }
+        # action = {
+        #     'name': 'read'
+        # }
+        # authorize(sub, res, action)
         # time.sleep(1)
         # sub = {
         #     'name':'customer',
@@ -187,7 +194,7 @@ class SubCoordP(process):
     def setup(db_ps, res_coord_ps, config):
         self.logger = get_logger('sub_coord_logger', config['sub_coord_log'])
         self.app_req_map = dict()
-        columns = ['eval_id','sub', 'res', 'dep_eval_ids', 'status', 'req_no','result']
+        columns = ['eval_id','sub', 'res', 'action', 'dep_eval_ids', 'status', 'req_no','result']
         self.eval_cache = pd.DataFrame([], columns=columns)
         self.attr_cache = dict()
         self.minLatency = config['minDBlatency']
@@ -212,11 +219,12 @@ class SubCoordP(process):
         # await(received(('done', )))
         await(False)
 
-    def setup_cache(eval_id, sub, res, dep_eval_ids, req_no, status):
+    def setup_cache(eval_id, sub, res, action, dep_eval_ids, req_no, status):
         self.logger.info('[SETUP CACHE] [{}]'.format(eval_id))
         data = {'eval_id': eval_id,
                 'sub': sub,
                 'res': res,
+                'action': action,
                 'dep_eval_ids': dep_eval_ids,
                 'req_no': req_no,
                 'status':status,
@@ -250,6 +258,7 @@ class SubCoordP(process):
         payload = {
             'sub': app_req_map[eval_id]['sub'],
             'res': app_req_map[eval_id]['res'],
+            'action': app_req_map[eval_id]['action'],
             'app_id': app_req_map[eval_id]['app_id']
         }
         clear_cache(eval_id)
@@ -284,11 +293,11 @@ class SubCoordP(process):
         return False
 
 
-    def evaluate(app_id, sub, res, req_no, p):
+    def evaluate(app_id, sub, res, action, req_no, p):
         eval_id = str(uuid.uuid4())
-        app_req_map[eval_id] = dict(app_id=app_id, sub=sub, res=res, req_no=req_no, app_p=p)
+        app_req_map[eval_id] = dict(app_id=app_id, sub=sub, res=res, action=action, req_no=req_no, app_p=p)
         sub, dependent_eval_ids = add_tentative_attr_updates_to_req(sub, req_no)
-        setup_cache(eval_id, sub, res, dependent_eval_ids, req_no, const.PENDING)
+        setup_cache(eval_id, sub, res, action, dependent_eval_ids, req_no, const.PENDING)
         return eval_id, sub
 
     def get_tentative_evals(sub, req_no):
@@ -337,13 +346,13 @@ class SubCoordP(process):
             else:
                 return True, res
         return False, res
-    
+
     def get_previous_committed_evals(req_no):
         evals = self.eval_cache[(self.eval_cache['status'] == const.WORKER_COMPLETE) & (self.eval_cache['req_no'] < req_no)]
         evals = evals.sort_values('req_no', ascending=True)
         evals = json.loads(evals.to_json(orient="records"))
         return evals
-            
+
     def get_previous_evals(req_no):
         evals = self.eval_cache[self.eval_cache['req_no'] < req_no]
         evals = evals.sort_values('req_no', ascending=True)
@@ -381,7 +390,7 @@ class SubCoordP(process):
         clear_cache(eval_id)
 
     def restart_dependent_evals(eval_id):
-        print ("restarting dependant eva;s")
+        print ("restarting dependant evals")
         evals = get_evals_dependent_on(eval_id)
         for eval in evals:
             restart(eval['eval_id'])
@@ -395,12 +404,15 @@ class SubCoordP(process):
         eval_id, sub = evaluate(payload['app_id'],
                                 payload['sub'],
                                 payload['res'],
+                                payload['action'],
                                 time.time(),
                                 p)
+
         res_req_payload = dict(app_id=payload['app_id'],
                                eval_id=eval_id,
                                sub=sub,
-                               res=res)
+                               res=res,
+                               action=payload['action'])
 
         send(('RES_EVALUATION_REQUEST', res_req_payload),to=get_res_coord(res))
         self.logger.info('[SENT][RES_EVALUATION_REQUEST][{}] payload:{}'
@@ -509,7 +521,6 @@ class ResCoordP(process):
 
     def commit_evaluation(eval_id, res):
         if conflict_exists(res):
-            print ("exist conflict")
             return False
         else:
             update_cache(res)
@@ -554,13 +565,13 @@ class WorkerP(process):
         self.requests = dict()
         self.policy = PolicyParser()
 
-    def evaluate(eval_id, sub, res, orig_res):
+    def evaluate(eval_id, sub, res, action, orig_res):
         # orig_res, _ = self.requests[eval_id]
         # change attr values based on policy rules
         # evaluate the policies
         res['old_attr'] = orig_res['attr']
-
-        return False, sub, res
+        status, new_sub, new_res, action = self.policy.evaluate(sub, res, action)
+        return status, new_sub, new_res, action
 
     def setup_payload(app_id, eval_id, sub, res):
         payload = {
@@ -586,7 +597,7 @@ class WorkerP(process):
     def receive(msg= ('WORKER_EVALUATION_REQUEST', payload), from_=p):
         self.logger.info('[RECEIVED][WORKER_EVALUATION_REQUEST][{}] payload:{}'
                          .format(payload['app_id'], payload))
-        self.requests[payload['eval_id']] = (payload['sub'], payload['res'], payload['sub_coord'])
+        self.requests[payload['eval_id']] = (payload['sub'], payload['res'], payload['action'], payload['sub_coord'])
 
         # print(self.requests[payload['eval_id']])
         db_payload = setup_payload(payload['app_id'], payload['eval_id'], payload['sub'], payload['res'])
@@ -602,17 +613,16 @@ class WorkerP(process):
     def receive(msg= ('DB_READ_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][DB_READ_RESPONSE][{}] payload:{}'.format(payload['app_id'], payload))
 
-        orig_sub, orig_res, sub_coord_ps = self.requests[payload['eval_id']]
-
+        orig_sub, orig_res, orig_action, sub_coord_ps = self.requests[payload['eval_id']]
         payload['sub']['attr'].update(orig_sub['attr'])
         payload['res']['attr'].update(orig_res['attr'])
-
-        result, sub, res = evaluate(payload['eval_id'], payload['sub'], payload['res'], orig_res)
-
+        result, sub, res, action = evaluate(payload['eval_id'], payload['sub'], payload['res'], orig_action, orig_res)
+        print(result, sub, res, action)
         worker_resp_payload = dict(eval_id=payload['eval_id'],
                                    result=result,
                                    sub=sub,
                                    res=res,
+                                   action=action,
                                    app_id=payload['app_id'])
 
         send(('WORKER_EVALUATION_RESPONSE', worker_resp_payload),to=sub_coord_ps)

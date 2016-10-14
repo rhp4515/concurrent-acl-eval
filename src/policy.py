@@ -41,6 +41,8 @@ class PolicyParser():
         for attr in sc:
             if attr in const.KEY_ATTRS:
                 continue
+            if sc[attr] == 'empty' and sub['attr'][attr] == '':
+                continue
             if sc[attr] != sub['attr'][attr]:
                 return False
 
@@ -65,6 +67,7 @@ class PolicyParser():
     def update_sub_attr(self, su, sub_attr):
         # updating history
         for attr in su:
+            print('update_sub_attr', attr, sub_attr[attr], su[attr])
             sub_attr[attr] = su[attr]
         return sub_attr
 
@@ -80,6 +83,7 @@ class PolicyParser():
     def evaluate(self, sub, res, act):
         status = False
         # sub, res should contain some attrs from db
+        print('evaluate', sub, res, act)
         for rule in self.root.iter('rule'):
             sc=rule.find('subjectCondition')
             if not self.check_sub_cond(sc.attrib, sub):
@@ -89,7 +93,7 @@ class PolicyParser():
                 continue
 
             ac=rule.find('action')
-            if act != ac.attrib['name']:
+            if act['name'] != ac.attrib['name']:
                 continue
             su=rule.find('subjectUpdate')
             if su != None:
@@ -121,13 +125,13 @@ class PolicyParser():
                 print('resource update', ru.attrib)
             print()
 
-# p = PolicyParser()
-# sub = {'name':'customer', 'attr': {}, 'id':'2'}
-# res = {'name':'movie', 'attr': {'viewCount': 5}, 'id':'1' }
-# act = 'view'
-# # print(p.evaluate(sub, res, act))
-# sub = {'name':'employee', 'attr': {'history': 'bank A'}}
-# res = {'name':'bank B', 'attr': {}}
-# act = 'read'
-# # update res attrs only if the status is True
-# print(p.evaluate(sub, res, act))
+p = PolicyParser()
+sub = {'name':'customer', 'attr': {}, 'id':'2'}
+res = {'name':'movie', 'attr': {'viewCount': 5}, 'id':'1' }
+act = {'name': 'view'}
+print(p.evaluate(sub, res, act))
+sub = {'name':'employee', 'attr': {'history': ''}, 'id': '3'}
+res = {'name':'bank A', 'attr': {}}
+act = {'name': 'read'}
+# update res attrs only if the status is True
+print(p.evaluate(sub, res, act))

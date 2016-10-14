@@ -4,5 +4,5 @@ sub_coord_map = {
 				"employee": 1,
 				"customer": 2,
 				}
-NUMERICAL_ATTR = ['count']
+NUMERICAL_ATTR = ['viewCount']
 KEY_ATTRS = ['name', 'id']
