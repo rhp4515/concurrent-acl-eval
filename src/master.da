@@ -122,12 +122,16 @@ class DBEmulator(process):
 class Application(process):
     def setup(sub_coord_ps, config):
         self.logger = get_logger('app_logger', config['app_log'])
+        self.sub_coord_map = dict()
 
     # Assuming sub coordinator id as INTEGER
     def get_sub_coord(sub):
         sub_coords = list(sub_coord_ps)
         sub_coords.sort(key= lambda k: k._address[1])
-        chosen = sub_coords[int(sub['id'])%len(sub_coords)]
+        if sub['name'] not in sub_coord_map:
+            self.sub_coord_map[sub['name']] = len(self.sub_coord_map)
+
+        chosen = sub_coords[int(self.sub_coord_map[sub['name']])%len(sub_coords)]
         self.logger.info('SENDING SUB ID - {} TO PROCESS {}'.format(sub['id'], chosen))
         return chosen
 
@@ -199,11 +203,14 @@ class SubCoordP(process):
         self.attr_cache = dict()
         self.minLatency = config['minDBlatency']
         self.maxLatency = config['maxDBlatency']
+        self.res_coord_map = dict()
 
     def get_res_coord(res):
         res_coords = list(res_coord_ps)
         res_coords.sort(key= lambda k: k._address[1])
-        chosen = res_coords[int(res['id'])%len(res_coords)]
+        if res['name'] not in res_coord_map:
+            self.res_coord_map[res['name']] = len(self.res_coord_map)
+        chosen = res_coords[int(self.res_coord_map[res['name']])%len(res_coords)]
         self.logger.info('SENDING RES ID - {} TO PROCESS {}'.format(res['id'], chosen))
         return chosen
 
@@ -407,8 +414,8 @@ class SubCoordP(process):
 
         for attr in ignore_attrs:
             del sub['attr'][attr]
-        
-        return sub   
+
+        return sub
 
     def receive(msg= ('APP_EVALUATION_REQUEST', payload), from_=p):
         # print (tabulate(self.eval_cache, headers='keys',tablefmt='psql'))
@@ -555,7 +562,7 @@ class ResCoordP(process):
 
         for attr in ignore_attrs:
             del res['attr'][attr]
-        
+
         return res
 
     def receive(msg= ('RES_EVALUATION_REQUEST', payload), from_=p):
