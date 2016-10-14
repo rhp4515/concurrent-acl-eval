@@ -125,13 +125,13 @@ class PolicyParser():
                 print('resource update', ru.attrib)
             print()
 
-p = PolicyParser()
-sub = {'name':'customer', 'attr': {}, 'id':'2'}
-res = {'name':'movie', 'attr': {'viewCount': 5}, 'id':'1' }
-act = {'name': 'view'}
-print(p.evaluate(sub, res, act))
-sub = {'name':'employee', 'attr': {'history': ''}, 'id': '3'}
-res = {'name':'bank A', 'attr': {}}
-act = {'name': 'read'}
-# update res attrs only if the status is True
-print(p.evaluate(sub, res, act))
+# p = PolicyParser()
+# sub = {'name':'customer', 'attr': {}, 'id':'2'}
+# res = {'name':'movie', 'attr': {'viewCount': 5}, 'id':'1' }
+# act = {'name': 'view'}
+# print(p.evaluate(sub, res, act))
+# sub = {'name':'employee', 'attr': {'history': ''}, 'id': '3'}
+# res = {'name':'bank A', 'attr': {}}
+# act = {'name': 'read'}
+# # update res attrs only if the status is True
+# print(p.evaluate(sub, res, act))
