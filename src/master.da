@@ -187,7 +187,7 @@ class SubCoordP(process):
     def setup(db_ps, res_coord_ps, config):
         self.logger = get_logger('sub_coord_logger', config['sub_coord_log'])
         self.app_req_map = dict()
-        columns = ['eval_id','sub', 'res', 'dep_eval_ids', 'status', 'req_no']
+        columns = ['eval_id','sub', 'res', 'dep_eval_ids', 'status', 'req_no','result']
         self.eval_cache = pd.DataFrame([], columns=columns)
         self.attr_cache = dict()
         self.minLatency = config['minDBlatency']
@@ -219,7 +219,8 @@ class SubCoordP(process):
                 'res': res,
                 'dep_eval_ids': dep_eval_ids,
                 'req_no': req_no,
-                'status':status}
+                'status':status,
+                'result':None}
 
         self.eval_cache.loc[len(self.eval_cache)] = data
 
@@ -229,12 +230,13 @@ class SubCoordP(process):
         if indices:
             self.eval_cache.set_value(indices[0], 'status', const.WORKER_COMPLETE)
 
-    def update_attr(eval_id, sub, res):
+    def update_attr(eval_id, sub, res, result):
         self.logger.info('[UPDATING ATTR] [{}]'.format(eval_id))
         indices = self.eval_cache.loc[(self.eval_cache['eval_id'] == eval_id)].index.tolist()
         if indices:
             self.eval_cache.set_value(indices[0],'sub', sub)
             self.eval_cache.set_value(indices[0],'res', res)
+            self.eval_cache.set_value(indices[0],'result', result)
 
     def clear_cache(eval_id):
         self.logger.info('[CLEAR CACHE] [{}]'.format(eval_id))
@@ -244,7 +246,7 @@ class SubCoordP(process):
 
     def restart(eval_id):
         self.logger.info('***[RESTARTING SELF]***')
-        eval = get_eval(eval_id)
+        # eval = get_eval(eval_id)
         payload = {
             'sub': app_req_map[eval_id]['sub'],
             'res': app_req_map[eval_id]['res'],
@@ -384,7 +386,7 @@ class SubCoordP(process):
         for eval in evals:
             restart(eval['eval_id'])
 
-    def receive(msg= ('APP_EVALUATION_REQUEST', payload), from_=p, clk=rclk):
+    def receive(msg= ('APP_EVALUATION_REQUEST', payload), from_=p):
         # print (tabulate(self.eval_cache, headers='keys',tablefmt='psql'))
         self.logger.info('[RECEIVED][APP_EVALUATION_REQUEST][{}] payload:{}'
                          .format(payload['app_id'], payload))
@@ -393,7 +395,7 @@ class SubCoordP(process):
         eval_id, sub = evaluate(payload['app_id'],
                                 payload['sub'],
                                 payload['res'],
-                                rclk,
+                                time.time(),
                                 p)
         res_req_payload = dict(app_id=payload['app_id'],
                                eval_id=eval_id,
@@ -407,7 +409,7 @@ class SubCoordP(process):
     def receive(msg= ('WORKER_EVALUATION_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][WORKER_EVALUATION_RESPONSE][{}] payload:{}'
                          .format(payload['app_id'], payload))
-        update_attr(payload['eval_id'], payload['sub'], payload['res'])
+        update_attr(payload['eval_id'], payload['sub'], payload['res'], payload['result'])
         status, res = process_worker_response(payload['eval_id'], payload['result'])
         # print("*********",status, res, "***********")
         # If control comes here then it should have been successful
@@ -427,8 +429,9 @@ class SubCoordP(process):
         result = payload['result']
         if result:
             app = get_app(payload['eval_id'])
+            eval = get_eval(payload['eval_id'])
             commit_eval(payload['app_id'], payload['eval_id'])
-            app_eval_payload = dict(result=payload['result'], app_id=payload['app_id'])
+            app_eval_payload = dict(result=eval['result'], app_id=payload['app_id'])
             send(('APP_EVALUATION_RESPONSE', app_eval_payload),to=app)
             self.logger.info('[SENT][APP_EVALUATION_RESPONSE][{}] payload:{}'
                          .format(app_eval_payload['app_id'], app_eval_payload))
@@ -622,7 +625,7 @@ def main():
     config_fpath = sys.argv[1] if len(sys.argv) > 1 else "../config/main-config.json"
     config = cfg.load_config(config_fpath)
     # do something with config
-    config(channel="reliable", clock="Lamport")
+    config(channel="reliable")
 
 
     db_ps = new(DBEmulator, num=1)
