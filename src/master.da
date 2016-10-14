@@ -395,6 +395,21 @@ class SubCoordP(process):
         for eval in evals:
             restart(eval['eval_id'])
 
+    def add_latest_db_updates(sub):
+        ignore_attrs = []
+        for attr in sub['attr']:
+            key = (sub['name'], sub['id'], attr)
+            if key in self.attr_cache:
+                sub['attr'][attr] = self.attr_cache[key]
+                del self.attr_cache[key]
+            else:
+                ignore_attrs.append(attr)
+
+        for attr in ignore_attrs:
+            del sub['attr'][attr]
+        
+        return sub   
+
     def receive(msg= ('APP_EVALUATION_REQUEST', payload), from_=p):
         # print (tabulate(self.eval_cache, headers='keys',tablefmt='psql'))
         self.logger.info('[RECEIVED][APP_EVALUATION_REQUEST][{}] payload:{}'
@@ -455,28 +470,21 @@ class SubCoordP(process):
         self.logger.info('[RECEIVED][TIMER_RESPONSE][{}] payload:{}'
                          .format(payload['app_id'], payload))
 
-        sub = payload['sub']
-        ignore_attrs = []
-        for attr in sub['attr']:
-            key = (sub['name'], sub['id'], attr)
-            if key in self.attr_cache:
-                sub['attr'][attr] = self.attr_cache[key]
-            else:
-                ignore_attrs.append(attr)
-
-        for attr in ignore_attrs:
-            del sub['attr'][attr]
+        sub = add_latest_db_updates(payload['sub'])
 
         write_payload = dict(app_id=payload['app_id'], data=sub)
         send(('DB_WRITE_REQUEST', write_payload),to=db_ps)
         self.logger.info('[SENT][DB_WRITE_REQUEST][{}] payload:{}'.format(payload['app_id'], write_payload))
 
 class ResCoordP(process):
-    def setup(workers, config):
+    def setup(db_ps, workers, config):
         self.logger = get_logger('res_coord_logger', config['res_coord_log'])
         self.res_cache = dict()
         self.next_worker_idx = -1
         self.workers = list(workers)
+        self.attr_cache = dict()
+        self.minLatency = config['minDBlatency']
+        self.maxLatency = config['maxDBlatency']
 
     def run():
         await(False)
@@ -511,21 +519,44 @@ class ResCoordP(process):
         return False
 
 
-    def update_attr_db(res):
-        # TODO: Write the updates to db after constructing db
-        # send(('DB_WRITE_REQUEST', sub),to=db_ps)
-        # self.logger.info('[SENT][DB_WRITE_REQUEST] payload:{}'.format(sub))
+    def update_attr_db(app_id, res):
+        payload = dict(app_id=app_id, res=res)
+        for attr in res['attr']:
+            key = (res['name'], res['id'], attr)
+            self.attr_cache[key] = res['attr'][attr]
 
-        # jus update the resource attrs
-        return
+        seconds = random.randint(self.minLatency,self.maxLatency)
+        payload = dict(app_id=app_id, latency_in_secs=seconds, res=res)
 
-    def commit_evaluation(eval_id, res):
+        timer_ps = new(TimerP, num=1)
+        setup(timer_ps,(config,))
+        start(timer_ps)
+
+        send(('TIMER_REQUEST', payload),to=timer_ps)
+        self.logger.info('[SENT][TIMER_REQUEST][{}] payload:{}'.format(app_id, payload))
+
+    def commit_evaluation(app_id, eval_id, res):
         if conflict_exists(res):
             return False
         else:
             update_cache(res)
-            update_attr_db(res)
+            update_attr_db(app_id, res)
             return True
+
+    def add_latest_db_updates(res):
+        ignore_attrs = []
+        for attr in res['attr']:
+            key = (res['name'], res['id'], attr)
+            if key in self.attr_cache:
+                res['attr'][attr] = self.attr_cache[key]
+                del self.attr_cache[key]
+            else:
+                ignore_attrs.append(attr)
+
+        for attr in ignore_attrs:
+            del res['attr'][attr]
+        
+        return res
 
     def receive(msg= ('RES_EVALUATION_REQUEST', payload), from_=p):
         # print ("**************************************************")
@@ -547,7 +578,7 @@ class ResCoordP(process):
         self.logger.info('[RECEIVED][RES_COMMIT_REQUEST][{}] payload:{}'
                          .format(payload['app_id'], payload))
 
-        result = commit_evaluation(payload['eval_id'], payload['res'])
+        result = commit_evaluation(payload['app_id'], payload['eval_id'], payload['res'])
         res_commit_payload = dict(eval_id=payload['eval_id'],
                                   result=result,
                                   app_id=payload['app_id'])
@@ -558,6 +589,16 @@ class ResCoordP(process):
                              .format(res_commit_payload['app_id'], res_commit_payload))
         # print (self.res_cache)
         # print ("**************************************************")
+
+    def receive(msg= ('TIMER_RESPONSE', payload), from_=p):
+        self.logger.info('[RECEIVED][TIMER_RESPONSE][{}] payload:{}'
+                         .format(payload['app_id'], payload))
+
+        res = add_latest_db_updates(payload['res'])
+
+        write_payload = dict(app_id=payload['app_id'], data=res)
+        send(('DB_WRITE_REQUEST', write_payload),to=db_ps)
+        self.logger.info('[SENT][DB_WRITE_REQUEST][{}] payload:{}'.format(payload['app_id'], write_payload))
 
 class WorkerP(process):
     def setup(db_ps, config):
@@ -647,7 +688,7 @@ def main():
     start(worker_ps)
 
     res_coord_ps = new(ResCoordP, num=config['num_coords'])
-    setup(res_coord_ps,(worker_ps, config,))
+    setup(res_coord_ps,(db_ps, worker_ps, config,))
     start(res_coord_ps)
 
     sub_coord_ps = new(SubCoordP, num=config['num_coords'])
