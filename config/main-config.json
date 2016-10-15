@@ -1,6 +1,7 @@
 {
 	"minDBlatency": 1,
 	"maxDBlatency": 10,
+	"client_requests": "../config/initial-cli-reqs.xml",
 	"policy_config": "../config/policy-list.xml",
 	"db_config": "../config/db-config.xml",
 	"db_log": "../logs/db.log",
@@ -9,7 +10,7 @@
 	"res_coord_log": "../logs/res_coord.log",
 	"timer_log": "../logs/timer.log",
 	"worker_log": "../logs/worker.log",
-	"num_clients": 1,
+	"num_clients": 3,
 	"num_coords": 5,
 	"worker_count": 1,
 	"client_workload": {
@@ -17,21 +18,15 @@
 			"workload": "high"
 		},
 		"2": {
-			"workload": "med"
-		},
-		"3": {
-			"workload": "lite"
+			"workload": "low"
 		}
 	},
 	"workload_def": {
 		"high": {
-			"num_msg_per_sec": 12
+			"num_msg_per_sec": 5
 		},
-		"med": {
-			"num_msg_per_sec": 8
-		},
-		"lite": {
-			"num_msg_per_sec": 3
+		"low": {
+			"num_msg_per_sec": 2
 		}
 	}
 }

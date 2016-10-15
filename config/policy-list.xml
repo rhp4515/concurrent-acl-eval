@@ -1,32 +1,30 @@
 <policy>
-  <rule name="access bank A first time">
-    <subjectCondition name="employee" history="empty"/>
-    <resourceCondition name="bank"/>bank A</resourceCondition>
+  <rule type="access bank first time">
+    <subjectCondition type="employee" history=""/>
+    <resourceCondition type="bank"/>
     <!--  the action authorized by this rule.  -->
-    <action name="read"/>
-    <subjectUpdate history="bank A"/>
+    <action type="read"/>
+    <subjectUpdate history="$resource.id"/>
   </rule>
-  <rule name="access bank A again">
-    <subjectCondition name="employee" history="$resource.id"/>
-    <resourceCondition name="bank"/>$resource.id</resourceCondition>
-    <action name="read"/>
+
+  <rule type="access bank again">
+    <subjectCondition type="employee" history="$resource.id"/>
+    <resourceCondition type="bank"/>
+    <action type="read"/>
   </rule>
-  <rule name="access bank B first time">
-    <subjectCondition name="employee" history="empty"/>
-    <resourceCondition name="bank B"/>
-    <action name="read"/>
-    <subjectUpdate history="bank B"/>
+
+  <rule type="customers collectively can view each movie at most 5 times">
+    <subjectCondition type="customer"/>
+    <resourceCondition type="movie" viewCount="&lt;5"/>
+    <action type="view"/>
+    <resourceUpdate viewed="true" viewCount="++"/>
   </rule>
-  <rule name="access bank B again">
-    <subjectCondition name="employee" history="bank B"/>
-    <resourceCondition name="bank B"/>
-    <action name="read"/>
-  </rule>
-  <rule name="customers collectively can view each movie at most 5 times">
-    <subjectCondition name="customer"/>
-    <resourceCondition name="movie" viewCount="&lt;5"/>
-    <action name="view"/>
-    <resourceUpdate viewCount="++"/>
+
+  <rule type="customers collectively can listen each song at most 10 times">
+    <subjectCondition type="customer"/>
+    <resourceCondition type="song" listenCount="&lt;10"/>
+    <action type="listen"/>
+    <resourceUpdate listened="true" listenCount="++"/>
   </rule>
 </policy>
 <!--

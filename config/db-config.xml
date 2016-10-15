@@ -19,22 +19,28 @@
 			</attr>
 		</employee>
 		<movie>
-			<id>1</id>
+			<id>Pulp Fiction</id>
 			<attr>
 				<viewCount>0</viewCount>
 			</attr>
 		</movie>
 		<movie>
-			<id>2</id>
+			<id>XXX</id>
 			<attr>
 				<viewCount>10</viewCount>
 			</attr>
 		</movie>
-		<movie>
-			<id>3</id>
+		<song>
+			<id>1</id>
 			<attr>
-				<viewCount>5</viewCount>
+				<listenCount>5</listenCount>
 			</attr>
-		</movie>
+		</song>
+		<song>
+			<id>2</id>
+			<attr>
+				<listenCount>10</listenCount>
+			</attr>
+		</song>
 	</data>
 </db>

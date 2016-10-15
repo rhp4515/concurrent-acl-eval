@@ -52,14 +52,17 @@ class DBEmulator(process):
         json_content = json.loads(json.dumps(xmltodict.parse(db_data)))['db']
 
         json_data = json_content['data']
-        for name in json_data:
-            for data in json_data[name]:
-                for attr in data['attr']:    
-                    key = (name, data['id'], attr)
+        # print(json_data)
+        for type in json_data:
+            for data in json_data[type]:
+                # print(data)
+                for attr in data['attr']:
+                    key = (type, data['id'], attr)
                     val = data['attr'][attr]
+                    # print(attr, val)
                     if not val:
                         val = 0 if attr in const.NUMERICAL_ATTR else ''
-                            
+                    # print('setting attr db')
                     self.attr_db[key] = int(val) if attr in const.NUMERICAL_ATTR else val
 
         # print (self.attr_db)
@@ -69,10 +72,10 @@ class DBEmulator(process):
         await(False)
 
     def _read(data):
-        resp = dict(name=data['name'], id=data['id'], attr=dict())
+        resp = dict(type=data['type'], id=data['id'], attr=dict())
         for attr_name in data['attr']:
             # print (attr_name)
-            key = (data['name'], data['id'], attr_name)
+            key = (data['type'], data['id'], attr_name)
             val = None
             if key in self.attr_db:
                 val = self.attr_db[key]
@@ -87,7 +90,7 @@ class DBEmulator(process):
 
     def _write(data):
         for attr in data['attr']:
-            key = (data['name'], data['id'], attr)
+            key = (data['type'], data['id'], attr)
             self.attr_db[key] = data['attr'][attr]
 
         return None
@@ -109,95 +112,65 @@ class DBEmulator(process):
 
 # Client corresponds to Application instance
 class Application(process):
-    def setup(sub_coord_ps, config):
+    def setup(sub_coord_ps, config, requests):
         self.logger = get_logger('app_logger', config['app_log'])
         self.sub_coord_map = dict()
+        self.requests = requests
+        # Creating an app id for the subject coordinator to send the response
+        # to corresponding application
+        self.app_id = str(uuid.uuid4())
+        self.results = []
 
     # Assuming sub coordinator id as INTEGER
     def get_sub_coord(sub):
         sub_coords = list(sub_coord_ps)
         sub_coords.sort(key= lambda k: k._address[1])
-        if sub['name'] not in sub_coord_map:
-            self.sub_coord_map[sub['name']] = len(self.sub_coord_map)
+        if sub['type'] not in sub_coord_map:
+            self.sub_coord_map[sub['type']] = len(self.sub_coord_map)
 
-        chosen = sub_coords[int(self.sub_coord_map[sub['name']])%len(sub_coords)]
+        chosen = sub_coords[int(self.sub_coord_map[sub['type']])%len(sub_coords)]
         self.logger.info('SENDING SUB ID - {} TO PROCESS {}'.format(sub['id'], chosen))
         return chosen
 
     def authorize(sub, res, action):
         # time.sleep(1)
-        app_id = str(uuid.uuid4())
+        # TODO: why do we need attr at the beginning
+        if 'attr' not in sub:
+            sub['attr'] = {}
+        if 'attr' not in res:
+            res['attr'] = {}
+
         payload = {
             'sub': sub,
             'res': res,
             'action': action,
-            'app_id':app_id
+            'app_id': self.app_id
         }
         p = get_sub_coord(sub)
 
         send(('APP_EVALUATION_REQUEST',payload), to=p)
         self.logger.info('[SENT][APP_EVALUATION_REQUEST][{}] payload:{}'
-                         .format(app_id, payload))
+                         .format(self.app_id, payload))
 
     def run():
-        sub = {
-            'name':'customer',
-            'attr': {},
-            'id':'1'
-        }
-        res = {
-            'name':'movie',
-            'attr': {},
-            'id':'1'
-        }
-        action = {
-            'name': 'view'
-        }
-        authorize(sub, res, action)
-        sub = {
-            'name':'customer',
-            'attr': {},
-            'id':'1'
-        }
-        res = {
-            'name':'movie1',
-            'attr': {},
-            'id':'2'
-        }
-        action = {
-            'name': 'view'
-        }
-        authorize(sub, res, action)
-        # sub = {
-        #     'name':'customer',
-        #     'attr': {},
-        #     'id':'1'
-        # }
-        # res = {
-        #     'name':'movie2',
-        #     'attr': {},
-        #     'id':'3'
-        # }
-        # action = {
-        #     'name': 'view'
-        # }
-        # authorize(sub, res, action)
-        sub = {
-            'name':'employee',
-            'attr': {},
-            'id':'1'
-        }
-        res = {
-            'name':'movie1',
-            'attr': {},
-            'id':'2'
-        }
-        await(False)
+        # if len(self.requests) > 0:
+        #     request = self.requests[0]
+        #     authorize(request['sub'], request['res'], request['action'])
+
+        # await(sent(('DONE',)))
+        # self.requests = self.requests[1:]
+        # self.logger.info('[RECEIVED][DONE]')
+        for request in self.requests:
+            authorize(request['sub'], request['res'], request['action'])
+            await(sent(('DONE',)))
+            self.logger.info('[RECEIVED][DONE]')
 
     def receive(msg=('APP_EVALUATION_RESPONSE', payload), from_=p):
         app_id = payload['app_id']
         self.logger.info('[RECEIVED][APP_EVALUATION_RESPONSE][{}] payload:{}'
                          .format(app_id, payload))
+        self.results.append(payload)
+        send(('DONE',), to=self.id)
 
 
 class SubCoord(process):
@@ -214,9 +187,9 @@ class SubCoord(process):
     def get_res_coord(res):
         res_coords = list(res_coord_ps)
         res_coords.sort(key= lambda k: k._address[1])
-        if res['name'] not in res_coord_map:
-            self.res_coord_map[res['name']] = len(self.res_coord_map)
-        chosen = res_coords[int(self.res_coord_map[res['name']])%len(res_coords)]
+        if res['type'] not in res_coord_map:
+            self.res_coord_map[res['type']] = len(self.res_coord_map)
+        chosen = res_coords[int(self.res_coord_map[res['type']])%len(res_coords)]
         self.logger.info('SENDING RES ID - {} TO PROCESS {}'.format(res['id'], chosen))
         return chosen
 
@@ -379,7 +352,7 @@ class SubCoord(process):
     def update_attr_db(app_id, sub):
         payload = dict(app_id=app_id, sub=sub)
         for attr in sub['attr']:
-            key = (sub['name'], sub['id'], attr)
+            key = (sub['type'], sub['id'], attr)
             self.attr_cache[key] = sub['attr'][attr]
 
         seconds = random.randint(self.minLatency,self.maxLatency)
@@ -410,7 +383,7 @@ class SubCoord(process):
                 #     break
         else:
             update_attr_db(app_id, curr_eval['sub'])
-            clear_cache(eval_id)    
+            clear_cache(eval_id)
         # print (eval_id)
         # print ("EVAL ID", eval_id)
         # previous_eval_ids.remove(payload['eval_id'])
@@ -419,7 +392,7 @@ class SubCoord(process):
 
         print("AFTER WAIT")
 
-        
+
 
     def restart_dependent_evals(eval_id):
         print ("restarting dependant evals")
@@ -430,7 +403,7 @@ class SubCoord(process):
     def add_latest_db_updates(sub):
         ignore_attrs = []
         for attr in sub['attr']:
-            key = (sub['name'], sub['id'], attr)
+            key = (sub['type'], sub['id'], attr)
             if key in self.attr_cache:
                 sub['attr'][attr] = self.attr_cache[key]
                 del self.attr_cache[key]
@@ -495,7 +468,7 @@ class SubCoord(process):
             self.logger.info('[IGNORED][RES_COMMIT_RESPONSE][{}] payload:{}'
                          .format(payload['app_id'], payload))
             return
-        
+
         print ('[RECEIVED][RES_COMMIT_RESPONSE][{}] payload:{}'
                          .format(payload['app_id'], payload))
         result = payload['result']
@@ -510,7 +483,7 @@ class SubCoord(process):
             print('[SENT][APP_EVALUATION_RESPONSE][{}] payload:{}'
                          .format(app_eval_payload['app_id'], app_eval_payload))
             send(('RES_COMMIT_DONE', payload['eval_id']), to=self.id)
-            
+
         else:
             restart_dependent_evals(payload['eval_id'])
             restart(payload['eval_id'])
@@ -544,19 +517,19 @@ class ResCoord(process):
         return self.workers[next_worker_idx%len(self.workers)]
 
     def setup_res_attr(res):
-        key = (res['name'], res['id'])
+        key = (res['type'], res['id'])
         if key in self.res_cache:
             res['attr'] = self.res_cache[key]
 
         return res
 
     def update_cache(res):
-        key = (res['name'], res['id'])
+        key = (res['type'], res['id'])
         self.res_cache[key] = res['attr']
 
 
     def conflict_exists(res):
-        key = (res['name'], res['id'])
+        key = (res['type'], res['id'])
         if key not in self.res_cache:
             return False
 
@@ -571,7 +544,7 @@ class ResCoord(process):
     def update_attr_db(app_id, res):
         payload = dict(app_id=app_id, res=res)
         for attr in res['attr']:
-            key = (res['name'], res['id'], attr)
+            key = (res['type'], res['id'], attr)
             self.attr_cache[key] = res['attr'][attr]
 
         seconds = random.randint(self.minLatency,self.maxLatency)
@@ -595,7 +568,7 @@ class ResCoord(process):
     def add_latest_db_updates(res):
         ignore_attrs = []
         for attr in res['attr']:
-            key = (res['name'], res['id'], attr)
+            key = (res['type'], res['id'], attr)
             if key in self.attr_cache:
                 res['attr'][attr] = self.attr_cache[key]
                 del self.attr_cache[key]
@@ -632,7 +605,10 @@ class ResCoord(process):
                                   result=result,
                                   app_id=payload['app_id'])
 
-        seconds = 10 - int(payload['res']['id'])*2
+        if payload['res']['id'].isdigit():
+            seconds = 10 - int(payload['res']['id'])*2
+        else:
+            seconds = 5
         print ("sleeping {} by {}", payload['app_id'], seconds)
         time.sleep(seconds)
         send(('RES_COMMIT_RESPONSE', res_commit_payload),to=p)
@@ -671,12 +647,12 @@ class Worker(process):
             'app_id' : app_id,
             'eval_id' : eval_id,
             'sub':{
-                'name':sub['name'],
-                'id':sub['name'],
+                'type':sub['type'],
+                'id':sub['id'],
                 'attr': list(self.policy.get_sub_attr(sub, res))
             },
             'res':{
-                'name':res['name'],
+                'type':res['type'],
                 'id':res['id'],
                 'attr': list(self.policy.get_res_attr(sub, res))
             }
@@ -693,6 +669,7 @@ class Worker(process):
         self.requests[payload['eval_id']] = (payload['sub'], payload['res'], payload['action'], payload['sub_coord'])
 
         # print(self.requests[payload['eval_id']])
+
         db_payload = setup_payload(payload['app_id'], payload['eval_id'], payload['sub'], payload['res'])
 
         db_payload['sub']['attr'] = [attr for attr in db_payload['sub']['attr'] if attr not in payload['sub']['attr']]
@@ -710,7 +687,7 @@ class Worker(process):
         payload['sub']['attr'].update(orig_sub['attr'])
         payload['res']['attr'].update(orig_res['attr'])
         result, sub, res, action = evaluate(payload['eval_id'], payload['sub'], payload['res'], orig_action, orig_res)
-        print(result, sub, res, action)
+        # print(result, sub, res, action)
         worker_resp_payload = dict(eval_id=payload['eval_id'],
                                    result=result,
                                    sub=sub,
@@ -724,12 +701,21 @@ class Worker(process):
                          .format(worker_resp_payload['app_id'], worker_resp_payload))
 
 
+def parse_client_requests(fpath):
+    with open(fpath, 'r') as f:
+        cli_data = f.read()
+        json_content = json.loads(json.dumps(xmltodict.parse(cli_data)).replace('@',''))['requests']
+    return json_content['request']
+
+
+
 def main():
     config_fpath = sys.argv[1] if len(sys.argv) > 1 else "../config/main-config.json"
     config = cfg.load_config(config_fpath)
     # do something with config
     config(channel="reliable", clock="lamport")
 
+    cli_requests = parse_client_requests(config['client_requests'])
 
     db_ps = new(DBEmulator, num=1)
     setup(db_ps,(config,))
@@ -748,5 +734,12 @@ def main():
     start(sub_coord_ps)
 
     app_ps = new(Application, num=config['num_clients'])
-    setup(app_ps,(sub_coord_ps, config,))
+    i = 0
+    num_req_per_process = 4
+    for p in app_ps:
+        setup(p, (sub_coord_ps, config, cli_requests[i:i+num_req_per_process]))
+        i += num_req_per_process
     start(app_ps)
+
+
+
