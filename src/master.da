@@ -53,18 +53,20 @@ class DBEmulator(process):
 
         json_data = json_content['data']
         # print(json_data)
-        for type in json_data:
-            for data in json_data[type]:
+        for ent_type in json_data:
+            if type(json_data[ent_type]) == dict:
+                json_data[ent_type] = [json_data[ent_type]]
+            for data in json_data[ent_type]:
                 # print(data)
                 for attr in data['attr']:
-                    key = (type, data['id'], attr)
+                    key = (ent_type, data['id'], attr)
                     val = data['attr'][attr]
                     # print(attr, val)
                     if not val:
                         val = 0 if attr in const.NUMERICAL_ATTR else ''
                     # print('setting attr db')
                     self.attr_db[key] = int(val) if attr in const.NUMERICAL_ATTR else val
-
+        # print(json_data)            
         # print (self.attr_db)
 
     def run():

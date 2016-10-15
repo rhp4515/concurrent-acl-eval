@@ -42,5 +42,11 @@
 				<listenCount>10</listenCount>
 			</attr>
 		</song>
+		<song1>
+			<id>2</id>
+			<attr>
+				<listenCount>10</listenCount>
+			</attr>
+		</song1>
 	</data>
 </db>
