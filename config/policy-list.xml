@@ -1,14 +1,14 @@
 <policy>
   <rule name="access bank A first time">
     <subjectCondition name="employee" history="empty"/>
-    <resourceCondition name="bank"/>bank A</resourceCondition>
+    <resourceCondition name="bank A"/>
     <!--  the action authorized by this rule.  -->
     <action name="read"/>
     <subjectUpdate history="bank A"/>
   </rule>
   <rule name="access bank A again">
-    <subjectCondition name="employee" history="$resource.id"/>
-    <resourceCondition name="bank"/>$resource.id</resourceCondition>
+    <subjectCondition name="employee" history="bank A"/>
+    <resourceCondition name="bank A"/>
     <action name="read"/>
   </rule>
   <rule name="access bank B first time">

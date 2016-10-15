@@ -7,7 +7,7 @@ import xmltodict, json
 import pandas as pd
 import random
 import uuid
-import time, datetime
+import time
 from tabulate import tabulate
 from policy import PolicyParser
 
@@ -398,19 +398,19 @@ class SubCoord(process):
         previous_eval_ids = [x['eval_id'] for x in previous_evals]
         prev_evals_len = len(previous_evals)
 
-        print("BEFORE WAIT")
+        # print("BEFORE WAIT")
         print (previous_eval_ids)
-        if prev_evals_len > 0:
+        # if prev_evals_len > 0:
 
-            # while True:
-            if some(received(('RES_COMMIT_DONE', evl_id)), has= eval_id in previous_eval_ids):
-                print(evl_id)
-                previous_eval_ids.remove(evl_id)
-                # if len(previous_eval_ids) == 0:
-                #     break
-        else:
-            update_attr_db(app_id, curr_eval['sub'])
-            clear_cache(eval_id)    
+        #     # while True:
+        #     if some(received(('RES_COMMIT_DONE', evl_id)), has= eval_id in previous_eval_ids):
+        #         print(evl_id)
+        #         previous_eval_ids.remove(evl_id)
+        #         # if len(previous_eval_ids) == 0:
+        #         #     break
+        # else:
+        update_attr_db(app_id, curr_eval['sub'])
+        clear_cache(eval_id)    
         # print (eval_id)
         # print ("EVAL ID", eval_id)
         # previous_eval_ids.remove(payload['eval_id'])
@@ -442,7 +442,7 @@ class SubCoord(process):
 
         return sub
 
-    def receive(msg= ('APP_EVALUATION_REQUEST', payload), from_=p, clk=rclk):
+    def receive(msg= ('APP_EVALUATION_REQUEST', payload), from_=p):
         # print (tabulate(self.eval_cache, headers='keys',tablefmt='psql'))
         self.logger.info('[RECEIVED][APP_EVALUATION_REQUEST][{}] payload:{}'
                          .format(payload['app_id'], payload))
@@ -728,7 +728,7 @@ def main():
     config_fpath = sys.argv[1] if len(sys.argv) > 1 else "../config/main-config.json"
     config = cfg.load_config(config_fpath)
     # do something with config
-    config(channel="reliable", clock="lamport")
+    config(channel="reliable")
 
 
     db_ps = new(DBEmulator, num=1)
