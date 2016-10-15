@@ -7,7 +7,7 @@ import xmltodict, json
 import pandas as pd
 import random
 import uuid
-import time
+import time, datetime
 from tabulate import tabulate
 from policy import PolicyParser
 
@@ -53,7 +53,6 @@ class DBEmulator(process):
 
         json_data = json_content['data']
         for name in json_data:
-            print( json_data[name])
             for data in json_data[name]:
                 for attr in data['attr']:    
                     key = (name, data['id'], attr)
@@ -63,7 +62,7 @@ class DBEmulator(process):
                             
                     self.attr_db[key] = int(val) if attr in const.NUMERICAL_ATTR else val
 
-        print (self.attr_db)
+        # print (self.attr_db)
 
     def run():
         # print(self.tables)
@@ -100,7 +99,6 @@ class DBEmulator(process):
         self.logger.info('[RECEIVED][DB_READ_REQUEST][{}] payload:{}'.format(data['app_id'], data))
         sub = self._op(self._read, data['sub'])
         res = self._op(self._read, data['res'])
-        print(data)
         payload = dict(sub=sub, res=res, eval_id=data['eval_id'], app_id=data['app_id'])
         send(('DB_READ_RESPONSE', payload), to=p)
         self.logger.info('[SENT][DB_READ_RESPONSE][{}] payload:{}'.format(data['app_id'],payload))
@@ -127,6 +125,7 @@ class Application(process):
         return chosen
 
     def authorize(sub, res, action):
+        # time.sleep(1)
         app_id = str(uuid.uuid4())
         payload = {
             'sub': sub,
@@ -161,7 +160,7 @@ class Application(process):
             'id':'1'
         }
         res = {
-            'name':'movie',
+            'name':'movie1',
             'attr': {},
             'id':'2'
         }
@@ -169,20 +168,30 @@ class Application(process):
             'name': 'view'
         }
         authorize(sub, res, action)
+        # sub = {
+        #     'name':'customer',
+        #     'attr': {},
+        #     'id':'1'
+        # }
+        # res = {
+        #     'name':'movie2',
+        #     'attr': {},
+        #     'id':'3'
+        # }
+        # action = {
+        #     'name': 'view'
+        # }
+        # authorize(sub, res, action)
         sub = {
-            'name':'customer',
+            'name':'employee',
             'attr': {},
             'id':'1'
         }
         res = {
-            'name':'movie',
+            'name':'movie1',
             'attr': {},
-            'id':'3'
+            'id':'2'
         }
-        action = {
-            'name': 'view'
-        }
-        authorize(sub, res, action)
         await(False)
 
     def receive(msg=('APP_EVALUATION_RESPONSE', payload), from_=p):
@@ -258,6 +267,7 @@ class SubCoord(process):
 
     def restart(eval_id):
         self.logger.info('***[RESTARTING SELF]***')
+        print('***[RESTARTING SELF]***')
         # eval = get_eval(eval_id)
         payload = {
             'sub': app_req_map[eval_id]['sub'],
@@ -358,8 +368,11 @@ class SubCoord(process):
         return evals
 
     def get_previous_evals(req_no):
+        print ("REQ NO: ",req_no)
+        # print (tabulate(self.eval_cache, headers='keys',tablefmt='psql'))
         evals = self.eval_cache[self.eval_cache['req_no'] < req_no]
         evals = evals.sort_values('req_no', ascending=True)
+        # print (tabulate(evals, headers='keys',tablefmt='psql'))
         evals = json.loads(evals.to_json(orient="records"))
         return evals
 
@@ -385,13 +398,28 @@ class SubCoord(process):
         previous_eval_ids = [x['eval_id'] for x in previous_evals]
         prev_evals_len = len(previous_evals)
 
-        while prev_evals_len > 0:
-            await(some(received(('RES_COMMIT_RESPONSE', payload)), has= payload['eval_id'] in previous_eval_ids and payload['result'] == True))
-            previous_eval_ids.remove(payload['eval_id'])
-            prev_evals_len -= 1
+        print("BEFORE WAIT")
+        print (previous_eval_ids)
+        if prev_evals_len > 0:
 
-        update_attr_db(app_id, curr_eval['sub'])
-        clear_cache(eval_id)
+            # while True:
+            if some(received(('RES_COMMIT_DONE', evl_id)), has= eval_id in previous_eval_ids):
+                print(evl_id)
+                previous_eval_ids.remove(evl_id)
+                # if len(previous_eval_ids) == 0:
+                #     break
+        else:
+            update_attr_db(app_id, curr_eval['sub'])
+            clear_cache(eval_id)    
+        # print (eval_id)
+        # print ("EVAL ID", eval_id)
+        # previous_eval_ids.remove(payload['eval_id'])
+        # prev_evals_len -= 1
+        # print ("PREVIOUS EVAL IDS",previous_eval_ids)
+
+        print("AFTER WAIT")
+
+        
 
     def restart_dependent_evals(eval_id):
         print ("restarting dependant evals")
@@ -414,7 +442,7 @@ class SubCoord(process):
 
         return sub
 
-    def receive(msg= ('APP_EVALUATION_REQUEST', payload), from_=p):
+    def receive(msg= ('APP_EVALUATION_REQUEST', payload), from_=p, clk=rclk):
         # print (tabulate(self.eval_cache, headers='keys',tablefmt='psql'))
         self.logger.info('[RECEIVED][APP_EVALUATION_REQUEST][{}] payload:{}'
                          .format(payload['app_id'], payload))
@@ -440,6 +468,11 @@ class SubCoord(process):
     def receive(msg= ('WORKER_EVALUATION_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][WORKER_EVALUATION_RESPONSE][{}] payload:{}'
                          .format(payload['app_id'], payload))
+        eval = get_eval(payload['eval_id'])
+        if not eval:
+            self.logger.info('[IGNORED][WORKER_EVALUATION_RESPONSE][{}] payload:{}'
+                         .format(payload['app_id'], payload))
+            return
         update_attr(payload['eval_id'], payload['sub'], payload['res'], payload['result'])
         status, res = process_worker_response(payload['eval_id'], payload['result'])
         # print("*********",status, res, "***********")
@@ -457,6 +490,14 @@ class SubCoord(process):
     def receive(msg= ('RES_COMMIT_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][RES_COMMIT_RESPONSE][{}] payload:{}'
                          .format(payload['app_id'], payload))
+        eval = get_eval(payload['eval_id'])
+        if not eval:
+            self.logger.info('[IGNORED][RES_COMMIT_RESPONSE][{}] payload:{}'
+                         .format(payload['app_id'], payload))
+            return
+        
+        print ('[RECEIVED][RES_COMMIT_RESPONSE][{}] payload:{}'
+                         .format(payload['app_id'], payload))
         result = payload['result']
         if result:
             app = get_app(payload['eval_id'])
@@ -466,6 +507,10 @@ class SubCoord(process):
             send(('APP_EVALUATION_RESPONSE', app_eval_payload),to=app)
             self.logger.info('[SENT][APP_EVALUATION_RESPONSE][{}] payload:{}'
                          .format(app_eval_payload['app_id'], app_eval_payload))
+            print('[SENT][APP_EVALUATION_RESPONSE][{}] payload:{}'
+                         .format(app_eval_payload['app_id'], app_eval_payload))
+            send(('RES_COMMIT_DONE', payload['eval_id']), to=self.id)
+            
         else:
             restart_dependent_evals(payload['eval_id'])
             restart(payload['eval_id'])
@@ -587,6 +632,9 @@ class ResCoord(process):
                                   result=result,
                                   app_id=payload['app_id'])
 
+        seconds = 10 - int(payload['res']['id'])*2
+        print ("sleeping {} by {}", payload['app_id'], seconds)
+        time.sleep(seconds)
         send(('RES_COMMIT_RESPONSE', res_commit_payload),to=p)
 
         self.logger.info('[SENT][RES_COMMIT_RESPONSE][{}] payload:{}'
@@ -680,7 +728,7 @@ def main():
     config_fpath = sys.argv[1] if len(sys.argv) > 1 else "../config/main-config.json"
     config = cfg.load_config(config_fpath)
     # do something with config
-    config(channel="reliable")
+    config(channel="reliable", clock="lamport")
 
 
     db_ps = new(DBEmulator, num=1)
