@@ -18,7 +18,7 @@ def get_logger(name, path):
     handler = logging.FileHandler(path, mode='w')
     handler.setLevel(logging.DEBUG)
     logger.addHandler(handler)
-    logger.disabled = True
+    # logger.disabled = True
     return logger
 
 class TimerP(process):
@@ -53,31 +53,23 @@ class DBEmulator(process):
         json_content = json.loads(json.dumps(xmltodict.parse(db_data)))['db']
 
         json_data = json_content['data']
-        # print(json_data)
         for ent_type in json_data:
             if type(json_data[ent_type]) == dict:
                 json_data[ent_type] = [json_data[ent_type]]
             for data in json_data[ent_type]:
-                # print(data)
                 for attr in data['attr']:
                     key = (ent_type, data['id'], attr)
                     val = data['attr'][attr]
-                    # print(attr, val)
                     if not val:
                         val = 0 if attr in const.NUMERICAL_ATTR else ''
-                    # print('setting attr db')
                     self.attr_db[key] = int(val) if attr in const.NUMERICAL_ATTR else val
-        # print(json_data)            
-        # print (self.attr_db)
 
     def run():
-        # print(self.tables)
         await(False)
 
     def _read(data):
         resp = dict(type=data['type'], id=data['id'], attr=dict())
         for attr_name in data['attr']:
-            # print (attr_name)
             key = (data['type'], data['id'], attr_name)
             val = None
             if key in self.attr_db:
@@ -219,11 +211,7 @@ class SubCoord(process):
                 'req_no': req_no,
                 'status':status,
                 'result':None}
-        # print ("SETUP CACHE - BEFORE")
-        # print (tabulate(self.eval_cache, headers='keys', tablefmt='grid')) 
         self.eval_cache.loc[len(self.eval_cache)] = data
-        # print ("SETUP CACHE - AFTER")
-        # print (tabulate(self.eval_cache, headers='keys', tablefmt='grid'))
 
     def update_cache(eval_id, status):
         self.logger.info('[UPDATING CACHE] [{}]'.format(eval_id))
@@ -248,17 +236,12 @@ class SubCoord(process):
     def clear_cache(eval_id):
         self.logger.info('[CLEAR CACHE] [{}]'.format(eval_id))
         idx = self.eval_cache.loc[self.eval_cache['eval_id'] == eval_id].index.tolist()
-        # print(idx)
-        # print ("CLEAR CACHE - BEFORE")
-        # print (tabulate(self.eval_cache, headers='keys', tablefmt='grid'))                        
         self.eval_cache.drop(idx, inplace=True)
-        # print ("CLEAR CACHE - AFTER")
-        # print (tabulate(self.eval_cache, headers='keys', tablefmt='grid'))                        
         del self.app_req_map[eval_id]
 
     def restart(eval_id):
         self.logger.info('***[RESTARTING SELF]***')
-        print('***[RESTARTING SELF]***')
+        print('***[RESTARTING SELF]*** for eval id = ', eval_id)
         # eval = get_eval(eval_id)
         payload = {
             'sub': app_req_map[eval_id]['sub'],
@@ -297,12 +280,10 @@ class SubCoord(process):
         return False
 
     def clean_up(df):
-        # self.eval_cache.loc[self.eval_cache['eval_id'] == eval_id].index.tolist()
         columns = ['eval_id','sub', 'res', 'action', 'dep_eval_ids', 'status', 'req_no','result']
         for col in columns:
             idx = df.loc[df['eval_id'] == col].index.tolist()
             df.drop(idx, inplace=True)
-        # print(df.dtypes)
         return df
 
     def evaluate(app_id, sub, res, action, req_no, p):
@@ -314,7 +295,6 @@ class SubCoord(process):
 
         sub, dependent_eval_ids = add_tentative_attr_updates_to_req(sub, req_no)
         setup_cache(eval_id, sub, res, action, dependent_eval_ids, req_no, const.PENDING)
-        # print (tabulate(self.eval_cache, headers='keys', tablefmt='grid'))
         return eval_id, sub
 
     def get_tentative_evals(sub, req_no):
@@ -337,6 +317,8 @@ class SubCoord(process):
 
     def get_evals_dependent_on(eval_id):
         curr_eval = get_eval(eval_id)
+        if not curr_eval:
+            return []
         clean_up(self.eval_cache)
         # self.eval_cache[['req_no']] = self.eval_cache[['req_no']].astype(float)
         print ('CACHE TABLE')
@@ -405,8 +387,9 @@ class SubCoord(process):
         self.logger.info('[SENT][TIMER_REQUEST][{}] payload:{}'.format(app_id, payload))
 
     def restart_dependent_evals(eval_id):
-        print ("restarting dependant evals")
+        print ("*********restarting dependant evals below**********")
         evals = get_evals_dependent_on(eval_id)
+        print([x['eval_id'] for x in evals])
         for eval in evals:
             restart(eval['eval_id'])
 
@@ -519,6 +502,8 @@ class SubCoord(process):
         
         for eval_id in evals_to_send_commit:
             curr_eval = get_eval(eval_id)
+            if not curr_eval:
+                continue
             res_commit_payload = dict(eval_id=eval_id,
                                   app_id=get_app(eval_id)[0],
                                   res=curr_eval['res'])
@@ -699,6 +684,8 @@ class ResCoord(process):
         if payload['res']['id'] == "bank B":
             print('waiting to send res commit response')
             time.sleep(10)
+            if random.randint(1,10) > 3:
+                res_commit_payload['result'] = False
         send(('RES_COMMIT_RESPONSE', res_commit_payload),to=p)
         self.logger.info('[SENT][RES_COMMIT_RESPONSE][{}] payload:{}'
                          .format(res_commit_payload['app_id'], res_commit_payload))
