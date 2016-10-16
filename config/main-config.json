@@ -1,7 +1,7 @@
 {
 	"minDBlatency": 1,
-	"maxDBlatency": 10,
-	"testing": [
+	"maxDBlatency": 5,
+	"old": [
 		{
 			"name": "subject attribute conflict",
 			"description": "a request evaluation aborts due to a conflict on a subject attribute",
@@ -12,6 +12,48 @@
 			"workload": [1, 1],
 			"serialize_app_req_delay": false,
 			"path": "../config/sub_attr_conflict_reqs.xml",
+			"log_suffix": "sub_attr_conflict",
+			"expected_db_content": "description"
+		},
+		{
+			"name": "abortion due to tentative update",
+			"description": "a request evaluation aborts due to dependency on a tentative update",
+			"num_clients": 2,
+			"num_coords": 2,
+			"worker_count": 2,
+			"randomize": false,
+			"workload": [1, 1],
+			"serialize_app_req_delay": false,
+			"path": "../config/tentative_update_abortion_reqs.xml",
+			"log_suffix": "tentative_update_abortion",
+			"expected_db_content": "description"
+		},
+		{
+			"name": "resource attribute conflict",
+			"description": "a request evaluation aborts due to a conflict on a resource attribute",
+			"num_clients": 2,
+			"num_coords": 2,
+			"worker_count": 2,
+			"randomize": false,
+			"workload": [1, 1],
+			"serialize_app_req_delay": false,
+			"path": "../config/res_attr_conflict_reqs.xml",
+			"log_suffix": "res_attr_conflict",
+			"expected_db_content": "description"
+		}
+	],
+	"testing": [
+		{
+			"name": "abortion due to tentative update",
+			"description": "a request evaluation aborts due to dependency on a tentative update",
+			"num_clients": 4,
+			"num_coords": 2,
+			"worker_count": 2,
+			"randomize": false,
+			"workload": [1, 1, 1, 1],
+			"serialize_app_req_delay": true,
+			"path": "../config/tentative_update_abortion_reqs.xml",
+			"log_suffix": "tentative_update_abortion",
 			"expected_db_content": "description"
 		}
 	],
