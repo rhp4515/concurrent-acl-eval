@@ -3,6 +3,21 @@
 	"maxDBlatency": 5,
 	"old": [
 		{
+			"name": "wait for tentative evals to complete",
+			"description": "a request evaluation is delayed because it depends on a tentative update by a request that has not yet committed or aborted",
+			"num_clients": 4,
+			"num_coords": 2,
+			"worker_count": 2,
+			"randomize": false,
+			"workload": [1, 1, 1, 1],
+			"serialize_app_req_delay": true,
+			"path": "../config/wait_tentative_update_completion_reqs.xml",
+			"log_suffix": "wait_tentative_update_completion",
+			"expected_db_content": "description"
+		}
+	],
+	"testing": [
+		{
 			"name": "subject attribute conflict",
 			"description": "a request evaluation aborts due to a conflict on a subject attribute",
 			"num_clients": 2,
@@ -40,9 +55,7 @@
 			"path": "../config/res_attr_conflict_reqs.xml",
 			"log_suffix": "res_attr_conflict",
 			"expected_db_content": "description"
-		}
-	],
-	"testing": [
+		},
 		{
 			"name": "wait for tentative evals to complete",
 			"description": "a request evaluation is delayed because it depends on a tentative update by a request that has not yet committed or aborted",
@@ -59,10 +72,10 @@
 	],
 	"policy_config": "../config/policy-list.xml",
 	"db_config": "../config/db-config.xml",
-	"db_log": "../logs/db.log",
-	"app_log": "../logs/app.log",
-	"sub_coord_log": "../logs/sub_coord.log",
-	"res_coord_log": "../logs/res_coord.log",
-	"timer_log": "../logs/timer.log",
-	"worker_log": "../logs/worker.log"
+	"db_log": "../logs/db_{}.log",
+	"app_log": "../logs/app_{}.log",
+	"sub_coord_log": "../logs/sub_coord_{}.log",
+	"res_coord_log": "../logs/res_coord_{}.log",
+	"timer_log": "../logs/timer_{}.log",
+	"worker_log": "../logs/worker_{}.log"
 }

@@ -23,8 +23,8 @@ def get_logger(name, path):
     return logger
 
 class TimerP(process):
-    def setup(config):
-        self.logger = get_logger('timer_logger', config['timer_log'])
+    def setup(config, suffix):
+        self.logger = get_logger('timer_logger', config['timer_log'].format(suffix))
 
     def run():
         # Kill after sending one message
@@ -41,11 +41,11 @@ class TimerP(process):
         send(('DONE',),to=self.id)
 
 class DBEmulator(process):
-    def setup(config):
+    def setup(config, suffix):
         self.conf = config['db_config']
         self.minLatency = config['minDBlatency']
         self.maxLatency = config['maxDBlatency']
-        self.logger = get_logger('db_logger', config['db_log'])
+        self.logger = get_logger('db_logger', config['db_log'].format(suffix))
         self.attr_db = {}
 
         with open(self.conf, 'r') as f:
@@ -108,8 +108,8 @@ class DBEmulator(process):
 
 # Client corresponds to Application instance
 class Application(process):
-    def setup(sub_coord_ps, config, requests):
-        self.logger = get_logger('app_logger', config['app_log'])
+    def setup(sub_coord_ps, config, requests, suffix):
+        self.logger = get_logger('app_logger', config['app_log'].format(suffix))
         self.sub_coord_map = dict()
         self.requests = requests
         # Creating an app id for the subject coordinator to send the response
@@ -179,8 +179,8 @@ class Application(process):
 
 
 class SubCoord(process):
-    def setup(db_ps, res_coord_ps, config):
-        self.logger = get_logger('sub_coord_logger', config['sub_coord_log'])
+    def setup(db_ps, res_coord_ps, config, suffix):
+        self.logger = get_logger('sub_coord_logger', config['sub_coord_log'].format(suffix))
         self.app_req_map = dict()
         columns = ['eval_id','sub', 'res', 'action', 'dep_eval_ids', 'status', 'req_no','result']
         self.eval_cache = pd.DataFrame([], columns=columns)
@@ -405,7 +405,7 @@ class SubCoord(process):
         payload = dict(app_id=app_id, latency_in_secs=seconds, sub=sub)
 
         timer_ps = new(TimerP, num=1)
-        setup(timer_ps,(config,))
+        setup(timer_ps,(config,suffix,))
         start(timer_ps)
 
         send(('TIMER_REQUEST', payload),to=timer_ps)
@@ -601,8 +601,8 @@ class SubCoord(process):
         self.logger.info('[SENT][DB_WRITE_REQUEST][{}] payload:{}'.format(payload['app_id'], write_payload))
 
 class ResCoord(process):
-    def setup(db_ps, workers, config):
-        self.logger = get_logger('res_coord_logger', config['res_coord_log'])
+    def setup(db_ps, workers, config, suffix,):
+        self.logger = get_logger('res_coord_logger', config['res_coord_log'].format(suffix))
         self.res_cache = dict()
         self.next_worker_idx = -1
         self.workers = list(workers)
@@ -655,7 +655,7 @@ class ResCoord(process):
         payload = dict(app_id=app_id, latency_in_secs=seconds, res=res)
 
         timer_ps = new(TimerP, num=1)
-        setup(timer_ps,(config,))
+        setup(timer_ps,(config, suffix,))
         start(timer_ps)
 
         send(('TIMER_REQUEST', payload),to=timer_ps)
@@ -738,8 +738,8 @@ class ResCoord(process):
         self.logger.info('[SENT][DB_WRITE_REQUEST][{}] payload:{}'.format(payload['app_id'], write_payload))
 
 class Worker(process):
-    def setup(db_ps, config):
-        self.logger = get_logger('worker_logger', config['worker_log'])
+    def setup(db_ps, config, suffix):
+        self.logger = get_logger('worker_logger', config['worker_log'].format(suffix))
         self.requests = dict()
 
     def evaluate(eval_id, sub, res, action, orig_res):
@@ -845,29 +845,30 @@ def main():
     config(channel="reliable")
 
     for test in config['testing']:
+        suffix = test['log_suffix']
         cli_requests = parse_client_requests(test['path'])
 
         db_ps = new(DBEmulator, num=1)
-        setup(db_ps,(config,))
+        setup(db_ps,(config, suffix, ))
         start(db_ps)
 
         worker_ps = new(Worker, num=test['num_coords']*test['worker_count'])
-        setup(worker_ps,(db_ps, config,))
+        setup(worker_ps,(db_ps, config, suffix,))
         start(worker_ps)
 
         res_coord_ps = new(ResCoord, num=test['num_coords'])
-        setup(res_coord_ps,(db_ps, worker_ps, config,))
+        setup(res_coord_ps,(db_ps, worker_ps, config, suffix,))
         start(res_coord_ps)
 
         sub_coord_ps = new(SubCoord, num=test['num_coords'])
-        setup(sub_coord_ps,(db_ps, res_coord_ps, config,))
+        setup(sub_coord_ps,(db_ps, res_coord_ps, config, suffix,))
         start(sub_coord_ps)
 
         app_ps = new(Application, num=test['num_clients'])
         i = 0
         start = 0
         for p in app_ps:
-            setup(p, (sub_coord_ps, config, cli_requests[start:start+test['workload'][i]]))
+            setup(p, (sub_coord_ps, config, cli_requests[start:start+test['workload'][i]], suffix,))
             start += test['workload'][i]
             i += 1
             start(p)
