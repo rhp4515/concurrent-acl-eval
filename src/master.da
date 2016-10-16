@@ -26,7 +26,8 @@ def get_logger(name, path):
 class TimerP(process):
     def setup(config, suffix):
         self.logger = get_logger('timer_logger',
-                                            config['timer_log'].format(suffix))
+                                 config['timer_log'].format(suffix,
+                                                            str(self.id)))
 
     def run():
         # Kill after sending one message
@@ -125,7 +126,7 @@ class DBEmulator(process):
 # Client corresponds to Application instance
 class Application(process):
     def setup(sub_coord_ps, config, requests, suffix):
-        self.logger = get_logger('app_logger', config['app_log'].format(suffix))
+        self.logger = get_logger('app_logger', config['app_log'].format(suffix, str(self.id)))
         self.sub_coord_map = dict()
         self.requests = requests
         # Creating an app id for the subject coordinator to send the response
@@ -204,7 +205,8 @@ class Application(process):
 class SubCoord(process):
     def setup(db_ps, res_coord_ps, config, suffix):
         self.logger = get_logger('sub_coord_logger',
-                                  config['sub_coord_log'].format(suffix))
+                                  config['sub_coord_log'].format(suffix, 
+                                                                 str(self.id)))
         self.columns = [ 'eval_id',      'sub',      'res',      'action',
                          'dep_eval_ids', 'status',   'req_no',   'result' ]
         self.eval_cache = pd.DataFrame([], columns=self.columns)
@@ -715,7 +717,8 @@ class SubCoord(process):
 class ResCoord(process):
     def setup(db_ps, workers, config, suffix,):
         self.logger = get_logger('res_coord_logger',
-                                        config['res_coord_log'].format(suffix))
+                                 config['res_coord_log'].format(suffix,
+                                                                str(self.id)))
         self.res_cache = dict()
         self.next_worker_idx = -1
         self.workers = list(workers)
@@ -873,7 +876,8 @@ class Worker(process):
 
     def setup(db_ps, config, suffix):
         self.logger = get_logger('worker_logger',
-                                            config['worker_log'].format(suffix))
+                                 config['worker_log'].format(suffix,
+                                                             str(self.id)))
         self.requests = dict()
 
 

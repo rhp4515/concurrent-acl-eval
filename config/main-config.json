@@ -73,9 +73,9 @@
 	"policy_config": "../config/policy-list.xml",
 	"db_config": "../config/db-config.xml",
 	"db_log": "../logs/db_{}.log",
-	"app_log": "../logs/app_{}.log",
-	"sub_coord_log": "../logs/sub_coord_{}.log",
-	"res_coord_log": "../logs/res_coord_{}.log",
-	"timer_log": "../logs/timer_{}.log",
-	"worker_log": "../logs/worker_{}.log"
+	"app_log": "../logs/app_{}_{}.log",
+	"sub_coord_log": "../logs/sub_coord_{}_{}.log",
+	"res_coord_log": "../logs/res_coord_{}_{}.log",
+	"timer_log": "../logs/timer_{}_{}.log",
+	"worker_log": "../logs/worker_{}_{}.log"
 }
