@@ -8,6 +8,7 @@ import pandas as pd
 import random
 import uuid
 import time
+import copy
 from threading import Lock
 from tabulate import tabulate
 from policy import PolicyParser
@@ -18,7 +19,7 @@ def get_logger(name, path):
     handler = logging.FileHandler(path, mode='w')
     handler.setLevel(logging.DEBUG)
     logger.addHandler(handler)
-    # logger.disabled = True
+    logger.disabled = True
     return logger
 
 class TimerP(process):
@@ -288,11 +289,17 @@ class SubCoord(process):
 
     def evaluate(app_id, sub, res, action, req_no, p):
         eval_id = str(uuid.uuid4())
-        app_req_map[eval_id] = dict(app_id=app_id, sub=sub, res=res, action=action, req_no=req_no, app_p=p)
+        sub_copy = copy.deepcopy(sub)
+        res_copy = copy.deepcopy(res)
+        self.app_req_map[eval_id] = dict(app_id=app_id, sub=sub_copy, res=res_copy, action=action, req_no=req_no, app_p=p)
         # if sub['id'] == '3':
         #     print ("sleeping for ", 5, eval_id)
-        #     time.sleep(5)       
-
+        #     time.sleep(5)
+        # print('BEFORE')
+        # print(self.app_req_map)
+        # sub['attr']['viewer'] = 'hari'
+        # print('AFTER')
+        # print(self.app_req_map)
         sub, dependent_eval_ids = add_tentative_attr_updates_to_req(sub, req_no)
         setup_cache(eval_id, sub, res, action, dependent_eval_ids, req_no, const.PENDING)
         return eval_id, sub
@@ -322,7 +329,7 @@ class SubCoord(process):
         clean_up(self.eval_cache)
         # self.eval_cache[['req_no']] = self.eval_cache[['req_no']].astype(float)
         print ('CACHE TABLE')
-        print (tabulate(self.eval_cache, headers='keys',tablefmt='grid'))        
+        print (tabulate(self.eval_cache, headers='keys',tablefmt='grid'))
         evals = self.eval_cache[self.eval_cache['req_no'] > curr_eval['req_no']]
         evals = evals.sort_values('req_no', ascending=True)
         evals = json.loads(evals.to_json(orient="records"))
@@ -407,7 +414,7 @@ class SubCoord(process):
             del sub['attr'][attr]
 
         return sub
-    
+
     def get_pending_transactions_to_commit():
         # print("IN MY METHOD")
         commited_eval_ids = []
@@ -423,9 +430,9 @@ class SubCoord(process):
                 break
             else:
                 commited_eval_ids.append(eval['eval_id'])
-        
+
         return commited_eval_ids
-            
+
     def receive(msg= ('APP_EVALUATION_REQUEST', payload), from_=p):
         # print (tabulate(self.eval_cache, headers='keys',tablefmt='psql'))
         self.logger.info('[RECEIVED][APP_EVALUATION_REQUEST][{}] payload:{}'
@@ -478,10 +485,10 @@ class SubCoord(process):
 
             send(('RES_COMMIT_REQ_DONE', res_commit_req_done_payload),to=self.id)
             self.logger.info('[SENT][RES_COMMIT_REQ_DONE][{}] payload:{}'
-                        .format(res_commit_req_done_payload['app_id'], 
+                        .format(res_commit_req_done_payload['app_id'],
                                 res_commit_req_done_payload))
             print('[SENT][RES_COMMIT_REQ_DONE][{}] payload:{}'
-                        .format(res_commit_req_done_payload['app_id'], 
+                        .format(res_commit_req_done_payload['app_id'],
                                 res_commit_req_done_payload))
 
 
@@ -499,7 +506,7 @@ class SubCoord(process):
             if eval_id in self.res_commit_q:
                 self.res_commit_q[eval_id].remove(payload['eval_id'])
                 evals_to_send_commit.append(eval_id)
-        
+
         for eval_id in evals_to_send_commit:
             curr_eval = get_eval(eval_id)
             if not curr_eval:
@@ -519,10 +526,10 @@ class SubCoord(process):
 
         send(('RES_COMMIT_REQ_DONE', res_commit_req_done_payload),to=self.id)
         self.logger.info('[SENT][RES_COMMIT_REQ_DONE][{}] payload:{}'
-                    .format(res_commit_req_done_payload['app_id'], 
+                    .format(res_commit_req_done_payload['app_id'],
                             res_commit_req_done_payload))
         print('[SENT][RES_COMMIT_REQ_DONE][{}] payload:{}'
-                    .format(res_commit_req_done_payload['app_id'], 
+                    .format(res_commit_req_done_payload['app_id'],
                             res_commit_req_done_payload))
         eval = get_eval(payload['eval_id'])
         if not eval:
@@ -546,7 +553,7 @@ class SubCoord(process):
     def receive(msg= ('RES_COMMIT_DONE'), from_=p):
         self.logger.info('[RECEIVED][RES_COMMIT_DONE]')
         eval_ids = get_pending_transactions_to_commit()
-        
+
         for eval_id in eval_ids:
             app_id, app_ps = get_app(eval_id)
             eval = get_eval(eval_id)
@@ -795,7 +802,7 @@ def main():
     # do something with config
     config(channel="reliable")
 
-    cli_requests = parse_client_requests(config['client_requests'])
+    cli_requests = parse_client_requests(config['client_requests']['path'])
 
     db_ps = new(DBEmulator, num=1)
     setup(db_ps,(config,))

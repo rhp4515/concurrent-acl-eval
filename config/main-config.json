@@ -1,7 +1,23 @@
 {
 	"minDBlatency": 1,
 	"maxDBlatency": 10,
-	"client_requests": "../config/initial-cli-reqs.xml",
+	"client_requests": {
+		"path": "../config/initial-cli-reqs.xml",
+		"seed": 1234567,
+		"data": [{
+			"subject": ["employee"],
+			"resources": ["bank", "user"],
+			"actions": ["read", "view"]
+		}, {
+			"subject": ["customer"],
+			"resources": ["movie"],
+			"actions": ["view"]
+		}, {
+			"subject": ["customer"],
+			"resources": ["song"],
+			"actions": ["listen"]
+		}]
+	},
 	"policy_config": "../config/policy-list.xml",
 	"db_config": "../config/db-config.xml",
 	"db_log": "../logs/db.log",
@@ -12,7 +28,8 @@
 	"worker_log": "../logs/worker.log",
 	"num_clients": 4,
 	"num_coords": 5,
-	"worker_count": 1,
+	"worker_count": 2,
+
 	"client_workload": {
 		"1": {
 			"workload": "high"
