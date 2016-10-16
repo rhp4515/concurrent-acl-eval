@@ -1,7 +1,7 @@
 {
-	"minDBlatency": 1,
-	"maxDBlatency": 5,
-	"old": [
+	"minDBlatency": 0,
+	"maxDBlatency": 0,
+	"testing": [
 		{
 			"name": "wait for tentative evals to complete",
 			"description": "a request evaluation is delayed because it depends on a tentative update by a request that has not yet committed or aborted",
@@ -10,13 +10,14 @@
 			"worker_count": 2,
 			"randomize": false,
 			"workload": [1, 1, 1, 1],
+			"p_time":30,
 			"serialize_app_req_delay": true,
 			"path": "../config/wait_tentative_update_completion_reqs.xml",
 			"log_suffix": "wait_tentative_update_completion",
-			"expected_db_content": "description"
+			"expected_db_content": "wait_tentative_update_completion.log contains final db state. expected db_dump:{('employee', '1', 'history'): 'bank A'}"
 		}
 	],
-	"testing": [
+	"old": [
 		{
 			"name": "subject attribute conflict",
 			"description": "a request evaluation aborts due to a conflict on a subject attribute",
@@ -25,10 +26,11 @@
 			"worker_count": 2,
 			"randomize": false,
 			"workload": [1, 1],
-			"serialize_app_req_delay": false,
+			"p_time":15,
+			"serialize_app_req_delay": true,
 			"path": "../config/sub_attr_conflict_reqs.xml",
 			"log_suffix": "sub_attr_conflict",
-			"expected_db_content": "description"
+			"expected_db_content": "db_sub_attr_conflict.log contains final db state. expected db_dump:{('employee', '1', 'history'): 'bank A'}"
 		},
 		{
 			"name": "abortion due to tentative update",
@@ -38,10 +40,11 @@
 			"worker_count": 2,
 			"randomize": false,
 			"workload": [1, 1, 1, 1],
+			"p_time": 15,
 			"serialize_app_req_delay": true,
 			"path": "../config/tentative_update_abortion_reqs.xml",
 			"log_suffix": "tentative_update_abortion",
-			"expected_db_content": "description"
+			"expected_db_content": "db_tentative_update_abortion.log contains final db state. expected db_dump:{('employee', '1', 'history'): 'bank A'}"
 		},
 		{
 			"name": "resource attribute conflict",
@@ -51,10 +54,11 @@
 			"worker_count": 2,
 			"randomize": false,
 			"workload": [1, 1],
+			"p_time":20,
 			"serialize_app_req_delay": false,
 			"path": "../config/res_attr_conflict_reqs.xml",
 			"log_suffix": "res_attr_conflict",
-			"expected_db_content": "description"
+			"expected_db_content": "db_res_attr_conflict.log contains final db state. expected db_dump:{('movie', 'A', 'viewed'): 'true', ('movie', 'A', 'viewCount'): 2}"
 		},
 		{
 			"name": "wait for tentative evals to complete",
@@ -64,10 +68,45 @@
 			"worker_count": 2,
 			"randomize": false,
 			"workload": [1, 1, 1, 1],
+			"p_time":30,
 			"serialize_app_req_delay": true,
 			"path": "../config/wait_tentative_update_completion_reqs.xml",
 			"log_suffix": "wait_tentative_update_completion",
-			"expected_db_content": "description"
+			"expected_db_content": "wait_tentative_update_completion.log contains final db state. expected db_dump:{('employee', '1', 'history'): 'bank A'}"
+		},
+		{
+			"name": "random resource attribute conflict",
+			"description": "a request evaluation might abort due to a conflict on a resource attribute",
+			"num_clients": 2,
+			"num_coords": 2,
+			"worker_count": 2,
+			"randomize": true,
+			"seed":110283876,
+			"workload": [3, 3],
+			"p_time":30,
+			"serialize_app_req_delay": false,
+			"path": "../config/res_attr_conflict_rand_reqs.xml",
+			"log_suffix": "res_attr_conflict_rand",
+			"expected_db_content": "db_res_attr_conflict_rand.log contains final db state. expected db_dump:{('movie', 'A', 'viewed'): 'true', ('movie', 'C', 'viewed'): 'true', ('movie', 'B', 'viewed'): 'true', ('movie', 'B', 'viewCount'): 1, ('movie', 'C', 'viewCount'): 1, ('movie', 'A', 'viewCount'): 4}"
+		},
+		{
+			"name": "stress test",
+			"description": "a test to keep all the process (client, sub_coord, res_coord, worker, db busy at the same time)",
+			"num_clients": 10,
+			"num_coords": 10,
+			"worker_count": 5,
+			"randomize": false,
+			"generate": true,
+			"workload": 50,
+			"p_time":45,
+			"serialize_app_req_delay": false,
+			"action": "view",
+			"subs" : ["A","B","C","D","E","F","G","H","I","J"],
+			"res"  : ["a","b","c","d","e","f","g","h","i","j"],
+			"path": "../config/stress_res.json",
+			"test_truth_path": "../config/stress_truth.json",
+			"log_suffix": "stress_test",
+			"expected_db_content": "stress_truth contains expected results and the db_stress_test.log contains final db state"
 		}
 	],
 	"policy_config": "../config/policy-list.xml",

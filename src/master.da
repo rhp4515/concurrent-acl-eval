@@ -13,6 +13,8 @@ import copy
 from threading import Lock
 from tabulate import tabulate
 from policy import PolicyParser
+from random import shuffle
+
 
 def get_logger(name, path):
     logger = logging.getLogger(name)
@@ -26,8 +28,7 @@ def get_logger(name, path):
 class TimerP(process):
     def setup(config, suffix):
         self.logger = get_logger('timer_logger',
-                                 config['timer_log'].format(suffix,
-                                                            str(self.id)))
+                                 config['timer_log'].format('',''))
 
     def run():
         # Kill after sending one message
@@ -45,7 +46,7 @@ class TimerP(process):
         send(('DONE',),to=self.id)
 
 class DBEmulator(process):
-    def setup(config, suffix):
+    def setup(config, suffix, p_time):
         self.conf = config['db_config']
         self.minLatency = config['minDBlatency']
         self.maxLatency = config['maxDBlatency']
@@ -58,7 +59,11 @@ class DBEmulator(process):
         self.logger.info("--- INITIALIZING DB INSTANCE WITH GIVEN DATA ---")
         json_content = json.loads(json.dumps(xmltodict.parse(db_data)))['db']
 
-        json_data = json_content['data']
+        if json_content and 'data' in json_content:
+            json_data = json_content['data']
+        else:
+            json_data = []
+
         for ent_type in json_data:
             if type(json_data[ent_type]) == dict:
                 json_data[ent_type] = [json_data[ent_type]]
@@ -71,8 +76,13 @@ class DBEmulator(process):
                         val = 0 if attr in const.NUMERICAL_ATTR else ''
                     self.attr_db[key] = int(val) if attr in const.NUMERICAL_ATTR else val
 
+        self.logger.info('[INITIAL_STATE][DB_DUMP] db_dump:{}'
+                                                .format(self.attr_db))
+
     def run():
-        await(False)
+        await(False, timeout=p_time)
+        self.logger.info('[FINAL_STATE][DB_DUMP] db_dump:{}'
+                                                .format(self.attr_db))
 
     def _read(data):
         """ Operation to read data from db """
@@ -122,16 +132,13 @@ class DBEmulator(process):
         self.logger.info('[RECEIVED][DB_WRITE_REQUEST][{}] payload:{}'
                                                 .format(data['app_id'], data))
         self._op(self._write, data['data'])
-
+       
 # Client corresponds to Application instance
 class Application(process):
-    def setup(sub_coord_ps, config, requests, suffix):
-        self.logger = get_logger('app_logger', config['app_log'].format(suffix, str(self.id)))
-        self.sub_coord_map = dict()
+    def setup(sub_coord_ps, config, requests, suffix, sub_coord_map):
+        self.logger = get_logger('app_logger', config['app_log'].format(suffix, str(self.id)))        
         self.requests = requests
-        # Creating an app id for the subject coordinator to send the response
-        # to corresponding application
-        self.app_id = str(uuid.uuid4())
+        self.sub_coord_map = sub_coord_map
         self.results = []
 
     def get_sub_coord(sub):
@@ -147,16 +154,13 @@ class Application(process):
 
         # Making evaluations for a resource is map to corresponding resource
         # coordinator
-        if sub['type'] not in sub_coord_map:
-            self.sub_coord_map[sub['type']] = len(self.sub_coord_map)
-
         idx = int(self.sub_coord_map[sub['type']])%len(sub_coords)
         chosen = sub_coords[idx]
-        self.logger.info('Subject Coord process for {} -> {}'.format(sub['id'],
+        self.logger.info('Subject Coord process for {} -> {}'.format(sub['type'],
                                                                      chosen))
         return chosen
 
-    def authorize(sub, res, action, delays):
+    def authorize(sub, res, action, delays, app_id):
         if 'attr' not in sub:
             sub['attr'] = dict()
         if 'attr' not in res:
@@ -174,26 +178,28 @@ class Application(process):
         payload=dict(sub=sub,
                      res=res,
                      action=action,
-                     app_id=self.app_id,
+                     app_id=app_id,
                      delays=delays)
 
         p = get_sub_coord(sub)
-
         send(('APP_EVALUATION_REQUEST',payload), to=p)
         self.logger.info('[SENT][APP_EVALUATION_REQUEST][{}] payload:{}'
-                                                .format(self.app_id, payload))
+                                                .format(app_id, payload))
 
     def run():
+        print('num requests = ', len(self.requests))
         for request in self.requests:
+            # Creating an app id for the subject coordinator to send the response
+            # to corresponding application
+            app_id = str(uuid.uuid4())
             authorize(  request['sub'],
                         request['res'],
                         request['action'],
-                        request.get('delays', {}))
+                        request.get('delays', {}),
+                        app_id)
 
             # Serializing request evaluation
-            print ("BEFORE", self.id)
-            await(sent(('DONE',)))
-            print ("AFTER", self.id)
+            await(some(received(('DONE', payload)), has= payload == app_id ))
             self.logger.info('[RECEIVED][DONE]')
 
     def receive(msg=('APP_EVALUATION_RESPONSE', payload), from_=p):
@@ -201,11 +207,11 @@ class Application(process):
         self.logger.info('[RECEIVED][APP_EVALUATION_RESPONSE][{}] payload:{}'
                                                     .format(app_id, payload))
         self.results.append(payload)
-        send(('DONE',), to=self.id)
+        send(('DONE', app_id), to=self.id)
 
 
 class SubCoord(process):
-    def setup(db_ps, res_coord_ps, config, suffix):
+    def setup(db_ps, res_coord_ps, config, suffix, res_coord_map):
         self.logger = get_logger('sub_coord_logger',
                                   config['sub_coord_log'].format(suffix, 
                                                                  str(self.id)))
@@ -214,7 +220,7 @@ class SubCoord(process):
         self.eval_cache = pd.DataFrame([], columns=self.columns)
         self.attr_cache = dict()
         self.app_req_map = dict()
-        self.res_coord_map = dict()
+        self.res_coord_map = res_coord_map
         self.res_commit_q = dict()
 
         self.minLatency = config['minDBlatency']
@@ -233,13 +239,10 @@ class SubCoord(process):
         res_coords.sort(key= lambda k: k._address[1])
         # Making evaluations for a resource is map to corresponding resource
         # coordinator
-        if res['type'] not in res_coord_map:
-            self.res_coord_map[res['type']] = len(self.res_coord_map)
-
         idx = int(self.res_coord_map[res['type']])%len(res_coords)
         chosen = res_coords[idx]
 
-        self.logger.info('Resource Coord process for {} -> {}'.format(res['id'],
+        self.logger.info('Resource Coord process for {} -> {}'.format(res['type'],
                                                                       chosen))
         return chosen
 
@@ -526,7 +529,6 @@ class SubCoord(process):
             key = (sub['type'], sub['id'], attr)
             if key in self.attr_cache:
                 sub['attr'][attr] = self.attr_cache[key]
-                del self.attr_cache[key]
             else:
                 ignore_attrs.append(attr)
 
@@ -815,7 +817,7 @@ class ResCoord(process):
             if key in self.attr_cache:
                 # TODO: Shouldn't it be update?
                 res['attr'][attr] = self.attr_cache[key]
-                del self.attr_cache[key]
+                # del self.attr_cache[key]
             else:
                 ignore_attrs.append(attr)
 
@@ -1004,6 +1006,54 @@ def parse_client_requests(fpath):
     return requests
 
 
+def gen_reqs(conf):
+    total_reqs = conf['num_clients'] * conf['workload']
+    reqs = []
+    test_truth = dict()
+    while total_reqs > len(reqs):
+        # shuffle(conf['subs'])
+        # shuffle(conf['res'])
+        conf['subs'] = conf['subs'][1:]
+        conf['subs'].append('A')
+        for sub in conf['subs']:
+            # sub_id = str(random.randint(1, conf['num_clients']/2))
+            sub_id = str(random.randint(1,1))
+            for res in conf['res']:
+                
+                # res_id = str(random.randint(1, conf['num_clients']/2))
+                res_id = str(random.randint(1,1))
+                req = {
+                    'sub': {
+                        'type':sub,
+                        'id':sub_id
+                    },
+                    'res': {
+                        'type':res,
+                        'id':res_id
+                    },
+                    'action' : {
+                        'type':conf['action']
+                    }
+                }
+                if sub.lower() == res:
+                    key = (res, res_id, 'viewCount')
+                    if key in test_truth:
+                        test_truth[key] += 1
+                    else:
+                        test_truth[key] = 1
+                reqs.append(req)
+
+    print(test_truth)
+    # print (len(reqs))
+    with open(conf['test_truth_path'], 'w') as f:
+        f.write(json.dumps(str(test_truth)))
+
+    with open(conf['path'],'w') as f:
+        f.write(json.dumps(reqs))
+    
+    return reqs
+
+
 def main():
     DEFAULT_MAIN_CONFIG = "../config/main-config.json"
     config_fpath = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_MAIN_CONFIG
@@ -1012,11 +1062,19 @@ def main():
 
     for test in config['testing']:
         suffix = test['log_suffix']
-        cli_requests = parse_client_requests(test['path'])
+        p_time = test['p_time']
+        if test.get('generate', None):
+            cli_requests = gen_reqs(test)
+            test['workload'] = [test['workload']] * test['num_clients']
+        else:    
+            cli_requests = parse_client_requests(test['path'])
+            if test['randomize']:
+                random.seed(test['seed'])
+                shuffle(cli_requests)
 
         # Setup and start DBEmulator
         db_ps = new(DBEmulator, num=1)
-        setup(db_ps,(config, suffix, ))
+        setup(db_ps,(config, suffix, p_time))
         start(db_ps)
 
         # Setup and start Workers
@@ -1026,21 +1084,38 @@ def main():
 
         # Setup and start Resource Coordinators
         res_coord_ps = new(ResCoord, num=test['num_coords'])
-        setup(res_coord_ps,(db_ps, worker_ps, config, suffix,))
-        start(res_coord_ps)
+        workers_p = list(worker_ps)
+        start = 0
+        for p in res_coord_ps:
+            setup(p,(db_ps, workers_p[start:start+test['worker_count']], config, suffix,))
+            start(p)
+            start += test['worker_count']
+
+        res_types = set([x['res']['type'] for x in cli_requests])
+        res_coord_map = dict()
+        for res_type in res_types:
+            res_coord_map[res_type] = len(res_coord_map)
+        print ('res_coord_map', res_coord_map)
 
         # Setup and start Subject Coordinators
         sub_coord_ps = new(SubCoord, num=test['num_coords'])
-        setup(sub_coord_ps,(db_ps, res_coord_ps, config, suffix,))
+        setup(sub_coord_ps,(db_ps, res_coord_ps, config, suffix, res_coord_map,))
         start(sub_coord_ps)
 
         # Setup and start Application instances
         app_ps = new(Application, num=test['num_clients'])
         i = 0
         start = 0
+        
+        sub_types = set([x['sub']['type'] for x in cli_requests])
+        sub_coord_map = dict()
+        for sub_type in sub_types:
+            sub_coord_map[sub_type] = len(sub_coord_map)
+        print ('sub_coord_map', sub_coord_map)
         for p in app_ps:
             setup(p, (sub_coord_ps, config,
-                        cli_requests[start:start+test['workload'][i]], suffix,))
+                        cli_requests[start:start+test['workload'][i]], suffix,
+                        sub_coord_map,))
             start += test['workload'][i]
             i += 1
             start(p)

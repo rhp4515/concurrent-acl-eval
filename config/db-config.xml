@@ -1,5 +1,5 @@
 <db>
-	<data>
+	<!-- <data>
 		<employee>
 			<id>1</id>
 			<attr>
@@ -22,7 +22,7 @@
 			<id>Pulp Fiction</id>
 			<attr>
 				<viewCount>0</viewCount>
-				<!-- <viewed>false</viewed> -->
+				<viewed>false</viewed>
 			</attr>
 		</movie>
 		<movie>
@@ -49,5 +49,5 @@
 				<listenCount>10</listenCount>
 			</attr>
 		</song1>
-	</data>
+	</data> -->
 </db>

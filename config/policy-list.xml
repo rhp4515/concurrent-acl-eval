@@ -26,6 +26,66 @@
     <action type="listen"/>
     <resourceUpdate listened="true" listenCount="++"/>
   </rule>
+  <rule type="A collectively can view each a at most 150 times">
+      <subjectCondition type="A"/>
+      <resourceCondition type="a" viewCount="&lt;150"/>
+      <action type="view"/>
+      <resourceUpdate viewCount="++"/>
+  </rule>
+  <rule type="B collectively can view each b at most 150 times">
+      <subjectCondition type="B"/>
+      <resourceCondition type="b" viewCount="&lt;150"/>
+      <action type="view"/>
+      <resourceUpdate viewCount="++"/>
+  </rule>
+  <rule type="C collectively can view each c at most 150 times">
+      <subjectCondition type="C"/>
+      <resourceCondition type="c" viewCount="&lt;150"/>
+      <action type="view"/>
+      <resourceUpdate viewCount="++"/>
+  </rule>
+  <rule type="D collectively can view each d at most 150 times">
+      <subjectCondition type="D"/>
+      <resourceCondition type="d" viewCount="&lt;150"/>
+      <action type="view"/>
+      <resourceUpdate viewCount="++"/>
+  </rule>
+  <rule type="E collectively can view each e at most 150 times">
+      <subjectCondition type="E"/>
+      <resourceCondition type="e" viewCount="&lt;150"/>
+      <action type="view"/>
+      <resourceUpdate viewCount="++"/>
+  </rule>
+  <rule type="F collectively can view each f at most 150 times">
+      <subjectCondition type="F"/>
+      <resourceCondition type="f" viewCount="&lt;150"/>
+      <action type="view"/>
+      <resourceUpdate viewCount="++"/>
+  </rule>
+  <rule type="G collectively can view each g at most 150 times">
+      <subjectCondition type="G"/>
+      <resourceCondition type="g" viewCount="&lt;150"/>
+      <action type="view"/>
+      <resourceUpdate viewCount="++"/>
+  </rule>
+  <rule type="H collectively can view each h at most 150 times">
+      <subjectCondition type="H"/>
+      <resourceCondition type="h" viewCount="&lt;150"/>
+      <action type="view"/>
+      <resourceUpdate viewCount="++"/>
+  </rule>
+  <rule type="I collectively can view each i at most 150 times">
+      <subjectCondition type="I"/>
+      <resourceCondition type="i" viewCount="&lt;150"/>
+      <action type="view"/>
+      <resourceUpdate viewCount="++"/>
+  </rule>
+  <rule type="J collectively can view each j at most 150 times">
+      <subjectCondition type="J"/>
+      <resourceCondition type="j" viewCount="&lt;150"/>
+      <action type="view"/>
+      <resourceUpdate viewCount="++"/>
+  </rule>
 </policy>
 <!--
  sample policy.  CSE 535, Fall 2016, Scott Stoller.  2016-10-03
