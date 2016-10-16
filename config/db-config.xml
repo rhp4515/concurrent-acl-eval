@@ -22,6 +22,7 @@
 			<id>Pulp Fiction</id>
 			<attr>
 				<viewCount>0</viewCount>
+				<!-- <viewed>false</viewed> -->
 			</attr>
 		</movie>
 		<movie>

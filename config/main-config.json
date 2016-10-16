@@ -1,23 +1,20 @@
 {
 	"minDBlatency": 1,
 	"maxDBlatency": 10,
-	"client_requests": {
-		"path": "../config/initial-cli-reqs.xml",
-		"seed": 1234567,
-		"data": [{
-			"subject": ["employee"],
-			"resources": ["bank", "user"],
-			"actions": ["read", "view"]
-		}, {
-			"subject": ["customer"],
-			"resources": ["movie"],
-			"actions": ["view"]
-		}, {
-			"subject": ["customer"],
-			"resources": ["song"],
-			"actions": ["listen"]
-		}]
-	},
+	"testing": [
+		{
+			"name": "subject attribute conflict",
+			"description": "a request evaluation aborts due to a conflict on a subject attribute",
+			"num_clients": 2,
+			"num_coords": 2,
+			"worker_count": 2,
+			"randomize": false,
+			"workload": [1, 1],
+			"serialize_app_req_delay": false,
+			"path": "../config/sub_attr_conflict_reqs.xml",
+			"expected_db_content": "description"
+		}
+	],
 	"policy_config": "../config/policy-list.xml",
 	"db_config": "../config/db-config.xml",
 	"db_log": "../logs/db.log",
@@ -25,25 +22,5 @@
 	"sub_coord_log": "../logs/sub_coord.log",
 	"res_coord_log": "../logs/res_coord.log",
 	"timer_log": "../logs/timer.log",
-	"worker_log": "../logs/worker.log",
-	"num_clients": 4,
-	"num_coords": 5,
-	"worker_count": 2,
-
-	"client_workload": {
-		"1": {
-			"workload": "high"
-		},
-		"2": {
-			"workload": "low"
-		}
-	},
-	"workload_def": {
-		"high": {
-			"num_msg_per_sec": 5
-		},
-		"low": {
-			"num_msg_per_sec": 2
-		}
-	}
+	"worker_log": "../logs/worker.log"
 }

@@ -20,7 +20,7 @@
 		<res type='bank' id='bank C'></res>
 		<action type='read'></action>
 	</request>
-	<!-- <request>
+	<request>
 		<sub type='customer' id='1'/>
 		<res type='movie' id='Pulp Fiction'></res>
 		<action type='view'></action>
@@ -29,31 +29,6 @@
 		<sub type='customer' id='1'/>
 		<res type='movie' id='XXX'></res>
 		<action type='view'></action>
-	</request>
-	<request>
-		<sub type='employee' id='1'/>
-		<res type='bank' id='bank A'></res>
-		<action type='read'></action>
-	</request>
-	<request>
-		<sub type='employee' id='10'/>
-		<res type='bank' id='bank B'></res>
-		<action type='read'></action>
-	</request>
-	<request>
-		<sub type='employee' id='1'/>
-		<res type='bank' id='bank B'></res>
-		<action type='read'></action>
-	</request>
-	<request>
-		<sub type='employee' id='2'/>
-		<res type='bank' id='bank B'></res>
-		<action type='read'></action>
-	</request>
-	<request>
-		<sub type='employee' id='3'/>
-		<res type='bank' id='bank C'></res>
-		<action type='read'></action>
 	</request>
 	<request>
 		<sub type='customer' id='2'/>
@@ -65,9 +40,4 @@
 		<res type='song' id='1'></res>
 		<action type='listen'></action>
 	</request>
-	<request>
-		<sub type='customer' id='1'/>
-		<res type='movie' id='1'></res>
-		<action type='view'></action>
-	</request> -->
 </requests>

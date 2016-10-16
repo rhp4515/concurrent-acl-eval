@@ -128,7 +128,7 @@ class Application(process):
         self.logger.info('SENDING SUB ID - {} TO PROCESS {}'.format(sub['id'], chosen))
         return chosen
 
-    def authorize(sub, res, action):
+    def authorize(sub, res, action, delays):
         # time.sleep(1)
         # TODO: why do we need attr at the beginning
         if 'attr' not in sub:
@@ -136,11 +136,16 @@ class Application(process):
         if 'attr' not in res:
             res['attr'] = {}
 
+        if type(delays) == dict:
+                delays = [delays]
+        delays = [x['delay'] for x in delays]
+        print(delays)
         payload = {
             'sub': sub,
             'res': res,
             'action': action,
-            'app_id': self.app_id
+            'app_id': self.app_id,
+            'delays': delays
         }
         p = get_sub_coord(sub)
 
@@ -157,7 +162,7 @@ class Application(process):
         # self.requests = self.requests[1:]
         # self.logger.info('[RECEIVED][DONE]')
         for request in self.requests:
-            authorize(request['sub'], request['res'], request['action'])
+            authorize(request['sub'], request['res'], request['action'], request.get('delays', []))
             await(sent(('DONE',)))
             self.logger.info('[RECEIVED][DONE]')
 
@@ -248,7 +253,8 @@ class SubCoord(process):
             'sub': app_req_map[eval_id]['sub'],
             'res': app_req_map[eval_id]['res'],
             'action': app_req_map[eval_id]['action'],
-            'app_id': app_req_map[eval_id]['app_id']
+            'app_id': app_req_map[eval_id]['app_id'],
+            'delays': [],
         }
         clear_cache(eval_id)
         send(('APP_EVALUATION_REQUEST',payload), to=self.id)
@@ -269,15 +275,11 @@ class SubCoord(process):
         sub_attrs = curr_eval['sub']['attr']
         tentative_evals = get_tentative_evals(curr_eval['sub'], curr_eval['req_no'])
         tentative_attrs = {}
+        print('tentative_evals', tentative_evals)
         for eval in tentative_evals:
             for k in sub_attrs:
-                if k in eval['sub']['attr']:
-                    tentative_attrs[k] = sub_attrs[k]
-
-        for k in tentative_attrs:
-            if tentative_attrs[k] != sub_attrs[k]:
-                return True
-
+                if k in eval['sub']['attr'] and eval['sub']['attr'][k] != sub_attrs[k]:
+                    return True
         return False
 
     def clean_up(df):
@@ -287,11 +289,14 @@ class SubCoord(process):
             df.drop(idx, inplace=True)
         return df
 
-    def evaluate(app_id, sub, res, action, req_no, p):
+    def evaluate(app_id, sub, res, action, delays, req_no, p):
         eval_id = str(uuid.uuid4())
         sub_copy = copy.deepcopy(sub)
         res_copy = copy.deepcopy(res)
-        self.app_req_map[eval_id] = dict(app_id=app_id, sub=sub_copy, res=res_copy, action=action, req_no=req_no, app_p=p)
+        self.app_req_map[eval_id] = dict(app_id=app_id, sub=sub_copy,
+                                        res=res_copy, action=action,
+                                        delays=delays,req_no=req_no, app_p=p)
+
         # if sub['id'] == '3':
         #     print ("sleeping for ", 5, eval_id)
         #     time.sleep(5)
@@ -337,8 +342,8 @@ class SubCoord(process):
         for eval in evals:
             if eval_id in eval['dep_eval_ids']:
                 result.append(eval)
-        print ('QUERY RESULTS')
-        print (result)
+        # print ('QUERY RESULTS')
+        # print (result)
         return result
 
     def get_app(eval_id):
@@ -443,6 +448,7 @@ class SubCoord(process):
                                 payload['sub'],
                                 payload['res'],
                                 payload['action'],
+                                payload['delays'],
                                 time.time(),
                                 p)
 
@@ -473,7 +479,8 @@ class SubCoord(process):
         if status:
             res_commit_payload = dict(eval_id=payload['eval_id'],
                                   app_id=payload['app_id'],
-                                  res=payload['res'])
+                                  res=payload['res'],
+                                  delays=self.app_req_map[payload['eval_id']]['delays'])
             send(('RES_COMMIT_REQUEST', res_commit_payload),to=get_res_coord(payload['res']))
             self.logger.info('[SENT][RES_COMMIT_REQUEST][{}] payload:{}'
                          .format(res_commit_payload['app_id'], res_commit_payload))
@@ -677,7 +684,7 @@ class ResCoord(process):
         # print (self.res_cache)
         self.logger.info('[RECEIVED][RES_COMMIT_REQUEST][{}] payload:{}'
                          .format(payload['app_id'], payload))
-
+        print(payload)
         result = commit_evaluation(payload['app_id'], payload['eval_id'], payload['res'])
         res_commit_payload = dict(eval_id=payload['eval_id'],
                                   result=result,
@@ -688,11 +695,11 @@ class ResCoord(process):
         #     seconds = random.randint(self.minLatency,self.maxLatency)
         # print ("sleeping {} by {}", payload['app_id'], seconds)
         # time.sleep(seconds)
-        if payload['res']['id'] == "bank B":
+        if 'before_res_commit' in payload.get('delays', []):
             print('waiting to send res commit response')
             time.sleep(10)
-            if random.randint(1,10) > 3:
-                res_commit_payload['result'] = False
+            # if random.randint(1,10) > 3:
+            #     res_commit_payload['result'] = False
         send(('RES_COMMIT_RESPONSE', res_commit_payload),to=p)
         self.logger.info('[SENT][RES_COMMIT_RESPONSE][{}] payload:{}'
                          .format(res_commit_payload['app_id'], res_commit_payload))
@@ -782,6 +789,8 @@ class Worker(process):
         #     seconds = random.randint(1,10)
         # print ("sleeping {} by {}", worker_resp_payload['app_id'], seconds)
         # time.sleep(seconds)
+        # if 'before_worker_response' in payload['delays']:
+        #     time.sleep(10)
         send(('WORKER_EVALUATION_RESPONSE', worker_resp_payload),to=sub_coord_ps)
 
         self.logger.info('[SENT][WORKER_EVALUATION_RESPONSE][{}] payload:{}'
@@ -802,33 +811,34 @@ def main():
     # do something with config
     config(channel="reliable")
 
-    cli_requests = parse_client_requests(config['client_requests']['path'])
+    for test in config['testing']:
+        cli_requests = parse_client_requests(test['path'])
 
-    db_ps = new(DBEmulator, num=1)
-    setup(db_ps,(config,))
-    start(db_ps)
+        db_ps = new(DBEmulator, num=1)
+        setup(db_ps,(config,))
+        start(db_ps)
 
-    worker_ps = new(Worker, num=config['num_coords']*config['worker_count'])
-    setup(worker_ps,(db_ps, config,))
-    start(worker_ps)
+        worker_ps = new(Worker, num=test['num_coords']*test['worker_count'])
+        setup(worker_ps,(db_ps, config,))
+        start(worker_ps)
 
-    res_coord_ps = new(ResCoord, num=config['num_coords'])
-    setup(res_coord_ps,(db_ps, worker_ps, config,))
-    start(res_coord_ps)
+        res_coord_ps = new(ResCoord, num=test['num_coords'])
+        setup(res_coord_ps,(db_ps, worker_ps, config,))
+        start(res_coord_ps)
 
-    sub_coord_ps = new(SubCoord, num=config['num_coords'])
-    setup(sub_coord_ps,(db_ps, res_coord_ps, config,))
-    start(sub_coord_ps)
+        sub_coord_ps = new(SubCoord, num=test['num_coords'])
+        setup(sub_coord_ps,(db_ps, res_coord_ps, config,))
+        start(sub_coord_ps)
 
-    app_ps = new(Application, num=config['num_clients'])
-    i = 0
-    num_req_per_process = 1
-    for p in app_ps:
-        setup(p, (sub_coord_ps, config, cli_requests[i:i+num_req_per_process]))
-        i += num_req_per_process
-        start(p)
-        time.sleep(1)
-    # start(app_ps)
-
+        app_ps = new(Application, num=test['num_clients'])
+        i = 0
+        start = 0
+        for p in app_ps:
+            setup(p, (sub_coord_ps, config, cli_requests[start:start+test['workload'][i]]))
+            start += test['workload'][i]
+            i += 1
+            start(p)
+            if test.get('serialize_app_req_delay', None):
+                time.sleep(1)
 
 
