@@ -10,7 +10,7 @@
 	"res_coord_log": "../logs/res_coord.log",
 	"timer_log": "../logs/timer.log",
 	"worker_log": "../logs/worker.log",
-	"num_clients": 3,
+	"num_clients": 4,
 	"num_coords": 5,
 	"worker_count": 1,
 	"client_workload": {

@@ -8,6 +8,7 @@ import pandas as pd
 import random
 import uuid
 import time
+from threading import Lock
 from tabulate import tabulate
 from policy import PolicyParser
 
@@ -17,7 +18,7 @@ def get_logger(name, path):
     handler = logging.FileHandler(path, mode='w')
     handler.setLevel(logging.DEBUG)
     logger.addHandler(handler)
-    # logger.disabled = True
+    logger.disabled = True
     return logger
 
 class TimerP(process):
@@ -185,6 +186,7 @@ class SubCoord(process):
         self.minLatency = config['minDBlatency']
         self.maxLatency = config['maxDBlatency']
         self.res_coord_map = dict()
+        self.res_commit_q = dict()
 
     def get_res_coord(res):
         res_coords = list(res_coord_ps)
@@ -217,18 +219,27 @@ class SubCoord(process):
                 'req_no': req_no,
                 'status':status,
                 'result':None}
-
+        # print ("SETUP CACHE - BEFORE")
+        # print (tabulate(self.eval_cache, headers='keys', tablefmt='grid')) 
         self.eval_cache.loc[len(self.eval_cache)] = data
+        # print ("SETUP CACHE - AFTER")
+        # print (tabulate(self.eval_cache, headers='keys', tablefmt='grid'))
 
-    def update_cache(eval_id):
+    def update_cache(eval_id, status):
         self.logger.info('[UPDATING CACHE] [{}]'.format(eval_id))
+        self.eval_cache.loc[self.eval_cache['eval_id'] == eval_id, 'status'] = status
+
+    def update_dep_evals(eval_id, dep_eval_ids):
+        self.logger.info('[UPDATING DEP EVALS] [{}]'.format(eval_id))
         indices = self.eval_cache.loc[(self.eval_cache['eval_id'] == eval_id)].index.tolist()
+
         if indices:
-            self.eval_cache.set_value(indices[0], 'status', const.WORKER_COMPLETE)
+            self.eval_cache.set_value(indices[0],'dep_eval_ids', dep_eval_ids)
 
     def update_attr(eval_id, sub, res, result):
         self.logger.info('[UPDATING ATTR] [{}]'.format(eval_id))
         indices = self.eval_cache.loc[(self.eval_cache['eval_id'] == eval_id)].index.tolist()
+
         if indices:
             self.eval_cache.set_value(indices[0],'sub', sub)
             self.eval_cache.set_value(indices[0],'res', res)
@@ -237,7 +248,12 @@ class SubCoord(process):
     def clear_cache(eval_id):
         self.logger.info('[CLEAR CACHE] [{}]'.format(eval_id))
         idx = self.eval_cache.loc[self.eval_cache['eval_id'] == eval_id].index.tolist()
+        # print(idx)
+        # print ("CLEAR CACHE - BEFORE")
+        # print (tabulate(self.eval_cache, headers='keys', tablefmt='grid'))                        
         self.eval_cache.drop(idx, inplace=True)
+        # print ("CLEAR CACHE - AFTER")
+        # print (tabulate(self.eval_cache, headers='keys', tablefmt='grid'))                        
         del self.app_req_map[eval_id]
 
     def restart(eval_id):
@@ -256,13 +272,12 @@ class SubCoord(process):
                          .format(payload['app_id'], self.id, payload))
 
 
-
     def add_tentative_attr_updates_to_req(sub, req_no):
         tentative_evals = get_previous_committed_evals(req_no)
+        print ("TENTATIVE_EVALS", sub, req_no, [x['eval_id'] for x in tentative_evals])
         for eval in tentative_evals:
             attrs = eval['sub']['attr']
-            for k in attrs:
-                sub['attr'][k] = attrs[k]
+            sub['attr'].update(attrs)
         return sub, [eval['eval_id'] for eval in tentative_evals]
 
     def has_subject_attr_updates(eval_id):
@@ -281,17 +296,34 @@ class SubCoord(process):
 
         return False
 
+    def clean_up(df):
+        # self.eval_cache.loc[self.eval_cache['eval_id'] == eval_id].index.tolist()
+        columns = ['eval_id','sub', 'res', 'action', 'dep_eval_ids', 'status', 'req_no','result']
+        for col in columns:
+            idx = df.loc[df['eval_id'] == col].index.tolist()
+            df.drop(idx, inplace=True)
+        # print(df.dtypes)
+        return df
 
     def evaluate(app_id, sub, res, action, req_no, p):
         eval_id = str(uuid.uuid4())
         app_req_map[eval_id] = dict(app_id=app_id, sub=sub, res=res, action=action, req_no=req_no, app_p=p)
+        # if sub['id'] == '3':
+        #     print ("sleeping for ", 5, eval_id)
+        #     time.sleep(5)       
+
         sub, dependent_eval_ids = add_tentative_attr_updates_to_req(sub, req_no)
         setup_cache(eval_id, sub, res, action, dependent_eval_ids, req_no, const.PENDING)
+        # print (tabulate(self.eval_cache, headers='keys', tablefmt='grid'))
         return eval_id, sub
 
     def get_tentative_evals(sub, req_no):
+        clean_up(self.eval_cache)
+        # self.eval_cache[['req_no']] = self.eval_cache[['req_no']].astype(float)
         evals = self.eval_cache[(self.eval_cache['status'] == const.WORKER_COMPLETE) & (self.eval_cache['req_no'] < req_no)]
+        # print (tabulate(evals, headers=['eval_id','req_no','status'], tablefmt='grid'))
         evals = evals.sort_values('req_no', ascending=True)
+        # print (tabulate(evals, headers=['eval_id','req_no','status'], tablefmt='grid'))
         evals = json.loads(evals.to_json(orient="records"))
         eval_with_sub_attrs = []
 
@@ -305,51 +337,56 @@ class SubCoord(process):
 
     def get_evals_dependent_on(eval_id):
         curr_eval = get_eval(eval_id)
-        evals = self.eval_cache[(eval_id in self.eval_cache['dep_eval_ids']) & (self.eval_cache['req_no'] > curr_eval['req_no'])]
+        clean_up(self.eval_cache)
+        # self.eval_cache[['req_no']] = self.eval_cache[['req_no']].astype(float)
+        print ('CACHE TABLE')
+        print (tabulate(self.eval_cache, headers='keys',tablefmt='grid'))        
+        evals = self.eval_cache[self.eval_cache['req_no'] > curr_eval['req_no']]
         evals = evals.sort_values('req_no', ascending=True)
         evals = json.loads(evals.to_json(orient="records"))
-        return evals
+        result = []
+        for eval in evals:
+            if eval_id in eval['dep_eval_ids']:
+                result.append(eval)
+        print ('QUERY RESULTS')
+        print (result)
+        return result
 
     def get_app(eval_id):
-        return self.app_req_map[eval_id]['app_p']
+        return (self.app_req_map[eval_id]['app_id'], self.app_req_map[eval_id]['app_p'])
 
-    def process_worker_response(eval_id, result):
-
-        res = None
-
-        eval = get_eval(eval_id)
-        if eval:
-            res = eval['res']
-
+    def process_worker_response(eval_id):
         if has_subject_attr_updates(eval_id):
             restart(eval_id)
         else:
-            update_cache(eval_id)
+            update_cache(eval_id, const.WORKER_COMPLETE)
             curr_eval = get_eval(eval_id)
             tentative_evals = get_tentative_evals(curr_eval['sub'], curr_eval['req_no'])
-
-            tentative_eval_ids = set([x['eval_id'] for x in tentative_evals])
-            if some(received(('RES_COMMIT_RESPONSE', payload)), has= payload['eval_id'] in tentative_eval_ids and payload['result'] == False):
-                print('restarting eval_id = ', eval_id)
-                restart(eval_id)
+            tentative_eval_ids = list(set([x['eval_id'] for x in tentative_evals]))
+            if len(tentative_eval_ids) > 0:
+                update_dep_evals(eval_id, tentative_eval_ids)
+                self.res_commit_q[eval_id] = tentative_eval_ids
             else:
-                return True, res
-        return False, res
+                print('process_worker_response returing TRUE')
+                return True
+        return False
+        #     print ("**********************************************************")
+        #     print (tabulate(self.eval_cache, headers='keys',tablefmt='grid'))
+        #     print (curr_eval)
+        #     print (tentative_eval_ids)
+        #     print ("**********************************************************")
+        #     if some(received(('RES_COMMIT_RESPONSE', payload)), has= payload['eval_id'] in tentative_eval_ids and payload['result'] == False):
+        #         print('restarting eval_id = ', eval_id)
+        #         restart(eval_id)
+        #     else:
+        #         return True, res
+        # return False, res
 
     def get_previous_committed_evals(req_no):
+        clean_up(self.eval_cache)
         evals = self.eval_cache[(self.eval_cache['status'] == const.WORKER_COMPLETE) & (self.eval_cache['req_no'] < req_no)]
         evals = evals.sort_values('req_no', ascending=True)
-        evals = json.loads(evals.to_json(orient="records"))
-        return evals
-
-    def get_previous_evals(req_no):
-        print ("REQ NO: ",req_no)
-        # print (tabulate(self.eval_cache, headers='keys',tablefmt='psql'))
-        evals = self.eval_cache[self.eval_cache['req_no'] < req_no]
-        evals = evals.sort_values('req_no', ascending=True)
-        # print (tabulate(evals, headers='keys',tablefmt='psql'))
-        evals = json.loads(evals.to_json(orient="records"))
-        return evals
+        return json.loads(evals.to_json(orient="records"))
 
     def update_attr_db(app_id, sub):
         payload = dict(app_id=app_id, sub=sub)
@@ -366,35 +403,6 @@ class SubCoord(process):
 
         send(('TIMER_REQUEST', payload),to=timer_ps)
         self.logger.info('[SENT][TIMER_REQUEST][{}] payload:{}'.format(app_id, payload))
-
-    def commit_eval(app_id, eval_id):
-        curr_eval = get_eval(eval_id)
-        previous_evals = get_previous_evals(curr_eval['req_no'])
-        previous_eval_ids = [x['eval_id'] for x in previous_evals]
-        prev_evals_len = len(previous_evals)
-
-        # print("BEFORE WAIT")
-        print (previous_eval_ids)
-        # if prev_evals_len > 0:
-
-        #     # while True:
-        #     if some(received(('RES_COMMIT_DONE', evl_id)), has= eval_id in previous_eval_ids):
-        #         print(evl_id)
-        #         previous_eval_ids.remove(evl_id)
-        #         # if len(previous_eval_ids) == 0:
-        #         #     break
-        # else:
-        update_attr_db(app_id, curr_eval['sub'])
-        clear_cache(eval_id)
-        # print (eval_id)
-        # print ("EVAL ID", eval_id)
-        # previous_eval_ids.remove(payload['eval_id'])
-        # prev_evals_len -= 1
-        # print ("PREVIOUS EVAL IDS",previous_eval_ids)
-
-        print("AFTER WAIT")
-
-
 
     def restart_dependent_evals(eval_id):
         print ("restarting dependant evals")
@@ -416,7 +424,25 @@ class SubCoord(process):
             del sub['attr'][attr]
 
         return sub
-
+    
+    def get_pending_transactions_to_commit():
+        # print("IN MY METHOD")
+        commited_eval_ids = []
+        # print (tabulate(self.eval_cache, headers=['req_no'],tablefmt='grid'))
+        # self.eval_cache[['req_no']] = self.eval_cache[['req_no']].astype(float)
+        # print (tabulate(self.eval_cache, headers=['req_no'],tablefmt='grid'))
+        clean_up(self.eval_cache)
+        self.eval_cache.sort_values('req_no', ascending=True, inplace=True)
+        evals = json.loads(self.eval_cache.to_json(orient="records"))
+        # print (evals)
+        for eval in evals:
+            if eval['status'] != const.PENDING_ATTR_DB_UPDATE:
+                break
+            else:
+                commited_eval_ids.append(eval['eval_id'])
+        
+        return commited_eval_ids
+            
     def receive(msg= ('APP_EVALUATION_REQUEST', payload), from_=p):
         # print (tabulate(self.eval_cache, headers='keys',tablefmt='psql'))
         self.logger.info('[RECEIVED][APP_EVALUATION_REQUEST][{}] payload:{}'
@@ -449,22 +475,70 @@ class SubCoord(process):
                          .format(payload['app_id'], payload))
             return
         update_attr(payload['eval_id'], payload['sub'], payload['res'], payload['result'])
-        status, res = process_worker_response(payload['eval_id'], payload['result'])
+        status = process_worker_response(payload['eval_id'])
         # print("*********",status, res, "***********")
         # If control comes here then it should have been successful
         # Upon failure the process is restarted
+
         if status:
             res_commit_payload = dict(eval_id=payload['eval_id'],
-                                      app_id=payload['app_id'],
-                                      res=res)
-            send(('RES_COMMIT_REQUEST', res_commit_payload),to=get_res_coord(res))
+                                  app_id=payload['app_id'],
+                                  res=payload['res'])
+            send(('RES_COMMIT_REQUEST', res_commit_payload),to=get_res_coord(payload['res']))
             self.logger.info('[SENT][RES_COMMIT_REQUEST][{}] payload:{}'
-                             .format(res_commit_payload['app_id'], res_commit_payload))
+                         .format(res_commit_payload['app_id'], res_commit_payload))
+            print('[SENT][RES_COMMIT_REQUEST][{}] payload:{}'
+                                     .format(res_commit_payload['app_id'], res_commit_payload))
 
+            res_commit_req_done_payload = dict(app_id=payload['app_id'],
+                                               eval_id=payload['eval_id'])
+
+            send(('RES_COMMIT_REQ_DONE', res_commit_req_done_payload),to=self.id)
+            self.logger.info('[SENT][RES_COMMIT_REQ_DONE][{}] payload:{}'
+                        .format(res_commit_req_done_payload['app_id'], 
+                                res_commit_req_done_payload))
+            print('[SENT][RES_COMMIT_REQ_DONE][{}] payload:{}'
+                        .format(res_commit_req_done_payload['app_id'], 
+                                res_commit_req_done_payload))
+
+
+    def receive(msg= ('RES_COMMIT_REQ_DONE', payload), from_=p):
+        self.logger.info('[RECEIVED][RES_COMMIT_REQ_DONE][{}] payload:{}'
+                         .format(payload['app_id'], payload))
+        print('[RECEIVED][RES_COMMIT_REQ_DONE][{}] payload:{}'
+                         .format(payload['app_id'], payload))
+
+        evals_to_send_commit = []
+        evals = get_evals_dependent_on(payload['eval_id'])
+        print('RES_COMMIT_REQ_DONE', 'get_evals_dependent_on', [x['eval_id'] for x in evals])
+        for eval in evals:
+            eval_id = eval['eval_id']
+            if eval_id in self.res_commit_q:
+                self.res_commit_q[eval_id].remove(payload['eval_id'])
+                evals_to_send_commit.append(eval_id)
+        
+        for eval_id in evals_to_send_commit:
+            curr_eval = get_eval(eval_id)
+            res_commit_payload = dict(eval_id=eval_id,
+                                  app_id=get_app(eval_id)[0],
+                                  res=curr_eval['res'])
+            send(('RES_COMMIT_REQUEST', res_commit_payload),to=get_res_coord(curr_eval['res']))
+            self.logger.info('[SENT][RES_COMMIT_REQUEST][{}] payload:{}'
+                         .format(res_commit_payload['app_id'], res_commit_payload))
 
     def receive(msg= ('RES_COMMIT_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][RES_COMMIT_RESPONSE][{}] payload:{}'
                          .format(payload['app_id'], payload))
+        res_commit_req_done_payload = dict(app_id=payload['app_id'],
+                                               eval_id=payload['eval_id'])
+
+        send(('RES_COMMIT_REQ_DONE', res_commit_req_done_payload),to=self.id)
+        self.logger.info('[SENT][RES_COMMIT_REQ_DONE][{}] payload:{}'
+                    .format(res_commit_req_done_payload['app_id'], 
+                            res_commit_req_done_payload))
+        print('[SENT][RES_COMMIT_REQ_DONE][{}] payload:{}'
+                    .format(res_commit_req_done_payload['app_id'], 
+                            res_commit_req_done_payload))
         eval = get_eval(payload['eval_id'])
         if not eval:
             self.logger.info('[IGNORED][RES_COMMIT_RESPONSE][{}] payload:{}'
@@ -475,20 +549,30 @@ class SubCoord(process):
                          .format(payload['app_id'], payload))
         result = payload['result']
         if result:
-            app = get_app(payload['eval_id'])
-            eval = get_eval(payload['eval_id'])
-            commit_eval(payload['app_id'], payload['eval_id'])
-            app_eval_payload = dict(result=eval['result'], app_id=payload['app_id'])
-            send(('APP_EVALUATION_RESPONSE', app_eval_payload),to=app)
-            self.logger.info('[SENT][APP_EVALUATION_RESPONSE][{}] payload:{}'
-                         .format(app_eval_payload['app_id'], app_eval_payload))
-            print('[SENT][APP_EVALUATION_RESPONSE][{}] payload:{}'
-                         .format(app_eval_payload['app_id'], app_eval_payload))
-            send(('RES_COMMIT_DONE', payload['eval_id']), to=self.id)
+            # commit_eval(payload['app_id'], payload['eval_id'])
+            update_cache(payload['eval_id'], const.PENDING_ATTR_DB_UPDATE)
+            send(('RES_COMMIT_DONE'), to=self.id)
+            print('[SENT][RES_COMMIT_DONE]')
 
         else:
             restart_dependent_evals(payload['eval_id'])
             restart(payload['eval_id'])
+
+    def receive(msg= ('RES_COMMIT_DONE'), from_=p):
+        self.logger.info('[RECEIVED][RES_COMMIT_DONE]')
+        eval_ids = get_pending_transactions_to_commit()
+        
+        for eval_id in eval_ids:
+            app_id, app_ps = get_app(eval_id)
+            eval = get_eval(eval_id)
+            update_attr_db(app_id, eval['sub'])
+            clear_cache(eval_id)
+            app_eval_payload = dict(result=eval['result'], app_id=app_id)
+            send(('APP_EVALUATION_RESPONSE', app_eval_payload),to=app_ps)
+            self.logger.info('[SENT][APP_EVALUATION_RESPONSE][{}] payload:{}'
+                         .format(app_eval_payload['app_id'], app_eval_payload))
+            print('[SENT][APP_EVALUATION_RESPONSE][{}] payload:{}'
+                         .format(app_eval_payload['app_id'], app_eval_payload))
 
     def receive(msg= ('TIMER_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][TIMER_RESPONSE][{}] payload:{}'
@@ -606,17 +690,18 @@ class ResCoord(process):
         res_commit_payload = dict(eval_id=payload['eval_id'],
                                   result=result,
                                   app_id=payload['app_id'])
-
-        if payload['res']['id'].isdigit():
-            seconds = 10 - int(payload['res']['id'])*2
-        else:
-            seconds = 5
-        print ("sleeping {} by {}", payload['app_id'], seconds)
-        time.sleep(seconds)
+        # if payload['res']['id'].isdigit():
+        #     seconds = 20 - int(payload['res']['id'])
+        # else:
+        #     seconds = random.randint(self.minLatency,self.maxLatency)
+        # print ("sleeping {} by {}", payload['app_id'], seconds)
+        # time.sleep(seconds)
+        if payload['res']['id'] == "bank B":
+            print('waiting to send res commit response')
+            time.sleep(10)
         send(('RES_COMMIT_RESPONSE', res_commit_payload),to=p)
-
         self.logger.info('[SENT][RES_COMMIT_RESPONSE][{}] payload:{}'
-                             .format(res_commit_payload['app_id'], res_commit_payload))
+                         .format(res_commit_payload['app_id'], res_commit_payload))
         # print (self.res_cache)
         # print ("**************************************************")
 
@@ -697,6 +782,12 @@ class Worker(process):
                                    action=action,
                                    app_id=payload['app_id'])
 
+        # if worker_resp_payload['res']['id'].isdigit():
+        #     seconds = 20 - int(worker_resp_payload['res']['id'])
+        # else:
+        #     seconds = random.randint(1,10)
+        # print ("sleeping {} by {}", worker_resp_payload['app_id'], seconds)
+        # time.sleep(seconds)
         send(('WORKER_EVALUATION_RESPONSE', worker_resp_payload),to=sub_coord_ps)
 
         self.logger.info('[SENT][WORKER_EVALUATION_RESPONSE][{}] payload:{}'
@@ -737,11 +828,13 @@ def main():
 
     app_ps = new(Application, num=config['num_clients'])
     i = 0
-    num_req_per_process = 4
+    num_req_per_process = 1
     for p in app_ps:
         setup(p, (sub_coord_ps, config, cli_requests[i:i+num_req_per_process]))
         i += num_req_per_process
-    start(app_ps)
+        start(p)
+        time.sleep(1)
+    # start(app_ps)
 
 
 
