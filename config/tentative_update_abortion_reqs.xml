@@ -13,9 +13,6 @@
 		<sub type='employee' id='1'/>
 		<res type='bank' id='bank B'></res>
 		<action type='read'></action>
-		<delays>
-			<delay>before_db_read</delay>
-		</delays>
 	</request>
 	<request>
 		<sub type='employee' id='1'/>

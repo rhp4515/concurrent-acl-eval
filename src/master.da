@@ -191,7 +191,9 @@ class Application(process):
                         request.get('delays', {}))
 
             # Serializing request evaluation
+            print ("BEFORE", self.id)
             await(sent(('DONE',)))
+            print ("AFTER", self.id)
             self.logger.info('[RECEIVED][DONE]')
 
     def receive(msg=('APP_EVALUATION_RESPONSE', payload), from_=p):
@@ -269,9 +271,12 @@ class SubCoord(process):
                     result=None)
         # TODO: Consider using append, possibly the cause of that unorderable
         # error
-
-        # self.eval_cache.append(data, ignore_index=True, verify_integrity=True)
-        self.eval_cache.loc[len(self.eval_cache)] = data
+        df = pd.DataFrame([], columns=self.columns)
+        df.loc[0] = data
+        # print (tabulate(df, headers='keys', tablefmt='grid'))
+        self.eval_cache = self.eval_cache.append(df, ignore_index=True)
+        # print (tabulate(self.eval_cache, headers='keys', tablefmt='grid'))
+        # self.eval_cache.loc[len(self.eval_cache)] = data
 
     def update_cache(eval_id, status):
         """ Update the corresponding row in cache"""
@@ -315,6 +320,7 @@ class SubCoord(process):
                        res=app_req_map[eval_id]['res'],
                        action=app_req_map[eval_id]['action'],
                        app_id=app_req_map[eval_id]['app_id'],
+                       app_ps=app_req_map[eval_id]['app_p'],
                        delays=[])
 
         clear_cache(eval_id)
@@ -333,6 +339,12 @@ class SubCoord(process):
         for eval in tentative_evals:
             attrs = eval['sub']['attr']
             sub['attr'].update(attrs)
+
+        for attr in sub['attr']:
+            key = (sub['type'], sub['id'], attr)
+            if key in self.attr_cache:
+                sub['attr'][attr] = self.attr_cache[key]
+
         return sub, [eval['eval_id'] for eval in tentative_evals]
 
     def has_subject_attr_updates(eval_id):
@@ -361,10 +373,10 @@ class SubCoord(process):
         # print (self.attr_cache)
         # print (sub_attrs)
 
-        for k in sub_attrs:
-            key = (sub['type'], sub['id'], k)
-            if key in self.attr_cache and sub_attrs[k] != self.attr_cache[key]:
-                return True
+        # for k in sub_attrs:
+        #     key = (sub['type'], sub['id'], k)
+        #     if key in self.attr_cache and sub_attrs[k] != self.attr_cache[key]:
+        #         return True
         # print("################################################################")
         return False
 
@@ -372,15 +384,16 @@ class SubCoord(process):
         """
             Hack to rectify a runtime error
         """
-        for col in self.columns:
-            idx = df.loc[df['eval_id'] == col].index.tolist()
-            df.drop(idx, inplace=True)
+        # for col in self.columns:
+        #     idx = df.loc[df['eval_id'] == col].index.tolist()
+        #     df.drop(idx, inplace=True)
         return df
 
     def evaluate(app_id, sub, res, action, delays, req_no, p):
         eval_id = str(uuid.uuid4())
         sub_copy = copy.deepcopy(sub)
         res_copy = copy.deepcopy(res)
+
         self.app_req_map[eval_id] = dict(app_id=app_id,
                                          sub=sub_copy,
                                          res=res_copy,
@@ -552,7 +565,7 @@ class SubCoord(process):
                                 payload['action'],
                                 payload['delays'],
                                 time.time(),
-                                p)
+                                payload.get('app_ps', p))
 
         res_req_payload = dict(app_id=payload['app_id'],
                                eval_id=eval_id,
@@ -697,11 +710,12 @@ class SubCoord(process):
             update_attr_db(app_id, eval['sub'])
             clear_cache(eval_id)
             app_eval_payload = dict(result=eval['result'], app_id=app_id)
+            print ("APP_PS", app_ps)
             send(('APP_EVALUATION_RESPONSE', app_eval_payload),to=app_ps)
             self.logger.info('[SENT][APP_EVALUATION_RESPONSE][{}] payload:{}'
                          .format(app_eval_payload['app_id'], app_eval_payload))
-            # print('[SENT][APP_EVALUATION_RESPONSE][{}] payload:{}'
-            #              .format(app_eval_payload['app_id'], app_eval_payload))
+            print('[SENT][APP_EVALUATION_RESPONSE][{}] payload:{}'
+                         .format(app_eval_payload['app_id'], app_eval_payload))
 
     def receive(msg= ('TIMER_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][TIMER_RESPONSE][{}] payload:{}'
