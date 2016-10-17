@@ -1,0 +1,2 @@
+[RECEIVED][TIMER_REQUEST][fa2eb2a6-4796-4b0f-9fac-240734008c07] payload:{'sub': {'attr': {'history': 'bank A'}, 'id': '1', 'type': 'employee'}, 'app_id': 'fa2eb2a6-4796-4b0f-9fac-240734008c07', 'latency_in_secs': 0}
+[SENT][TIMER_RESPONSE][fa2eb2a6-4796-4b0f-9fac-240734008c07] payload:{'sub': {'attr': {'history': 'bank A'}, 'id': '1', 'type': 'employee'}, 'app_id': 'fa2eb2a6-4796-4b0f-9fac-240734008c07'}

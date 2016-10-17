@@ -1,0 +1,2 @@
+[RECEIVED][TIMER_REQUEST][9c85444d-647c-48dc-97df-92fecde31c0c] payload:{'app_id': '9c85444d-647c-48dc-97df-92fecde31c0c', 'sub': {'type': 'employee', 'id': '1', 'attr': {'history': 'bank A'}}, 'latency_in_secs': 0}
+[SENT][TIMER_RESPONSE][9c85444d-647c-48dc-97df-92fecde31c0c] payload:{'app_id': '9c85444d-647c-48dc-97df-92fecde31c0c', 'sub': {'type': 'employee', 'id': '1', 'attr': {'history': 'bank A'}}}

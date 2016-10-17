@@ -1,0 +1,2 @@
+[RECEIVED][TIMER_REQUEST][69dab640-72a0-4aff-8471-fa635204b1f6] payload:{'sub': {'attr': {}, 'type': 'customer', 'id': '1'}, 'latency_in_secs': 0, 'app_id': '69dab640-72a0-4aff-8471-fa635204b1f6'}
+[SENT][TIMER_RESPONSE][69dab640-72a0-4aff-8471-fa635204b1f6] payload:{'sub': {'attr': {}, 'type': 'customer', 'id': '1'}, 'app_id': '69dab640-72a0-4aff-8471-fa635204b1f6'}

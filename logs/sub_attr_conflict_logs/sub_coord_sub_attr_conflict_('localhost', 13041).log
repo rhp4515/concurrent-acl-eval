@@ -1,0 +1,44 @@
+[RECEIVED][APP_EVALUATION_REQUEST][ce93f2ac-971a-4b86-8062-93c0725c8b8c] payload:{'delays': ['before_res_commit'], 'res': {'type': 'bank', 'attr': {}, 'id': 'bank A'}, 'app_id': 'ce93f2ac-971a-4b86-8062-93c0725c8b8c', 'action': {'type': 'read'}, 'sub': {'type': 'employee', 'attr': {}, 'id': '1'}}
+[SETTING UP CACHE] [c56c5127-8470-4cd1-8e18-bed827dace98]
+Resource Coord process for bank -> ('localhost', 11711)
+[SENT][RES_EVALUATION_REQUEST][ce93f2ac-971a-4b86-8062-93c0725c8b8c] payload:{'action': {'type': 'read'}, 'eval_id': 'c56c5127-8470-4cd1-8e18-bed827dace98', 'delays': ['before_res_commit'], 'res': {'type': 'bank', 'attr': {}, 'id': 'bank A'}, 'app_id': 'ce93f2ac-971a-4b86-8062-93c0725c8b8c', 'sub': {'type': 'employee', 'attr': {}, 'id': '1'}}
+[RECEIVED][WORKER_EVALUATION_RESPONSE][ce93f2ac-971a-4b86-8062-93c0725c8b8c] payload:{'app_id': 'ce93f2ac-971a-4b86-8062-93c0725c8b8c', 'res': {'type': 'bank', 'attr': {}, 'old_attr': {}, 'id': 'bank A'}, 'action': {'type': 'read'}, 'eval_id': 'c56c5127-8470-4cd1-8e18-bed827dace98', 'result': True, 'sub': {'type': 'employee', 'attr': {'history': 'bank A'}, 'id': '1'}}
+[UPDATING ATTR] [c56c5127-8470-4cd1-8e18-bed827dace98]
+[UPDATING CACHE] [c56c5127-8470-4cd1-8e18-bed827dace98]
+Resource Coord process for bank -> ('localhost', 11711)
+[SENT][RES_COMMIT_REQUEST][ce93f2ac-971a-4b86-8062-93c0725c8b8c] payload:{'delays': ['before_res_commit'], 'res': {'type': 'bank', 'attr': {}, 'old_attr': {}, 'id': 'bank A'}, 'app_id': 'ce93f2ac-971a-4b86-8062-93c0725c8b8c', 'eval_id': 'c56c5127-8470-4cd1-8e18-bed827dace98'}
+[SENT][RES_COMMIT_REQ_DONE][ce93f2ac-971a-4b86-8062-93c0725c8b8c] payload:{'eval_id': 'c56c5127-8470-4cd1-8e18-bed827dace98', 'app_id': 'ce93f2ac-971a-4b86-8062-93c0725c8b8c'}
+[RECEIVED][RES_COMMIT_REQ_DONE][ce93f2ac-971a-4b86-8062-93c0725c8b8c] payload:{'eval_id': 'c56c5127-8470-4cd1-8e18-bed827dace98', 'app_id': 'ce93f2ac-971a-4b86-8062-93c0725c8b8c'}
+[RECEIVED][APP_EVALUATION_REQUEST][7879a987-d8f3-4915-87ee-fb22ddda6c95] payload:{'delays': [], 'res': {'type': 'bank', 'attr': {}, 'id': 'bank B'}, 'app_id': '7879a987-d8f3-4915-87ee-fb22ddda6c95', 'action': {'type': 'read'}, 'sub': {'type': 'employee', 'attr': {}, 'id': '1'}}
+[SETTING UP CACHE] [282a3a43-5fef-4f4a-b026-f968a822020b]
+Resource Coord process for bank -> ('localhost', 11711)
+[SENT][RES_EVALUATION_REQUEST][7879a987-d8f3-4915-87ee-fb22ddda6c95] payload:{'action': {'type': 'read'}, 'eval_id': '282a3a43-5fef-4f4a-b026-f968a822020b', 'delays': [], 'res': {'type': 'bank', 'attr': {}, 'id': 'bank B'}, 'app_id': '7879a987-d8f3-4915-87ee-fb22ddda6c95', 'sub': {'type': 'employee', 'attr': {'history': 'bank A'}, 'id': '1'}}
+[SENT][RES_COMMIT_REQ_DONE][ce93f2ac-971a-4b86-8062-93c0725c8b8c] payload:{'eval_id': 'c56c5127-8470-4cd1-8e18-bed827dace98', 'app_id': 'ce93f2ac-971a-4b86-8062-93c0725c8b8c'}
+[RECEIVED][RES_COMMIT_RESPONSE][ce93f2ac-971a-4b86-8062-93c0725c8b8c] payload:{'eval_id': 'c56c5127-8470-4cd1-8e18-bed827dace98', 'app_id': 'ce93f2ac-971a-4b86-8062-93c0725c8b8c', 'result': True}
+[UPDATING CACHE] [c56c5127-8470-4cd1-8e18-bed827dace98]
+[SENT][RES_COMMIT_DONE][ce93f2ac-971a-4b86-8062-93c0725c8b8c] payload: {'eval_id': 'c56c5127-8470-4cd1-8e18-bed827dace98', 'app_id': 'ce93f2ac-971a-4b86-8062-93c0725c8b8c', 'result': True}
+[RECEIVED][RES_COMMIT_REQ_DONE][ce93f2ac-971a-4b86-8062-93c0725c8b8c] payload:{'eval_id': 'c56c5127-8470-4cd1-8e18-bed827dace98', 'app_id': 'ce93f2ac-971a-4b86-8062-93c0725c8b8c'}
+[RECEIVED][RES_COMMIT_DONE]
+[SENT][TIMER_REQUEST][ce93f2ac-971a-4b86-8062-93c0725c8b8c] payload:{'sub': {'type': 'employee', 'attr': {'history': 'bank A'}, 'id': '1'}, 'app_id': 'ce93f2ac-971a-4b86-8062-93c0725c8b8c', 'latency_in_secs': 0}
+[CLEAR CACHE] [c56c5127-8470-4cd1-8e18-bed827dace98]
+[SENT][APP_EVALUATION_RESPONSE][ce93f2ac-971a-4b86-8062-93c0725c8b8c] payload:{'app_id': 'ce93f2ac-971a-4b86-8062-93c0725c8b8c', 'result': True}
+[RECEIVED][WORKER_EVALUATION_RESPONSE][7879a987-d8f3-4915-87ee-fb22ddda6c95] payload:{'app_id': '7879a987-d8f3-4915-87ee-fb22ddda6c95', 'res': {'type': 'bank', 'attr': {}, 'old_attr': {}, 'id': 'bank B'}, 'action': {'type': 'read'}, 'eval_id': '282a3a43-5fef-4f4a-b026-f968a822020b', 'result': False, 'sub': {'type': 'employee', 'attr': {'history': 'bank A'}, 'id': '1'}}
+[UPDATING ATTR] [282a3a43-5fef-4f4a-b026-f968a822020b]
+[UPDATING CACHE] [282a3a43-5fef-4f4a-b026-f968a822020b]
+Resource Coord process for bank -> ('localhost', 11711)
+[SENT][RES_COMMIT_REQUEST][7879a987-d8f3-4915-87ee-fb22ddda6c95] payload:{'delays': [], 'res': {'type': 'bank', 'attr': {}, 'old_attr': {}, 'id': 'bank B'}, 'app_id': '7879a987-d8f3-4915-87ee-fb22ddda6c95', 'eval_id': '282a3a43-5fef-4f4a-b026-f968a822020b'}
+[SENT][RES_COMMIT_REQ_DONE][7879a987-d8f3-4915-87ee-fb22ddda6c95] payload:{'eval_id': '282a3a43-5fef-4f4a-b026-f968a822020b', 'app_id': '7879a987-d8f3-4915-87ee-fb22ddda6c95'}
+[RECEIVED][TIMER_RESPONSE][ce93f2ac-971a-4b86-8062-93c0725c8b8c] payload:{'app_id': 'ce93f2ac-971a-4b86-8062-93c0725c8b8c', 'sub': {'type': 'employee', 'attr': {'history': 'bank A'}, 'id': '1'}}
+[SENT][DB_WRITE_REQUEST][ce93f2ac-971a-4b86-8062-93c0725c8b8c] payload:{'data': {'type': 'employee', 'attr': {'history': 'bank A'}, 'id': '1'}, 'app_id': 'ce93f2ac-971a-4b86-8062-93c0725c8b8c'}
+[RECEIVED][RES_COMMIT_REQ_DONE][7879a987-d8f3-4915-87ee-fb22ddda6c95] payload:{'eval_id': '282a3a43-5fef-4f4a-b026-f968a822020b', 'app_id': '7879a987-d8f3-4915-87ee-fb22ddda6c95'}
+[SENT][RES_COMMIT_REQ_DONE][7879a987-d8f3-4915-87ee-fb22ddda6c95] payload:{'eval_id': '282a3a43-5fef-4f4a-b026-f968a822020b', 'app_id': '7879a987-d8f3-4915-87ee-fb22ddda6c95'}
+[RECEIVED][RES_COMMIT_RESPONSE][7879a987-d8f3-4915-87ee-fb22ddda6c95] payload:{'eval_id': '282a3a43-5fef-4f4a-b026-f968a822020b', 'app_id': '7879a987-d8f3-4915-87ee-fb22ddda6c95', 'result': True}
+[UPDATING CACHE] [282a3a43-5fef-4f4a-b026-f968a822020b]
+[SENT][RES_COMMIT_DONE][7879a987-d8f3-4915-87ee-fb22ddda6c95] payload: {'eval_id': '282a3a43-5fef-4f4a-b026-f968a822020b', 'app_id': '7879a987-d8f3-4915-87ee-fb22ddda6c95', 'result': True}
+[RECEIVED][RES_COMMIT_REQ_DONE][7879a987-d8f3-4915-87ee-fb22ddda6c95] payload:{'eval_id': '282a3a43-5fef-4f4a-b026-f968a822020b', 'app_id': '7879a987-d8f3-4915-87ee-fb22ddda6c95'}
+[RECEIVED][RES_COMMIT_DONE]
+[SENT][TIMER_REQUEST][7879a987-d8f3-4915-87ee-fb22ddda6c95] payload:{'sub': {'type': 'employee', 'attr': {'history': 'bank A'}, 'id': '1'}, 'app_id': '7879a987-d8f3-4915-87ee-fb22ddda6c95', 'latency_in_secs': 0}
+[CLEAR CACHE] [282a3a43-5fef-4f4a-b026-f968a822020b]
+[SENT][APP_EVALUATION_RESPONSE][7879a987-d8f3-4915-87ee-fb22ddda6c95] payload:{'app_id': '7879a987-d8f3-4915-87ee-fb22ddda6c95', 'result': False}
+[RECEIVED][TIMER_RESPONSE][7879a987-d8f3-4915-87ee-fb22ddda6c95] payload:{'app_id': '7879a987-d8f3-4915-87ee-fb22ddda6c95', 'sub': {'type': 'employee', 'attr': {'history': 'bank A'}, 'id': '1'}}
+[SENT][DB_WRITE_REQUEST][7879a987-d8f3-4915-87ee-fb22ddda6c95] payload:{'data': {'type': 'employee', 'attr': {'history': 'bank A'}, 'id': '1'}, 'app_id': '7879a987-d8f3-4915-87ee-fb22ddda6c95'}

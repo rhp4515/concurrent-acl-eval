@@ -1,0 +1,4 @@
+Subject Coord process for customer -> ('localhost', 10682)
+[SENT][APP_EVALUATION_REQUEST][29583609-4ebf-46ea-af2f-e596890f1fe8] payload:{'app_id': '29583609-4ebf-46ea-af2f-e596890f1fe8', 'delays': ['before_res_commit'], 'sub': {'type': 'customer', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'res': {'type': 'movie', 'attr': {}, 'id': 'A'}}
+[RECEIVED][APP_EVALUATION_RESPONSE][29583609-4ebf-46ea-af2f-e596890f1fe8] payload:{'app_id': '29583609-4ebf-46ea-af2f-e596890f1fe8', 'result': True}
+[RECEIVED][DONE]
