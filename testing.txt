@@ -1,1 +1,175 @@
-### Fill testcase details here
+Testing Documentation
+
+The main method fecthes all the testing scenarios from the main-config.json and runs
+them. The logs for each test cases are distinguished by the suffix name 
+e.g sub_attr_conflict, tentative_update_abortion. The logs for each unique
+process is created in separate file with its port number appended to its name.
+
+We have run the test scenarios once and stored all the logs in respective 
+folders inside the log folder. The initial and final db state are also logged 
+in the corresponding db_log file.
+
+How did we simulate ?
+
+Each test scenario uses its own list of requests from the config file. We have 
+introduced the delay parameters for each requests if needed. We introduce
+manual delay if the correspoing flag is set against the request.
+
+Scenarios
+
+*****************************
+#1 Subject Attribute Conflict
+*****************************
+
+When the same employee(1) tries to access different banks(bank A, bank B) at 
+the same time. A request evaluation aborts due to a conflict on a subject 
+attribute. We have made sure bank A always succeeds by introducing a delay in 
+before resource commit for the conflict to occur in a deterministic manner.
+
+	NUM_CLIENTS: 		 2
+	NUM_SUB_COORDS: 	 2
+	NUM_RES_COORDS: 	 2 
+	WORKER_COUNT: 		 2
+
+	REQUESTS FILE: 		 '../config/sub_attr_conflict_reqs.xml'
+	LOG_SUFFIX: 		 sub_attr_conflict,
+
+	EXPECTED_DB_CONTENT: db_sub_attr_conflict.log contains final db state. 
+						 Expected db_dump:
+						 ('employee', '1', 'history'): 'bank A'
+		
+
+******************************
+#2 Resource Attribute Conflict
+******************************
+
+When two evaluations tries to modify the view count of a resource, one should 
+succeed and other should end up with a resource attribute conflict and restart
+itself and then succeed with proper attribute value.
+			
+	NUM_CLIENTS: 		 2
+	NUM_SUB_COORDS: 	 2
+	NUM_RES_COORDS: 	 2 
+	WORKER_COUNT: 		 2
+
+	REQUESTS FILE: 		 '../config/res_attr_conflict_reqs.xml'
+	LOG_SUFFIX: 		 res_attr_conflict,
+
+	EXPECTED_DB_CONTENT: db_res_attr_conflict.log contains final db state. 
+						 Expected db_dump:
+						 ('movie', 'A', 'viewed'): 'true' 
+						 ('movie', 'A', 'viewCount'): 2
+
+
+***********************************
+#3 Abortion due to Tentative Update
+***********************************
+
+
+When the evaluations piggy back on tentative attr updates of an evaluation and 
+that evaluation fails, we need to restart all the dependant evaluations.
+We simulated this a relay before the resource commit of the first request, so
+all others depend on it and then fail it using a res_commit_fail flag, this
+will make all the process to restart and then complete in proper order.
+
+	NUM_CLIENTS: 		 4
+	NUM_SUB_COORDS: 	 2
+	NUM_RES_COORDS: 	 2 
+	WORKER_COUNT: 		 2
+
+	REQUESTS FILE: 		 '../config/tentative_update_abortion_reqs.xml'
+	LOG_SUFFIX: 		 tentative_update_abortion,
+
+	EXPECTED_DB_CONTENT: db_tentative_update_abortion.log contains final db 
+						 state. 
+						 Expected db_dump:
+						 ('employee', '1', 'history'): 'bank A' 
+						 
+
+**********************************************
+#4 Wait for Tentative Evalualtions to Complete
+**********************************************
+
+
+A request evaluation is delayed because it depends on a tentative update by a 
+request that has not yet committed or aborted. We have simulated this with a
+delay before the resource commit of the first requests and sending the requests
+in a sequence. Now, all the requests depends on the first request and will wait
+till it is committed to proceed with their commit.  
+
+	
+	NUM_CLIENTS: 		 4
+	NUM_SUB_COORDS: 	 2
+	NUM_RES_COORDS: 	 2 
+	WORKER_COUNT: 		 2
+
+	REQUESTS FILE: 		 '../config/wait_tentative_update_completion_reqs.xml'
+	LOG_SUFFIX: 		 wait_tentative_update_completion_reqs,
+
+	EXPECTED_DB_CONTENT: wait_tentative_update_completion.log contains final db 
+						 state. 
+						 Expected db_dump:
+						 ('employee', '1', 'history'): 'bank A'
+		
+
+****************************************
+#5 Randomize Resource Attribute Conflict
+****************************************
+
+This is similar to the resource attribute conflict, but we randomize the order
+in which the requests are sent. Thus, this will not always result in a 
+resource attribute conflict. But, a resource attribute conflict occurs when the 
+first request in the list is picked first. This is to demonstrate the 
+randomization of request scenario.
+
+	
+	
+	NUM_CLIENTS: 		 2
+	NUM_SUB_COORDS: 	 2
+	NUM_RES_COORDS: 	 2 
+	WORKER_COUNT: 		 2
+
+	REQUESTS FILE: 		 '../config/res_attr_conflict_rand_reqs.xml'
+	LOG_SUFFIX: 		 res_attr_conflict_rand,
+	
+	RANDOMIZE:			 False
+	SEED:				 110283876
+
+	EXPECTED_DB_CONTENT: db_res_attr_conflict_rand.log contains final db state. 
+						 Expected db_dump:
+						 ('movie', 'A', 'viewed'): 'true'
+						 ('movie', 'C', 'viewed'): 'true' 
+						 ('movie', 'B', 'viewed'): 'true' 
+						 ('movie', 'B', 'viewCount'): 1
+						 ('movie', 'C', 'viewCount'): 1 
+						 ('movie', 'A', 'viewCount'): 4
+
+
+**************
+#6 Stress Test
+**************
+
+This test scenario is to engage all the process (client, sub_coord, res_coord, 
+worker, db busy throughout the execution. This process generates the requests 
+to send based on the specified subjects, resources and action in the following 
+config. The total request count is computed based on the number of clients and 
+the workload of each client. It evenly splits the request to all the application
+clients.
+
+	
+	NUM_CLIENTS: 		 10
+	NUM_SUB_COORDS: 	 10
+	NUM_RES_COORDS: 	 10
+	WORKER_COUNT: 		 10
+
+	WORKLOAD: 		 	 50
+
+	REQUESTS FILE: 		 '../config/stress_res.json'
+	LOG_SUFFIX: 		 stress_test,
+	
+	SUBJECTS:			 ["A","B","C","D","E","F","G","H","I","J"]
+	RESOURCES:			 ["a","b","c","d","e","f","g","h","i","j"]
+
+	EXPECTED_DB_RESULT:	 '../config/stress_truth.json'	
+	EXPECTED_DB_CONTENT: db_stress_test.log contains final db state. 
+						 
