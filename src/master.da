@@ -132,11 +132,11 @@ class DBEmulator(process):
         self.logger.info('[RECEIVED][DB_WRITE_REQUEST][{}] payload:{}'
                                                 .format(data['app_id'], data))
         self._op(self._write, data['data'])
-       
+
 # Client corresponds to Application instance
 class Application(process):
     def setup(sub_coord_ps, config, requests, suffix, sub_coord_map):
-        self.logger = get_logger('app_logger', config['app_log'].format(suffix, str(self.id)))        
+        self.logger = get_logger('app_logger', config['app_log'].format(suffix, str(self.id)))
         self.requests = requests
         self.sub_coord_map = sub_coord_map
         self.results = []
@@ -187,7 +187,7 @@ class Application(process):
                                                 .format(app_id, payload))
 
     def run():
-        print('num requests = ', len(self.requests))
+        # print('num requests = ', len(self.requests))
         for request in self.requests:
             # Creating an app id for the subject coordinator to send the response
             # to corresponding application
@@ -213,7 +213,7 @@ class Application(process):
 class SubCoord(process):
     def setup(db_ps, res_coord_ps, config, suffix, res_coord_map):
         self.logger = get_logger('sub_coord_logger',
-                                  config['sub_coord_log'].format(suffix, 
+                                  config['sub_coord_log'].format(suffix,
                                                                  str(self.id)))
         self.columns = [ 'eval_id',      'sub',      'res',      'action',
                          'dep_eval_ids', 'status',   'req_no',   'result' ]
@@ -1019,7 +1019,7 @@ def gen_reqs(conf):
             # sub_id = str(random.randint(1, conf['num_clients']/2))
             sub_id = str(random.randint(1,1))
             for res in conf['res']:
-                
+
                 # res_id = str(random.randint(1, conf['num_clients']/2))
                 res_id = str(random.randint(1,1))
                 req = {
@@ -1050,7 +1050,7 @@ def gen_reqs(conf):
 
     with open(conf['path'],'w') as f:
         f.write(json.dumps(reqs))
-    
+
     return reqs
 
 
@@ -1066,7 +1066,7 @@ def main():
         if test.get('generate', None):
             cli_requests = gen_reqs(test)
             test['workload'] = [test['workload']] * test['num_clients']
-        else:    
+        else:
             cli_requests = parse_client_requests(test['path'])
             if test['randomize']:
                 random.seed(test['seed'])
@@ -1106,7 +1106,7 @@ def main():
         app_ps = new(Application, num=test['num_clients'])
         i = 0
         start = 0
-        
+
         sub_types = set([x['sub']['type'] for x in cli_requests])
         sub_coord_map = dict()
         for sub_type in sub_types:
