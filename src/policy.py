@@ -121,6 +121,35 @@ class PolicyParser():
                 res_attr[attr] = ru[attr]
         return res_attr
 
+    def get_read_write_map(self, sub, res, act):
+        read_write_map = dict()
+        for rule in self.root.iter('rule'):
+            sc=rule.find('subjectCondition')
+            if sub['type'] != sc.attrib['type']:
+                continue
+            rc=rule.find('resourceCondition')
+            if res['type'] != rc.attrib['type']:
+                continue
+            ac=rule.find('action')
+            if act['type'] != ac.attrib['type']:
+                continue
+
+            key = (sc.attrib['type'], rc.attrib['type'], ac.attrib['type'])
+
+            su = rule.find('subjectUpdate')
+            ru = rule.find('resourceUpdate')
+            if su is None and ru is None:
+                continue
+            elif su is not None and ru is None:
+                read_write_map[key] = (res['type'], sub['type'])
+            elif ru is not None and su is None:
+                read_write_map[key] = (sub['type'], res['type'])
+
+            return read_write_map
+
+    def might_read_attrs(self):
+        pass
+
     def evaluate(self, sub, res, act):
         status = False
         # sub, res should contain some attrs from db
@@ -176,9 +205,9 @@ class PolicyParser():
 
 # p = PolicyParser()
 # sub = {'type':'customer', 'attr': {}, 'id':'2'}
-# res = {'type':'song', 'attr': {'viewCount': 9}, 'id':'1' }
+# res = {'type':'song', 'attr': {}, 'id':'1' }
 # act = {'type': 'listen'}
-# print(p.evaluate(sub, res, act))
+# print(p.get_read_write_map(sub, res, act))
 # sub = {'type':'employee', 'attr': {'history': 'bank B'}}
 # res = {'type':'bank', 'id': 'bank B', 'attr': {}}
 # act = {'type': 'read'}

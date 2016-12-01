@@ -134,7 +134,7 @@ class DBEmulator(process):
         self._op(self._write, data['data'])
 
 # Client corresponds to Application instance
-#TODO implement pending queue 
+#TODO implement pending queue
 class Application(process):
     def setup(coord_ps, config, requests, suffix, coord_map):
         self.logger = get_logger('app_logger', config['app_log'].format(suffix, str(self)))
@@ -143,19 +143,18 @@ class Application(process):
         self.read_write_map = dict()
         self.results = []
 
-    def load_policies():
-        return []
-
-    def analyze_policies(policies):
-        pass
+    def analyze_policies(sub, res, action):
+        p = PolicyParser()
+        self.read_write_map.update(p.get_read_write_map(sub, res, action))
 
     def predict_objs ( sub , res , action ):
+        analyze_policies(sub, res, action)
         req_type = const.READ_WRITE
         key = (sub['type'], res['type'], action['type'])
         if key not in read_write_map:
             req_type = const.READ_ONLY
             return (sub, res, action, req_type)
-        
+
         r_type , w_type = read_write_map[key]
         if res['type'] == r_type :
             return (res, sub, action, req_type)
@@ -206,14 +205,12 @@ class Application(process):
                      action=action,
                      req_type=req_type,
                      delays=delays)
-        
+
         send(('COORDR_REQUEST', payload), to=r_obj['coord'])
         self.logger.info('[SENT][COORDR_REQUEST][{}] payload:{}'
-                                                .format(app_id, payload))   
+                                                .format(app_id, payload))
 
     def run():
-        policies = self.load_policies()
-        analyze_policies (policies)
         # print('num requests = ', len(self.requests))
         for request in self.requests:
             # Creating an app id for the subject coordinator to send the response
@@ -276,7 +273,7 @@ class Coord(process):
     def receive(msg= ('COORDR_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][COORDR_RESPONSE][{}] payload:{}'
                                             .format(payload['app_id'], payload))
-        
+
 
         self.logger.info('[PROCESSED][COORDR_RESPONSE][{}] payload:{}'
                                             .format(payload['app_id'], payload))
@@ -288,7 +285,7 @@ class Coord(process):
         x = payload['w_obj']
         payload = update_req(x, payload)
         worker = get_worker()
-        
+
         send(('WORKER_REQUEST', payload), to=worker)
         self.logger.info('[SENT][WORKER_REQUEST][{}] payload:{}'
                                         .format(payload['app_id'],
@@ -297,7 +294,7 @@ class Coord(process):
     def receive(msg= ('COORDW_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][COORDW_RESPONSE][{}] payload:{}'
                                             .format(payload['app_id'], payload))
-        
+
         client_resp_payload = dict(result=payload['result'],
                                    app_id=payload['app_id'])
 
@@ -509,9 +506,9 @@ def main():
         coord_map = dict()
         for type in types:
             coord_map[type] = len(coord_map)
-        
+
         print ('coord_map', coord_map)
-        
+
         # Setup and start DBEmulator
         db_ps = new(DBEmulator, args=(config, suffix, p_time,))
         # setup(db_ps,)
@@ -523,7 +520,7 @@ def main():
         start(worker_ps)
 
         # Setup and start Resource Coordinators
-        
+
         workers_p = list(worker_ps)
         start = 0
         coords = set()
@@ -537,7 +534,7 @@ def main():
 
 
         # Setup and start Application instances
-        
+
         print (coords)
         i = 0
         start = 0
