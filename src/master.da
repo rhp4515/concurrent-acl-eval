@@ -141,7 +141,7 @@ class Application(process):
         self.requests = requests
         self.coord_map = coord_map
         self.read_write_map = dict()
-        self.results = []
+        self.pending_q = dict()
 
     def analyze_policies(sub, res, action):
         p = PolicyParser()
@@ -206,9 +206,29 @@ class Application(process):
                      req_type=req_type,
                      delays=delays)
 
+        timer_ps = new(TimerP, args=(config,suffix,))
+        start(timer_ps)
+        
+        timer_payload = dict(app_id=app_id, latency_in_secs=2)
+        send(('TIMER_REQUEST', timer_payload), to=timer_ps)
+        self.logger.info('[SENT][TIMER_REQUEST][{}] payload:{}'
+                                        .format(app_id, timer_payload))
+
         send(('COORDR_REQUEST', payload), to=r_obj['coord'])
         self.logger.info('[SENT][COORDR_REQUEST][{}] payload:{}'
                                                 .format(app_id, payload))
+
+    def send_and_receive(app_id, request):
+        
+        authorize(  request['sub'],
+                    request['res'],
+                    request['action'],
+                    request.get('delays', {}),
+                    app_id)
+
+        # Serializing request evaluation
+        await(some(received(('DONE', payload)), has= payload == app_id ))
+        self.logger.info('[RECEIVED][DONE]')
 
     def run():
         # print('num requests = ', len(self.requests))
@@ -216,22 +236,37 @@ class Application(process):
             # Creating an app id for the subject coordinator to send the response
             # to corresponding application
             app_id = str(uuid.uuid4())
-            authorize(  request['sub'],
-                        request['res'],
-                        request['action'],
-                        request.get('delays', {}),
-                        app_id)
+            req_copy = copy.deepcopy(request)
+            self.pending_q[app_id] = request
+            send_and_receive(app_id, req_copy)
+            
 
-            # Serializing request evaluation
-            await(some(received(('DONE', payload)), has= payload == app_id ))
-            self.logger.info('[RECEIVED][DONE]')
+    def restart(app_id):
+        req = self.pending_q.get(app_id, None)
+        if req is None :
+            return
+        else :
+            new_app_id = uuid.uuid4()
+            self.pending_q[new_app_id] = req
+            send_and_receive(new_app_id, req)
+            self.logger.info('[RESTART][REQUEST][{}][{}] payload:{}'
+                                        .format(app_id, new_app_id, req))
 
     def receive(msg=('CLIENT_RESPONSE', payload), from_=p):
         app_id = payload['app_id']
         self.logger.info('[RECEIVED][CLIENT_RESPONSE][{}] payload:{}'
                                                     .format(app_id, payload))
-        self.results.append(payload)
+
+        del self.pending_q[app_id]
         send(('DONE', app_id), to=self)
+
+    def receive(msg=('TIMER_RESPONSE', payload), from_=p):
+        app_id = payload['app_id']
+        self.logger.info('[RECEIVED][TIMER_RESPONSE][{}] payload:{}'
+                                                    .format(app_id, payload))
+        
+        if app_id in self.pending_q:
+            restart(app_id)
 
 class Coord(process):
     def setup(db_ps, workers, config, suffix,coord_map):
@@ -264,7 +299,6 @@ class Coord(process):
         payload['eval_id'] = uuid.uuid4()
         payload['ts'] = time.time()
         payload['app_ps'] = p
-        print ('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>',payload['w_obj']['coord'])
         send(('COORDW_REQUEST', payload),to=payload['w_obj']['coord'])
 
         self.logger.info('[SENT][COORDW_REQUEST][{}] payload:{}'
