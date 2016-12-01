@@ -211,7 +211,7 @@ class Application(process):
 
 
 class SubCoord(process):
-    def setup(db_ps, res_coord_ps, config, suffix, res_coord_map):
+    def setup(db_ps, coord_ps, config, suffix, res_coord_map):
         self.logger = get_logger('sub_coord_logger',
                                   config['sub_coord_log'].format(suffix,
                                                                  str(self.id)))
@@ -232,7 +232,7 @@ class SubCoord(process):
             Create resource to resource coordinator map and returns resource
             coordinator process id
         """
-        res_coords = list(res_coord_ps)
+        res_coords = list(coord_ps)
         # Sorting resource coordinator process by its address to maintain
         # consistency
 
@@ -730,8 +730,8 @@ class SubCoord(process):
         self.logger.info('[SENT][DB_WRITE_REQUEST][{}] payload:{}'
                                     .format(payload['app_id'], write_payload))
 
-class ResCoord(process):
-    def setup(db_ps, workers, config, suffix,):
+class Coord(process):
+    def setup(db_ps, workers, config, suffix,coord_map):
         self.logger = get_logger('res_coord_logger',
                                  config['res_coord_log'].format(suffix,
                                                                 str(self.id)))
@@ -1072,6 +1072,12 @@ def main():
                 random.seed(test['seed'])
                 shuffle(cli_requests)
 
+        types = set([x['sub']['type'] for x in cli_requests])
+        types.union(set([x['res']['type'] for x in cli_requests]))
+        coord_map = dict()
+        for type in types:
+            coord_map[type] = len(coord_map)
+
         # Setup and start DBEmulator
         db_ps = new(DBEmulator, num=1)
         setup(db_ps,(config, suffix, p_time))
@@ -1083,39 +1089,25 @@ def main():
         start(worker_ps)
 
         # Setup and start Resource Coordinators
-        res_coord_ps = new(ResCoord, num=test['num_coords'])
+        coord_ps = new(Coord, num=test['num_coords'])
         workers_p = list(worker_ps)
         start = 0
-        for p in res_coord_ps:
-            setup(p,(db_ps, workers_p[start:start+test['worker_count']], config, suffix,))
+        for p in coord_ps:
+            setup(p,(db_ps, workers_p[start:start+test['worker_count']], config, suffix,
+                    coord_map,))
             start(p)
             start += test['worker_count']
-
-        res_types = set([x['res']['type'] for x in cli_requests])
-        res_coord_map = dict()
-        for res_type in res_types:
-            res_coord_map[res_type] = len(res_coord_map)
-        print ('res_coord_map', res_coord_map)
-
-        # Setup and start Subject Coordinators
-        sub_coord_ps = new(SubCoord, num=test['num_coords'])
-        setup(sub_coord_ps,(db_ps, res_coord_ps, config, suffix, res_coord_map,))
-        start(sub_coord_ps)
 
         # Setup and start Application instances
         app_ps = new(Application, num=test['num_clients'])
         i = 0
         start = 0
 
-        sub_types = set([x['sub']['type'] for x in cli_requests])
-        sub_coord_map = dict()
-        for sub_type in sub_types:
-            sub_coord_map[sub_type] = len(sub_coord_map)
-        print ('sub_coord_map', sub_coord_map)
+        print ('coord_map', coord_map)
         for p in app_ps:
-            setup(p, (sub_coord_ps, config,
+            setup(p, (coord_ps, config,
                         cli_requests[start:start+test['workload'][i]], suffix,
-                        sub_coord_map,))
+                        coord_map,))
             start += test['workload'][i]
             i += 1
             start(p)
