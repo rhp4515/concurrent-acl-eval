@@ -115,17 +115,17 @@ class DBEmulator(process):
     def receive(msg=('DB_READ_REQUEST', data), from_=p):
         self.logger.info('[RECEIVED][DB_READ_REQUEST][{}] payload:{}'
                                                 .format(data['app_id'], data))
-        sub = self._op(self._read, data['sub'])
-        res = self._op(self._read, data['res'])
+        # sub = self._op(self._read, data['sub'])
+        # res = self._op(self._read, data['res'])
 
-        payload = dict( sub=sub,
-                        res=res,
-                        eval_id=data['eval_id'],
-                        app_id=data['app_id'])
+        # payload = dict( sub=sub,
+        #                 res=res,
+        #                 eval_id=data['eval_id'],
+        #                 app_id=data['app_id'])
 
-        send(('DB_READ_RESPONSE', payload), to=p)
+        send(('DB_READ_RESPONSE', data), to=p)
         self.logger.info('[SENT][DB_READ_RESPONSE][{}] payload:{}'
-                                                .format(data['app_id'],payload))
+                                                .format(data['app_id'],data))
 
 
     def receive(msg=('DB_WRITE_REQUEST', data), from_=p):
@@ -198,19 +198,18 @@ class Application(process):
         # print(delays)
         r_obj, w_obj, action, req_type = predict_objs(sub, res, action)
         r_obj['coord'] = get_coord(r_obj)
-        r_obj['coord'] = get_coord(w_obj)
+        w_obj['coord'] = get_coord(w_obj)
 
         payload=dict(app_id=app_id,
-                     r_obj=sub,
-                     w_obj=res,
+                     r_obj=r_obj,
+                     w_obj=w_obj,
                      action=action,
                      req_type=req_type,
                      delays=delays)
-
         
         send(('COORDR_REQUEST', payload), to=r_obj['coord'])
         self.logger.info('[SENT][COORDR_REQUEST][{}] payload:{}'
-                                                .format(app_id, payload))
+                                                .format(app_id, payload))   
 
     def run():
         policies = self.load_policies()
@@ -265,9 +264,10 @@ class Coord(process):
                                             .format(payload['app_id'], payload))
         x = payload['r_obj']
         payload = update_req(x, payload)
-        payload['eval_id'] = uuid ()
+        payload['eval_id'] = uuid.uuid4()
         payload['ts'] = time.time()
         payload['app_ps'] = p
+        print ('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>',payload['w_obj']['coord'])
         send(('COORDW_REQUEST', payload),to=payload['w_obj']['coord'])
 
         self.logger.info('[SENT][COORDW_REQUEST][{}] payload:{}'
@@ -388,7 +388,7 @@ class Worker(process):
         # if 'before_db_read' in payload['delays']:
         #     time.sleep(10)
 
-        # send(('DB_READ_REQUEST', db_payload), to=db_ps)
+        send(('DB_READ_REQUEST', payload), to=db_ps)
 
         self.logger.info('[SENT][DB_READ_REQUEST][{}] payload:{}'
                                             .format(payload['app_id'], payload))
@@ -422,8 +422,7 @@ class Worker(process):
         # time.sleep(seconds)
         # if 'before_worker_response' in payload['delays']:
         #     time.sleep(10)
-        send(('CLIENT_RESPONSE', client_resp_payload),
-                                                                to=payload['app_ps'])
+        send(('CLIENT_RESPONSE', client_resp_payload), to=payload['app_ps'])
 
         self.logger.info('[SENT][CLIENT_RESPONSE][{}] payload:{}'
                                         .format(client_resp_payload['app_id'],
@@ -514,37 +513,43 @@ def main():
         print ('coord_map', coord_map)
         
         # Setup and start DBEmulator
-        db_ps = new(DBEmulator, num=1)
-        setup(db_ps,(config, suffix, p_time))
+        db_ps = new(DBEmulator, args=(config, suffix, p_time,))
+        # setup(db_ps,)
         start(db_ps)
 
         # Setup and start Workers
-        worker_ps = new(Worker, num=test['num_coords']*test['worker_count'])
-        setup(worker_ps,(db_ps, config, suffix,))
+        worker_ps = new(Worker, num=test['num_coords']*test['worker_count'], args=(db_ps, config, suffix,))
+        # setup(worker_ps,)
         start(worker_ps)
 
         # Setup and start Resource Coordinators
-        coord_ps = new(Coord, num=test['num_coords'])
+        
         workers_p = list(worker_ps)
         start = 0
-        for p in coord_ps:
-            setup(p,(db_ps, workers_p[start:start+test['worker_count']], config, suffix,
+        coords = set()
+        for i in range(test['num_coords']):
+            coord_ps = new(Coord, args=(db_ps, workers_p[start:start+test['worker_count']], config, suffix,
                     coord_map,))
-            start(p)
+            # setup(p,)
+            start(coord_ps)
+            coords.add(coord_ps)
             start += test['worker_count']
 
+
         # Setup and start Application instances
-        app_ps = new(Application, num=test['num_clients'])
+        
+        print (coords)
         i = 0
         start = 0
 
-        for p in app_ps:
-            setup(p, (coord_ps, config,
+        for i in range(test['num_clients']):
+            app_ps = new(Application, num=1, args=(coords, config,
                         cli_requests[start:start+test['workload'][i]], suffix,
                         coord_map,))
+            # setup(p, )
             start += test['workload'][i]
             i += 1
-            start(p)
+            start(app_ps)
             if test.get('serialize_app_req_delay', None):
                 time.sleep(1)
 

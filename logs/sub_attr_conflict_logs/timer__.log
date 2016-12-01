@@ -1,2 +1,0 @@
-[RECEIVED][TIMER_REQUEST][7879a987-d8f3-4915-87ee-fb22ddda6c95] payload:{'sub': {'type': 'employee', 'attr': {'history': 'bank A'}, 'id': '1'}, 'app_id': '7879a987-d8f3-4915-87ee-fb22ddda6c95', 'latency_in_secs': 0}
-[SENT][TIMER_RESPONSE][7879a987-d8f3-4915-87ee-fb22ddda6c95] payload:{'sub': {'type': 'employee', 'attr': {'history': 'bank A'}, 'id': '1'}, 'app_id': '7879a987-d8f3-4915-87ee-fb22ddda6c95'}

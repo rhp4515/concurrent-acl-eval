@@ -1,4 +1,0 @@
-Subject Coord process for employee -> ('localhost', 17719)
-[SENT][APP_EVALUATION_REQUEST][4c2512d0-222d-4ec1-b744-3a5e9b75559d] payload:{'res': {'type': 'bank', 'id': 'bank B', 'attr': {}}, 'app_id': '4c2512d0-222d-4ec1-b744-3a5e9b75559d', 'sub': {'type': 'employee', 'id': '1', 'attr': {}}, 'delays': [], 'action': {'type': 'read'}}
-[RECEIVED][APP_EVALUATION_RESPONSE][4c2512d0-222d-4ec1-b744-3a5e9b75559d] payload:{'app_id': '4c2512d0-222d-4ec1-b744-3a5e9b75559d', 'result': False}
-[RECEIVED][DONE]

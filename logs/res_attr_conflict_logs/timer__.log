@@ -1,2 +1,0 @@
-[RECEIVED][TIMER_REQUEST][a4edb501-7796-4d49-9f4b-3cdb46709422] payload:{'sub': {'type': 'customer', 'attr': {}, 'id': '2'}, 'app_id': 'a4edb501-7796-4d49-9f4b-3cdb46709422', 'latency_in_secs': 0}
-[SENT][TIMER_RESPONSE][a4edb501-7796-4d49-9f4b-3cdb46709422] payload:{'sub': {'type': 'customer', 'attr': {}, 'id': '2'}, 'app_id': 'a4edb501-7796-4d49-9f4b-3cdb46709422'}
