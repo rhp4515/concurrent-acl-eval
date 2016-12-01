@@ -43,7 +43,7 @@ class TimerP(process):
         send(('TIMER_RESPONSE', payload),to=p)
         self.logger.info('[SENT][TIMER_RESPONSE][{}] payload:{}'
                                             .format(payload['app_id'], payload))
-        send(('DONE',),to=self.id)
+        send(('DONE',),to=self)
 
 class DBEmulator(process):
     def setup(config, suffix, p_time):
@@ -134,29 +134,50 @@ class DBEmulator(process):
         self._op(self._write, data['data'])
 
 # Client corresponds to Application instance
+#TODO implement pending queue 
 class Application(process):
-    def setup(sub_coord_ps, config, requests, suffix, sub_coord_map):
-        self.logger = get_logger('app_logger', config['app_log'].format(suffix, str(self.id)))
+    def setup(coord_ps, config, requests, suffix, coord_map):
+        self.logger = get_logger('app_logger', config['app_log'].format(suffix, str(self)))
         self.requests = requests
-        self.sub_coord_map = sub_coord_map
+        self.coord_map = coord_map
+        self.read_write_map = dict()
         self.results = []
 
-    def get_sub_coord(sub):
+    def load_policies():
+        return []
+
+    def analyze_policies(policies):
+        pass
+
+    def predict_objs ( sub , res , action ):
+        req_type = const.READ_WRITE
+        key = (sub['type'], res['type'], action['type'])
+        if key not in read_write_map:
+            req_type = const.READ_ONLY
+            return (sub, res, action, req_type)
+        
+        r_type , w_type = read_write_map[key]
+        if res['type'] == r_type :
+            return (res, sub, action, req_type)
+        else :
+            return (sub, res, action, req_type)
+
+    def get_coord(obj):
         """
             Create subject to subject coordinator map and returns subject
             coordinator process id
         """
-        sub_coords = list(sub_coord_ps)
+        coords = list(coord_ps)
 
         # Sorting source coordinator process by its address to maintain
         # consistency
-        sub_coords.sort(key= lambda k: k._address[1])
+        coords.sort(key= lambda k: k.uid)
 
         # Making evaluations for a resource is map to corresponding resource
         # coordinator
-        idx = int(self.sub_coord_map[sub['type']])%len(sub_coords)
-        chosen = sub_coords[idx]
-        self.logger.info('Subject Coord process for {} -> {}'.format(sub['type'],
+        idx = int(self.coord_map[obj['type']])%len(coords)
+        chosen = coords[idx]
+        self.logger.info('Coord process for {} -> {}'.format(obj['type'],
                                                                      chosen))
         return chosen
 
@@ -175,18 +196,25 @@ class Application(process):
         else:
             delays = []
         # print(delays)
-        payload=dict(sub=sub,
-                     res=res,
+        r_obj, w_obj, action, req_type = predict_objs(sub, res, action)
+        r_obj['coord'] = get_coord(r_obj)
+        r_obj['coord'] = get_coord(w_obj)
+
+        payload=dict(app_id=app_id,
+                     r_obj=sub,
+                     w_obj=res,
                      action=action,
-                     app_id=app_id,
+                     req_type=req_type,
                      delays=delays)
 
-        p = get_sub_coord(sub)
-        send(('APP_EVALUATION_REQUEST',payload), to=p)
-        self.logger.info('[SENT][APP_EVALUATION_REQUEST][{}] payload:{}'
+        
+        send(('COORDR_REQUEST', payload), to=r_obj['coord'])
+        self.logger.info('[SENT][COORDR_REQUEST][{}] payload:{}'
                                                 .format(app_id, payload))
 
     def run():
+        policies = self.load_policies()
+        analyze_policies (policies)
         # print('num requests = ', len(self.requests))
         for request in self.requests:
             # Creating an app id for the subject coordinator to send the response
@@ -202,539 +230,18 @@ class Application(process):
             await(some(received(('DONE', payload)), has= payload == app_id ))
             self.logger.info('[RECEIVED][DONE]')
 
-    def receive(msg=('APP_EVALUATION_RESPONSE', payload), from_=p):
+    def receive(msg=('CLIENT_RESPONSE', payload), from_=p):
         app_id = payload['app_id']
-        self.logger.info('[RECEIVED][APP_EVALUATION_RESPONSE][{}] payload:{}'
+        self.logger.info('[RECEIVED][CLIENT_RESPONSE][{}] payload:{}'
                                                     .format(app_id, payload))
         self.results.append(payload)
-        send(('DONE', app_id), to=self.id)
-
-
-class SubCoord(process):
-    def setup(db_ps, coord_ps, config, suffix, res_coord_map):
-        self.logger = get_logger('sub_coord_logger',
-                                  config['sub_coord_log'].format(suffix,
-                                                                 str(self.id)))
-        self.columns = [ 'eval_id',      'sub',      'res',      'action',
-                         'dep_eval_ids', 'status',   'req_no',   'result' ]
-        self.eval_cache = pd.DataFrame([], columns=self.columns)
-        self.attr_cache = dict()
-        self.app_req_map = dict()
-        self.res_coord_map = res_coord_map
-        self.res_commit_q = dict()
-
-        self.minLatency = config['minDBlatency']
-        self.maxLatency = config['maxDBlatency']
-
-
-    def get_res_coord(res):
-        """
-            Create resource to resource coordinator map and returns resource
-            coordinator process id
-        """
-        res_coords = list(coord_ps)
-        # Sorting resource coordinator process by its address to maintain
-        # consistency
-
-        res_coords.sort(key= lambda k: k._address[1])
-        # Making evaluations for a resource is map to corresponding resource
-        # coordinator
-        idx = int(self.res_coord_map[res['type']])%len(res_coords)
-        chosen = res_coords[idx]
-
-        self.logger.info('Resource Coord process for {} -> {}'.format(res['type'],
-                                                                      chosen))
-        return chosen
-
-    def get_eval(eval_id):
-        row = self.eval_cache[(self.eval_cache['eval_id'] == eval_id)]
-        # Return None instead of empty dataframe
-        if len(row) > 0:
-            return json.loads(row.iloc[0].to_json())
-        else:
-            return None
-
-    def get_app(eval_id):
-        return (self.app_req_map[eval_id]['app_id'],
-                self.app_req_map[eval_id]['app_p'])
-
-    def run():
-        # await(received(('done', )))
-        await(False)
-
-    def setup_cache(eval_id, sub, res, action, dep_eval_ids, req_no, status):
-        self.logger.info('[SETTING UP CACHE] [{}]'.format(eval_id))
-        data = dict(eval_id=eval_id,
-                    sub=sub,
-                    res=res,
-                    action=action,
-                    dep_eval_ids=dep_eval_ids,
-                    req_no=req_no,
-                    status=status,
-                    result=None)
-        # TODO: Consider using append, possibly the cause of that unorderable
-        # error
-        df = pd.DataFrame([], columns=self.columns)
-        df.loc[0] = data
-        # print (tabulate(df, headers='keys', tablefmt='grid'))
-        self.eval_cache = self.eval_cache.append(df, ignore_index=True)
-        # print (tabulate(self.eval_cache, headers='keys', tablefmt='grid'))
-        # self.eval_cache.loc[len(self.eval_cache)] = data
-
-    def update_cache(eval_id, status):
-        """ Update the corresponding row in cache"""
-        self.logger.info('[UPDATING CACHE] [{}]'.format(eval_id))
-        self.eval_cache.loc[self.eval_cache['eval_id'] == eval_id, 'status'] = status
-
-    def update_dep_evals(eval_id, dep_eval_ids):
-        """ Update the corresponding dependency evaluation ids in cache"""
-        self.logger.info('[UPDATING DEP EVALS] [{}]'.format(eval_id))
-        indices = self.eval_cache.loc[
-                                      (self.eval_cache['eval_id'] == eval_id)
-                                     ].index.tolist()
-
-        if indices:
-            self.eval_cache.set_value(indices[0],'dep_eval_ids', dep_eval_ids)
-
-    def update_attr(eval_id, sub, res, result):
-        self.logger.info('[UPDATING ATTR] [{}]'.format(eval_id))
-        indices = self.eval_cache.loc[
-                                      (self.eval_cache['eval_id'] == eval_id)
-                                     ].index.tolist()
-
-        if indices:
-            self.eval_cache.set_value(indices[0],'sub', sub)
-            self.eval_cache.set_value(indices[0],'res', res)
-            self.eval_cache.set_value(indices[0],'result', result)
-
-    def clear_cache(eval_id):
-        self.logger.info('[CLEAR CACHE] [{}]'.format(eval_id))
-        indices = self.eval_cache.loc[
-                                      (self.eval_cache['eval_id'] == eval_id)
-                                     ].index.tolist()
-        self.eval_cache.drop(indices, inplace=True)
-        del self.app_req_map[eval_id]
-
-    def restart(eval_id):
-        self.logger.info('***[RESTARTING SELF]***')
-        print('***[RESTARTING SELF]*** for eval id = ', eval_id)
-        # eval = get_eval(eval_id)
-        payload = dict(sub=app_req_map[eval_id]['sub'],
-                       res=app_req_map[eval_id]['res'],
-                       action=app_req_map[eval_id]['action'],
-                       app_id=app_req_map[eval_id]['app_id'],
-                       app_ps=app_req_map[eval_id]['app_p'],
-                       delays=[])
-
-        clear_cache(eval_id)
-        send(('APP_EVALUATION_REQUEST',payload), to=self.id)
-        self.logger.info('[SENT][APP_EVALUATION_REQUEST][{}] to [{}] payload:{}'
-                         .format(payload['app_id'], self.id, payload))
-
-
-    def add_tentative_attr_updates_to_req(sub, req_no):
-        """
-            Add tentative attributes for the eligible incoming evaluation
-            request. Fetch valid attributes from previously committed evaluation
-        """
-        tentative_evals = get_previous_committed_evals(req_no)
-        # print ("TENTATIVE_EVALS", sub, req_no, [x['eval_id'] for x in tentative_evals])
-        for eval in tentative_evals:
-            attrs = eval['sub']['attr']
-            sub['attr'].update(attrs)
-
-        for attr in sub['attr']:
-            key = (sub['type'], sub['id'], attr)
-            if key in self.attr_cache:
-                sub['attr'][attr] = self.attr_cache[key]
-
-        return sub, [eval['eval_id'] for eval in tentative_evals]
-
-    def has_subject_attr_updates(eval_id):
-        """
-            Checks for attribute updates in the eval cache from tentative
-            evaluations. Also checks for inconsistency in the attr cache (this
-            cache lives until the data gets flushed to db)
-        """
-        curr_eval = get_eval(eval_id)
-        sub = curr_eval['sub']
-        sub_attrs = sub['attr']
-        tentative_evals = get_tentative_evals(curr_eval['sub'],
-                                              curr_eval['req_no'])
-        tentative_attrs = {}
-        # print('tentative_evals', tentative_evals)
-
-        # if any of the attribute's value is not matching return True indicating
-        # there are attribute updates
-
-        for eval in tentative_evals:
-            eval_sub_attrs = eval['sub']['attr']
-            for k in sub_attrs:
-                if k in eval_sub_attrs and eval_sub_attrs[k] != sub_attrs[k]:
-                    return True
-        # print("################################################################")
-        # print (self.attr_cache)
-        # print (sub_attrs)
-
-        # for k in sub_attrs:
-        #     key = (sub['type'], sub['id'], k)
-        #     if key in self.attr_cache and sub_attrs[k] != self.attr_cache[key]:
-        #         return True
-        # print("################################################################")
-        return False
-
-    def clean_up(df):
-        """
-            Hack to rectify a runtime error
-        """
-        # for col in self.columns:
-        #     idx = df.loc[df['eval_id'] == col].index.tolist()
-        #     df.drop(idx, inplace=True)
-        return df
-
-    def evaluate(app_id, sub, res, action, delays, req_no, p):
-        eval_id = str(uuid.uuid4())
-        sub_copy = copy.deepcopy(sub)
-        res_copy = copy.deepcopy(res)
-
-        self.app_req_map[eval_id] = dict(app_id=app_id,
-                                         sub=sub_copy,
-                                         res=res_copy,
-                                         action=action,
-                                         delays=delays,
-                                         req_no=req_no,
-                                         app_p=p)
-
-        # if sub['id'] == '3':
-        #     print ("sleeping for ", 5, eval_id)
-        #     time.sleep(5)
-        # print('BEFORE')
-        # print(self.app_req_map)
-        # sub['attr']['viewer'] = 'hari'
-        # print('AFTER')
-        # print(self.app_req_map)
-        sub, dependent_eval_ids = add_tentative_attr_updates_to_req(sub, req_no)
-        setup_cache(eval_id, sub, res, action, dependent_eval_ids,
-                                                        req_no, const.PENDING)
-        return eval_id, sub
-
-    def get_tentative_evals(sub, req_no):
-        """
-            Fetchs evaluations whose status is WORKER_COMPLETE and whose
-            timestamp is less than current evaluation
-        """
-        clean_up(self.eval_cache)
-        # self.eval_cache[['req_no']] = self.eval_cache[['req_no']].astype(float)
-        evals = self.eval_cache[
-                        (self.eval_cache['status'] == const.WORKER_COMPLETE) &
-                        (self.eval_cache['req_no'] < req_no)
-                        ]
-        # print (tabulate(evals, headers=['eval_id','req_no','status'], tablefmt='grid'))
-        evals = evals.sort_values('req_no', ascending=True)
-        # print (tabulate(evals, headers=['eval_id','req_no','status'], tablefmt='grid'))
-        evals = json.loads(evals.to_json(orient="records"))
-        eval_with_sub_attrs = []
-
-        for eval in evals:
-            for k in sub['attr']:
-                if k in eval['sub']['attr']:
-                    eval_with_sub_attrs.append(eval)
-                    break
-
-        return eval_with_sub_attrs
-
-    def get_evals_dependent_on(eval_id):
-        curr_eval = get_eval(eval_id)
-        # Null check to see if we are still interested in current evalution
-        if not curr_eval:
-            return []
-        clean_up(self.eval_cache)
-        # self.eval_cache[['req_no']] = self.eval_cache[['req_no']].astype(float)
-        # print ('CACHE TABLE')
-        # print (tabulate(self.eval_cache, headers='keys',tablefmt='grid'))
-        evals = self.eval_cache[self.eval_cache['req_no'] > curr_eval['req_no']]
-        evals = evals.sort_values('req_no', ascending=True)
-        evals = json.loads(evals.to_json(orient="records"))
-        result = []
-        for eval in evals:
-            if eval_id in eval['dep_eval_ids']:
-                result.append(eval)
-        # print ('QUERY RESULTS')
-        # print (result)
-        return result
-
-    def process_worker_response(eval_id):
-        """
-            Process received worker response and return status for sending
-            resource commit response message to resource coordinator
-        """
-
-        # if there are subject attributes updates, restart self evaluation
-        if has_subject_attr_updates(eval_id):
-            restart(eval_id)
-        else:
-            update_cache(eval_id, const.WORKER_COMPLETE)
-            curr_eval = get_eval(eval_id)
-            tentative_evals = get_tentative_evals(curr_eval['sub'],
-                                                  curr_eval['req_no'])
-
-            tentative_eval_ids = set([x['eval_id'] for x in tentative_evals])
-            tentative_eval_ids = list(tentative_eval_ids)
-
-            if len(tentative_eval_ids) > 0:
-                update_dep_evals(eval_id, tentative_eval_ids)
-                self.res_commit_q[eval_id] = tentative_eval_ids
-            else:
-                # Return True as there are no tentative evaluations and we are
-                # clear to send resource commit response message to RC
-                return True
-
-        return False
-
-
-    def get_previous_committed_evals(req_no):
-        """
-            Fetchs evaluations whose status is WORKER_COMPLETE and whose
-            timestamp is less than current evaluation
-        """
-        clean_up(self.eval_cache)
-        evals = self.eval_cache[
-                        (self.eval_cache['status'] == const.WORKER_COMPLETE) &
-                        (self.eval_cache['req_no'] < req_no)
-                        ]
-        evals = evals.sort_values('req_no', ascending=True)
-        return json.loads(evals.to_json(orient="records"))
-
-    def update_attr_db(app_id, sub):
-        payload = dict(app_id=app_id, sub=sub)
-        for attr in sub['attr']:
-            key = (sub['type'], sub['id'], attr)
-            self.attr_cache[key] = copy.deepcopy(sub['attr'][attr])
-
-        seconds = random.randint(self.minLatency, self.maxLatency)
-        payload = dict(app_id=app_id, latency_in_secs=seconds, sub=sub)
-
-        timer_ps = new(TimerP, num=1)
-        setup(timer_ps,(config,suffix,))
-        start(timer_ps)
-
-        send(('TIMER_REQUEST', payload), to=timer_ps)
-        self.logger.info('[SENT][TIMER_REQUEST][{}] payload:{}'
-                                                    .format(app_id, payload))
-
-
-    def add_latest_db_updates(sub):
-        ignore_attrs = []
-        for attr in sub['attr']:
-            key = (sub['type'], sub['id'], attr)
-            if key in self.attr_cache:
-                sub['attr'][attr] = self.attr_cache[key]
-            else:
-                ignore_attrs.append(attr)
-
-        for attr in ignore_attrs:
-            del sub['attr'][attr]
-
-        return sub
-
-
-    def get_pending_transactions_to_commit():
-        # print("IN MY METHOD")
-        commited_eval_ids = []
-        # print (tabulate(self.eval_cache, headers=['req_no'],tablefmt='grid'))
-        # self.eval_cache[['req_no']] = self.eval_cache[['req_no']].astype(float)
-        # print (tabulate(self.eval_cache, headers=['req_no'],tablefmt='grid'))
-        clean_up(self.eval_cache)
-        self.eval_cache.sort_values('req_no', ascending=True, inplace=True)
-        evals = json.loads(self.eval_cache.to_json(orient="records"))
-        for eval in evals:
-            if eval['status'] != const.PENDING_ATTR_DB_UPDATE:
-                break
-            else:
-                commited_eval_ids.append(eval['eval_id'])
-
-        return commited_eval_ids
-
-
-    def receive(msg= ('APP_EVALUATION_REQUEST', payload), from_=p):
-        self.logger.info('[RECEIVED][APP_EVALUATION_REQUEST][{}] payload:{}'
-                         .format(payload['app_id'], payload))
-
-        res = payload['res']
-        eval_id, sub = evaluate(payload['app_id'],
-                                payload['sub'],
-                                payload['res'],
-                                payload['action'],
-                                payload['delays'],
-                                time.time(),
-                                payload.get('app_ps', p))
-
-        res_req_payload = dict(app_id=payload['app_id'],
-                               eval_id=eval_id,
-                               sub=sub,
-                               res=res,
-                               action=payload['action'],
-                               delays=payload['delays'])
-        print (tabulate(self.eval_cache, headers='keys',tablefmt='psql'))
-        send(('RES_EVALUATION_REQUEST', res_req_payload),to=get_res_coord(res))
-        self.logger.info('[SENT][RES_EVALUATION_REQUEST][{}] payload:{}'
-                         .format(res_req_payload['app_id'], res_req_payload))
-
-
-    def receive(msg= ('WORKER_EVALUATION_RESPONSE', payload), from_=p):
-
-        # Check if the received worker evaluation response if still needed.
-        # Corresponding evaluation for the received worker evaluation response
-        # might have been restarted or no longer needed determined by checking
-        # entry in eval cache
-        if not get_eval(payload['eval_id']):
-            self.logger.info('[RECEIVED][IGNORED][WORKER_EVALUATION_RESPONSE]'
-                           '[{}] payload:{}'.format(payload['app_id'], payload))
-            return
-
-        self.logger.info('[RECEIVED][WORKER_EVALUATION_RESPONSE][{}] payload:{}'
-                                            .format(payload['app_id'], payload))
-
-        update_attr(payload['eval_id'], payload['sub'], payload['res'],
-                    payload['result'])
-        status = process_worker_response(payload['eval_id'])
-
-        if status:
-            # Fetch the delays to be added as hack from the cache
-            delays = self.app_req_map[payload['eval_id']]['delays']
-
-            res_commit_payload = dict(eval_id=payload['eval_id'],
-                                      app_id=payload['app_id'],
-                                      res=payload['res'],
-                                      delays=delays)
-
-            send(('RES_COMMIT_REQUEST', res_commit_payload),
-                                            to=get_res_coord(payload['res']))
-            self.logger.info('[SENT][RES_COMMIT_REQUEST][{}] payload:{}'
-                                        .format(res_commit_payload['app_id'],
-                                                res_commit_payload))
-
-            print('[SENT][RES_COMMIT_REQUEST][{}] payload:{}'
-                                     .format(res_commit_payload['app_id'],
-                                                res_commit_payload))
-
-            res_commit_req_done_payload = dict(app_id=payload['app_id'],
-                                               eval_id=payload['eval_id'])
-
-            send(('RES_COMMIT_REQ_DONE', res_commit_req_done_payload),
-                                                                    to=self.id)
-            self.logger.info('[SENT][RES_COMMIT_REQ_DONE][{}] payload:{}'
-                                .format(res_commit_req_done_payload['app_id'],
-                                        res_commit_req_done_payload))
-            print('[SENT][RES_COMMIT_REQ_DONE][{}] payload:{}'
-                        .format(res_commit_req_done_payload['app_id'],
-                                res_commit_req_done_payload))
-
-
-    def receive(msg= ('RES_COMMIT_REQ_DONE', payload), from_=p):
-        self.logger.info('[RECEIVED][RES_COMMIT_REQ_DONE][{}] payload:{}'
-                                            .format(payload['app_id'], payload))
-        print('[RECEIVED][RES_COMMIT_REQ_DONE][{}] payload:{}'
-                         .format(payload['app_id'], payload))
-
-        evals_to_send_commit = []
-        evals = get_evals_dependent_on(payload['eval_id'])
-        # print('RES_COMMIT_REQ_DONE', 'get_evals_dependent_on', [x['eval_id'] for x in evals])
-
-        # Maintain a queue to ensure resource commit response are evaluated in
-        # order
-        for eval in evals:
-            eval_id = eval['eval_id']
-            if eval_id in self.res_commit_q:
-                self.res_commit_q[eval_id].remove(payload['eval_id'])
-                evals_to_send_commit.append(eval_id)
-
-        for eval_id in evals_to_send_commit:
-            curr_eval = get_eval(eval_id)
-            # Null check to ensure we are still interested in the evaluation
-            if not curr_eval:
-                continue
-            res_commit_payload = dict(eval_id=eval_id,
-                                  app_id=get_app(eval_id)[0],
-                                  res=curr_eval['res'])
-            send(('RES_COMMIT_REQUEST', res_commit_payload),
-                                            to=get_res_coord(curr_eval['res']))
-            self.logger.info('[SENT][RES_COMMIT_REQUEST][{}] payload:{}'
-                                        .format(res_commit_payload['app_id'],
-                                                res_commit_payload))
-
-    def receive(msg= ('RES_COMMIT_RESPONSE', payload), from_=p):
-        # self.logger.info('[RECEIVED][RES_COMMIT_RESPONSE][{}] payload:{}'
-        #                                     .format(payload['app_id'], payload))
-        res_commit_req_done_payload = dict(app_id=payload['app_id'],
-                                           eval_id=payload['eval_id'])
-
-        send(('RES_COMMIT_REQ_DONE', res_commit_req_done_payload), to=self.id)
-        self.logger.info('[SENT][RES_COMMIT_REQ_DONE][{}] payload:{}'
-                                .format(res_commit_req_done_payload['app_id'],
-                                        res_commit_req_done_payload))
-
-
-        # Check if the received commit response if still needed.
-        # Corresponding evaluation for the received commit response might have
-        # been restarted i.e. no entry in eval cache
-        if not get_eval(payload['eval_id']):
-            self.logger.info('[RECEIVED][RES_COMMIT_RESPONSE][IGNORED][{}] '
-                                'payload:{}'.format(payload['app_id'], payload))
-            return
-
-        # print ('[RECEIVED][RES_COMMIT_RESPONSE][{}] payload:{}'
-        #                  .format(payload['app_id'], payload))
-        self.logger.info('[RECEIVED][RES_COMMIT_RESPONSE][{}] payload:{}'
-                                            .format(payload['app_id'], payload))
-        result = payload['result']
-        if result:
-            update_cache(payload['eval_id'], const.PENDING_ATTR_DB_UPDATE)
-            send(('RES_COMMIT_DONE'), to=self.id)
-            # print('[SENT][RES_COMMIT_DONE]')
-            self.logger.info('[SENT][RES_COMMIT_DONE][{}] payload: {}'
-                                            .format(payload['app_id'], payload))
-
-        else:
-            evals = get_evals_dependent_on(payload['eval_id'])
-            restart(payload['eval_id'])
-            for eval in evals:
-                restart(eval['eval_id'])
-
-
-    def receive(msg= ('RES_COMMIT_DONE'), from_=p):
-        self.logger.info('[RECEIVED][RES_COMMIT_DONE]')
-        eval_ids = get_pending_transactions_to_commit()
-
-        for eval_id in eval_ids:
-            app_id, app_ps = get_app(eval_id)
-            eval = get_eval(eval_id)
-            update_attr_db(app_id, eval['sub'])
-            clear_cache(eval_id)
-            app_eval_payload = dict(result=eval['result'], app_id=app_id)
-            print ("APP_PS", app_ps)
-            send(('APP_EVALUATION_RESPONSE', app_eval_payload),to=app_ps)
-            self.logger.info('[SENT][APP_EVALUATION_RESPONSE][{}] payload:{}'
-                         .format(app_eval_payload['app_id'], app_eval_payload))
-            print('[SENT][APP_EVALUATION_RESPONSE][{}] payload:{}'
-                         .format(app_eval_payload['app_id'], app_eval_payload))
-
-    def receive(msg= ('TIMER_RESPONSE', payload), from_=p):
-        self.logger.info('[RECEIVED][TIMER_RESPONSE][{}] payload:{}'
-                                            .format(payload['app_id'], payload))
-
-        sub = add_latest_db_updates(payload['sub'])
-
-        write_payload = dict(app_id=payload['app_id'], data=sub)
-        send(('DB_WRITE_REQUEST', write_payload),to=db_ps)
-        self.logger.info('[SENT][DB_WRITE_REQUEST][{}] payload:{}'
-                                    .format(payload['app_id'], write_payload))
+        send(('DONE', app_id), to=self)
 
 class Coord(process):
     def setup(db_ps, workers, config, suffix,coord_map):
         self.logger = get_logger('res_coord_logger',
                                  config['res_coord_log'].format(suffix,
-                                                                str(self.id)))
+                                                                str(self)))
         self.res_cache = dict()
         self.next_worker_idx = -1
         self.workers = list(workers)
@@ -750,150 +257,79 @@ class Coord(process):
         self.next_worker_idx += 1
         return self.workers[next_worker_idx%len(self.workers)]
 
-    def setup_res_attr(res):
-        """ Setup resource attribute cache """
-        key = (res['type'], res['id'])
-        if key in self.res_cache:
-            res['attr'] = self.res_cache[key]
+    def update_req(x, payload):
+        return payload
 
-        return res
-
-    def update_cache(res):
-        """ Update resource attribute cache """
-        key = (res['type'], res['id'])
-        self.res_cache[key] = res['attr']
-
-
-    def conflict_exists(res):
-        """
-            Checks for conflicts by comparing previous attributes value and
-            current evaluation's attributes value
-        """
-        # print('**********',res)
-        key = (res['type'], res['id'])
-        if key not in self.res_cache:
-            return False
-
-        cache_res = self.res_cache[key]
-        # print('**********cache**************', res_cache)
-        for attr in res['old_attr']:
-            if attr in cache_res and res['old_attr'][attr] != cache_res[attr]:
-                return True
-
-        return False
-
-
-    def update_attr_db(app_id, res):
-        payload = dict(app_id=app_id, res=res)
-        for attr in res['attr']:
-            key = (res['type'], res['id'], attr)
-            self.attr_cache[key] = res['attr'][attr]
-
-        seconds = random.randint(self.minLatency,self.maxLatency)
-        payload = dict(app_id=app_id, latency_in_secs=seconds, res=res)
-
-        # Introducing artificial delay before writing to DB
-        timer_ps = new(TimerP, num=1)
-        setup(timer_ps,(config, suffix,))
-        start(timer_ps)
-
-        send(('TIMER_REQUEST', payload),to=timer_ps)
-        self.logger.info('[SENT][TIMER_REQUEST][{}] payload:{}'
-                                                    .format(app_id, payload))
-
-    def commit_evaluation(app_id, eval_id, res):
-        """ Check for conflicts and return evaluation result """
-        if conflict_exists(res):
-            return False
-        else:
-            update_cache(res)
-            update_attr_db(app_id, res)
-            return True
-
-    def add_latest_db_updates(res):
-        ignore_attrs = []
-        for attr in res['attr']:
-            key = (res['type'], res['id'], attr)
-            if key in self.attr_cache:
-                # TODO: Shouldn't it be update?
-                res['attr'][attr] = self.attr_cache[key]
-                # del self.attr_cache[key]
-            else:
-                ignore_attrs.append(attr)
-
-        for attr in ignore_attrs:
-            del res['attr'][attr]
-
-        return res
-
-    def receive(msg= ('RES_EVALUATION_REQUEST', payload), from_=p):
-        """
-            Setup the resource attribute cache and send WORKER_EVALUATION_REQUEST
-        """
-        # print ("**************************************************")
-        # print (self.res_cache)
-        self.logger.info('[RECEIVED][RES_EVALUATION_REQUEST][{}] payload:{}'
+    def receive(msg= ('COORDR_REQUEST', payload), from_=p):
+        self.logger.info('[RECEIVED][COORDR_REQUEST][{}] payload:{}'
                                             .format(payload['app_id'], payload))
-        setup_res_attr(payload['res'])
-        payload['sub_coord'] = p
-        send(('WORKER_EVALUATION_REQUEST', payload),to=get_worker())
+        x = payload['r_obj']
+        payload = update_req(x, payload)
+        payload['eval_id'] = uuid ()
+        payload['ts'] = time.time()
+        payload['app_ps'] = p
+        send(('COORDW_REQUEST', payload),to=payload['w_obj']['coord'])
 
-        self.logger.info('[SENT][WORKER_EVALUATION_REQUEST][{}] payload:{}'
-                                            .format(payload['app_id'], payload))
-        # print (self.res_cache)
-        # print ("**************************************************")
-
-    def receive(msg= ('RES_COMMIT_REQUEST', payload), from_=p):
-        # print ("**************************************************")
-        # print (self.res_cache)
-        self.logger.info('[RECEIVED][RES_COMMIT_REQUEST][{}] payload:{}'
+        self.logger.info('[SENT][COORDW_REQUEST][{}] payload:{}'
                                             .format(payload['app_id'], payload))
 
-        result = commit_evaluation(payload['app_id'], payload['eval_id'],
-                                                                payload['res'])
+    def receive(msg= ('COORDR_RESPONSE', payload), from_=p):
+        self.logger.info('[RECEIVED][COORDR_RESPONSE][{}] payload:{}'
+                                            .format(payload['app_id'], payload))
+        
 
-        res_commit_payload = dict(eval_id=payload['eval_id'],
-                                  result=result,
-                                  app_id=payload['app_id'])
-        # if payload['res']['id'].isdigit():
-        #     seconds = 20 - int(payload['res']['id'])
-        # else:
-        #     seconds = random.randint(self.minLatency,self.maxLatency)
-        # print ("sleeping {} by {}", payload['app_id'], seconds)
-        # time.sleep(seconds)
-        # print (">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>",payload.get('delays',[]))
+        self.logger.info('[PROCESSED][COORDR_RESPONSE][{}] payload:{}'
+                                            .format(payload['app_id'], payload))
 
-        # Hacks to introduce artifical delays for simulating few tests
-        if 'before_res_commit' in payload.get('delays', []):
-            self.logger.info('Delaying to send resource commit response')
-            output('Delaying to send resource commit response')
-            time.sleep(10)
-            if 'fail_res_commit' in payload.get('delays', []):
-                res_commit_payload['result'] = False
+    def receive(msg= ('COORDW_REQUEST', payload), from_=p):
+        self.logger.info('[RECEIVED][COORDW_REQUEST][{}] payload:{}'
+                                            .format(payload['app_id'], payload))
 
-        send(('RES_COMMIT_RESPONSE', res_commit_payload),to=p)
-        self.logger.info('[SENT][RES_COMMIT_RESPONSE][{}] payload:{}'
-                                        .format(res_commit_payload['app_id'],
-                                                res_commit_payload))
+        x = payload['w_obj']
+        payload = update_req(x, payload)
+        worker = get_worker()
+        
+        send(('WORKER_REQUEST', payload), to=worker)
+        self.logger.info('[SENT][WORKER_REQUEST][{}] payload:{}'
+                                        .format(payload['app_id'],
+                                                payload))
+
+    def receive(msg= ('COORDW_RESPONSE', payload), from_=p):
+        self.logger.info('[RECEIVED][COORDW_RESPONSE][{}] payload:{}'
+                                            .format(payload['app_id'], payload))
+        
+        client_resp_payload = dict(result=payload['result'],
+                                   app_id=payload['app_id'])
+
+        send(('CLIENT_RESPONSE', client_resp_payload), to=payload['app_ps'])
+
+        self.logger.info('[SENT][CLIENT_RESPONSE][{}] payload:{}'
+                                        .format(client_resp_payload['app_id'],
+                                                client_resp_payload))
+
+        send(('COORDW_RESPONSE', payload), to=payload['app_ps'])
+
+        self.logger.info('[SENT][COORDW_RESPONSE][{}] payload:{}'
+                                        .format(payload['app_id'],
+                                                payload))
 
     def receive(msg= ('TIMER_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][TIMER_RESPONSE][{}] payload:{}'
                                             .format(payload['app_id'], payload))
 
-        res = add_latest_db_updates(payload['res'])
 
-        write_payload = dict(app_id=payload['app_id'], data=res)
-        send(('DB_WRITE_REQUEST', write_payload),to=db_ps)
+        # write_payload = dict(app_id=payload['app_id'], data=res)
+        # send(('DB_WRITE_REQUEST', write_payload),to=db_ps)
 
         self.logger.info('[SENT][DB_WRITE_REQUEST][{}] payload:{}'
-                                      .format(payload['app_id'], write_payload))
+                                      .format(payload['app_id'], payload))
 
 class Worker(process):
 
     def setup(db_ps, config, suffix):
         self.logger = get_logger('worker_logger',
                                  config['worker_log'].format(suffix,
-                                                             str(self.id)))
+                                                             str(self)))
         self.requests = dict()
 
 
@@ -930,29 +366,29 @@ class Worker(process):
         await(False)
 
 
-    def receive(msg= ('WORKER_EVALUATION_REQUEST', payload), from_=p):
+    def receive(msg= ('WORKER_REQUEST', payload), from_=p):
 
-        self.logger.info('[RECEIVED][WORKER_EVALUATION_REQUEST][{}] payload:{}'
+        self.logger.info('[RECEIVED][WORKER_REQUEST][{}] payload:{}'
                                             .format(payload['app_id'], payload))
-        self.requests[payload['eval_id']] = (payload['sub'],
-                                             payload['res'],
-                                             payload['action'],
-                                             payload['sub_coord'])
+        # self.requests[payload['eval_id']] = (payload['sub'],
+        #                                      payload['res'],
+        #                                      payload['action'],
+        #                                      payload['sub_coord'])
 
-        db_payload = setup_payload(payload['app_id'], payload['eval_id'],
-                                                payload['sub'], payload['res'])
+        # db_payload = setup_payload(payload['app_id'], payload['eval_id'],
+        #                                         payload['sub'], payload['res'])
 
-        db_payload['sub']['attr'] = [attr for attr in db_payload['sub']['attr']
-                                        if attr not in payload['sub']['attr']]
+        # db_payload['sub']['attr'] = [attr for attr in db_payload['sub']['attr']
+        #                                 if attr not in payload['sub']['attr']]
 
-        db_payload['res']['attr'] = [attr for attr in db_payload['res']['attr']
-                                        if attr not in payload['res']['attr']]
+        # db_payload['res']['attr'] = [attr for attr in db_payload['res']['attr']
+        #                                 if attr not in payload['res']['attr']]
 
-        # Hacks to introduce artifical delays for simulating few tests
-        if 'before_db_read' in payload['delays']:
-            time.sleep(10)
+        # # Hacks to introduce artifical delays for simulating few tests
+        # if 'before_db_read' in payload['delays']:
+        #     time.sleep(10)
 
-        send(('DB_READ_REQUEST', db_payload), to=db_ps)
+        # send(('DB_READ_REQUEST', db_payload), to=db_ps)
 
         self.logger.info('[SENT][DB_READ_REQUEST][{}] payload:{}'
                                             .format(payload['app_id'], payload))
@@ -962,23 +398,20 @@ class Worker(process):
     def receive(msg= ('DB_READ_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][DB_READ_RESPONSE][{}] payload:{}'
                                             .format(payload['app_id'], payload))
-        eval_id = payload['eval_id']
-        orig_sub, orig_res, orig_action, sub_coord_ps = self.requests[eval_id]
-        payload['sub']['attr'].update(orig_sub['attr'])
-        payload['res']['attr'].update(orig_res['attr'])
+        # eval_id = payload['eval_id']
+        # orig_sub, orig_res, orig_action, coord_ps = self.requests[eval_id]
+        # payload['sub']['attr'].update(orig_sub['attr'])
+        # payload['res']['attr'].update(orig_res['attr'])
 
-        if len(orig_res['attr']) == 0:
-            orig_res['attr'] = copy.deepcopy(payload['res']['attr'])
+        # if len(orig_res['attr']) == 0:
+        #     orig_res['attr'] = copy.deepcopy(payload['res']['attr'])
 
-        result, sub, res, action = evaluate(payload['eval_id'], payload['sub'],
-                                            payload['res'], orig_action,
-                                            orig_res)
-        # print(result, sub, res, action)
-        worker_resp_payload = dict(eval_id=payload['eval_id'],
-                                   result=result,
-                                   sub=sub,
-                                   res=res,
-                                   action=action,
+        # result, sub, res, action = evaluate(payload['eval_id'], payload['sub'],
+        #                                     payload['res'], orig_action,
+        #                                     orig_res)
+        # # print(result, sub, res, action)
+        result = False
+        client_resp_payload = dict(result=result,
                                    app_id=payload['app_id'])
 
         # if worker_resp_payload['res']['id'].isdigit():
@@ -989,12 +422,12 @@ class Worker(process):
         # time.sleep(seconds)
         # if 'before_worker_response' in payload['delays']:
         #     time.sleep(10)
-        send(('WORKER_EVALUATION_RESPONSE', worker_resp_payload),
-                                                                to=sub_coord_ps)
+        send(('CLIENT_RESPONSE', client_resp_payload),
+                                                                to=payload['app_ps'])
 
-        self.logger.info('[SENT][WORKER_EVALUATION_RESPONSE][{}] payload:{}'
-                                        .format(worker_resp_payload['app_id'],
-                                                worker_resp_payload))
+        self.logger.info('[SENT][CLIENT_RESPONSE][{}] payload:{}'
+                                        .format(client_resp_payload['app_id'],
+                                                client_resp_payload))
 
 
 def parse_client_requests(fpath):
@@ -1073,11 +506,13 @@ def main():
                 shuffle(cli_requests)
 
         types = set([x['sub']['type'] for x in cli_requests])
-        types.union(set([x['res']['type'] for x in cli_requests]))
+        types = types.union(set([x['res']['type'] for x in cli_requests]))
         coord_map = dict()
         for type in types:
             coord_map[type] = len(coord_map)
-
+        
+        print ('coord_map', coord_map)
+        
         # Setup and start DBEmulator
         db_ps = new(DBEmulator, num=1)
         setup(db_ps,(config, suffix, p_time))
@@ -1103,7 +538,6 @@ def main():
         i = 0
         start = 0
 
-        print ('coord_map', coord_map)
         for p in app_ps:
             setup(p, (coord_ps, config,
                         cli_requests[start:start+test['workload'][i]], suffix,
