@@ -534,11 +534,11 @@ class Worker(process):
         new_r_obj = dict(type=r_obj['type'], id=r_obj['id'], attr=r_attrs)
         new_w_obj = dict(type=w_obj['type'], id=w_obj['id'], attr=w_attrs)
 
-        payload = dict(app_id=app_id, 
-                       eval_id=eval_id, 
-                       r_obj=new_r_obj, 
+        payload = dict(app_id=app_id,
+                       eval_id=eval_id,
+                       r_obj=new_r_obj,
                        w_obj=new_w_obj)
-        
+
         return payload
 
 
@@ -551,7 +551,7 @@ class Worker(process):
         self.logger.info('[RECEIVED][WORKER_REQUEST][{}] payload:{}'
                                             .format(payload['app_id'], payload))
         self.requests[payload['eval_id']] = copy.deepcopy(payload)
-        
+
         db_payload = setup_payload(payload['app_id'], payload['eval_id'],
                                                 payload['r_obj'], payload['w_obj'])
 
@@ -561,7 +561,7 @@ class Worker(process):
         # if 'before_db_read' in payload['delays']:
         #     time.sleep(10)
 
-        
+
         send(('DB_READ_REQUEST', db_payload), to=db_ps)
 
         self.logger.info('[SENT][DB_READ_REQUEST][{}] payload:{}'
@@ -585,7 +585,7 @@ class Worker(process):
         #                                     orig_res)
         # # print(result, sub, res, action)
 
-        
+
         # payload['r_obj']['attr'].update()
         # if worker_resp_payload['res']['id'].isdigit():
         #     seconds = 20 - int(worker_resp_payload['res']['id'])
@@ -616,19 +616,19 @@ class Worker(process):
 
             self.logger.info('[SENT][COORDW_RESPONSE][{}] payload:{}'
                                         .format(orig_payload['app_id'],
-                                                orig_payload))    
+                                                orig_payload))
 
         else:
             client_resp_payload = dict(result=result['decision'],
                                    app_id=payload['app_id'])
 
-           
+
             send(('CLIENT_RESPONSE', client_resp_payload), to=orig_payload['app_ps'])
 
             self.logger.info('[SENT][CLIENT_RESPONSE][{}] payload:{}'
                                         .format(client_resp_payload['app_id'],
                                                 client_resp_payload))
-            
+
             r_type = orig_payload['r_obj']['type']
             orig_payload['read_attrs'] = result['read_attrs'][r_type]
             orig_payload['obj'] = orig_payload['r_obj']

@@ -50,15 +50,17 @@ class PolicyParser():
         return value
 
     def check_sub_cond(self, sc, sub, res):
+        read_attrs = set()
 
         if sub['type'] != sc['type']:
-            return False
+            return False, read_attrs
 
         # print('subject condition', sc)
         for attr in sc:
             if attr in const.KEY_ATTRS:
                 continue
             # print(attr)
+            read_attrs.add(attr)
             value = self.resolve_expr(sc[attr], sub, res)
             # print ("value -- check_sub_cond", value)
             if value is not None:
@@ -74,27 +76,31 @@ class PolicyParser():
                 # print('sc attr', sc[attr])
                 # print('sub attr', sub['attr'][attr])
                 # print('Returning False')
-                return False
+                return False, read_attrs
 
-        return True
+        return True, read_attrs
 
     def check_res_cond(self, rc, sub, res):
+        read_attrs = set()
+
         if res['type'] != rc['type']:
-            return False
+            return False, read_attrs
+
         for attr in rc:
             if attr in const.KEY_ATTRS:
                 continue
+            read_attrs.add(attr)
             if rc[attr].find('<') > -1:
                 if res['attr'][attr] >= int(rc[attr][1:]):
-                    return False
+                    return False, read_attrs
             elif rc[attr].find('>') > -1:
                 if res['attr'][attr] <= int(rc[attr][1:]):
-                    return False
+                    return False, read_attrs
             else:
                 if res['attr'][attr] != int(rc[attr]):
-                    return False
+                    return False, read_attrs
 
-        return True
+        return True, read_attrs
 
     def update_sub_attr(self, su, sub, res):
         # updating history
@@ -190,31 +196,41 @@ class PolicyParser():
         return def_r_attrs.difference(set(const.KEY_ATTRS))
 
     def execute_policy(self, r_obj, w_obj, act):
+        decision = False
+        updated_obj = None
+
         r_type = r_obj['type']
         w_type = w_obj['type']
-        read_attrs = dict()
-        read_attrs[r_type] = dict()
-        read_attrs[w_type] = dict()
 
-        updated_obj = w_obj
-        updated_obj['updates'] = dict()
+        decision, updated_obj, read_attrs = self.evaluate(r_obj, w_obj, act)
 
-        result = dict(decision=False, 
-                      updated_obj=None, 
+        # if result['updated_obj'] is None:
+        #     result = self.evaluate(w_obj, r_obj, act)
+
+        # updated_obj['updates'] = dict()
+
+        result = dict(decision=decision,
+                      updated_obj=updated_obj,
                       read_attrs=read_attrs)
-        
+        # print(">>>>>>>>>>>>>>", result)
         return result
 
     def evaluate(self, sub, res, act):
         status = False
         # sub, res should contain some attrs from db
         # print('evaluate', sub, res, act)
+        read_attrs = dict()
+
         for rule in self.root.iter('rule'):
             sc=rule.find('subjectCondition')
-            if not self.check_sub_cond(sc.attrib, sub, res):
+
+            flag, read_attrs[sub['type']] = self.check_sub_cond(sc.attrib, sub, res)
+            if not flag:
                 continue
+
             rc=rule.find('resourceCondition')
-            if not self.check_res_cond(rc.attrib, sub, res):
+            flag, read_attrs[res['type']] = self.check_res_cond(rc.attrib, sub, res)
+            if not flag:
                 continue
 
             ac=rule.find('action')
@@ -226,20 +242,25 @@ class PolicyParser():
             su=rule.find('subjectUpdate')
             if su != None:
                 # Updating attributes to the received request
-                sub['attr'] = self.update_sub_attr(su.attrib, sub, res)
+                updated_obj = sub
+                updated_obj['updates'] = self.update_sub_attr(su.attrib, sub, res)
+                read_attrs[sub['type']].update(set(updated_obj['updates'].keys()))
                 status = True
             else:
                 status = True
 
             ru=rule.find('resourceUpdate')
             if ru != None:
-                res['attr'] = self.update_res_attr(ru.attrib, sub, res)
+                updated_obj = res
+                updated_obj['updates'] = self.update_res_attr(ru.attrib, sub, res)
+                read_attrs[res['type']].update(set(updated_obj['updates'].keys()))
                 status = True
             else:
                 status = True
             # print('status', status)
         # print('status after all rules', status)
-        return status, sub, res, act
+        # print('updated_obj', updated_obj)
+        return status, updated_obj, read_attrs
 
     def parse(self):
         for rule in self.root.iter('rule'):
@@ -259,13 +280,12 @@ class PolicyParser():
             print()
 
 p = PolicyParser()
-print(p.get_all_attrs('song'))
-# sub = {'type':'customer', 'attr': {}, 'id':'2'}
-# res = {'type':'song', 'attr': {}, 'id':'1' }
-# act = {'type': 'listen'}
+sub = {'type':'customer', 'attr': {}, 'id':'2'}
+res = {'type':'song', 'attr': {'listenCount': 2}, 'id':'1' }
+act = {'type': 'listen'}
 # print(p.get_read_write_map(sub, res, act))
 # sub = {'type':'employee', 'attr': {'history': 'bank B'}}
 # res = {'type':'bank', 'id': 'bank B', 'attr': {}}
 # act = {'type': 'read'}
 # update res attrs only if the status is True
-# print(p.evaluate(sub, res, act))
+p.execute_policy(sub, res, act)
