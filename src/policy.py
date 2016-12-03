@@ -147,8 +147,48 @@ class PolicyParser():
 
             return read_write_map
 
-    def might_read_attrs(self):
-        pass
+    # Assuming subject types and resource types are disjoint
+    def get_all_attrs(self, type):
+        all_attrs = set()
+        for rule in self.root.iter('rule'):
+            sc=rule.find('subjectCondition')
+            rc=rule.find('resourceCondition')
+
+            su=rule.find('subjectUpdate')
+            ru=rule.find('resourceUpdate')
+
+            if sc and sc.attrib['type'] == type:
+                all_attrs.update(set(sc.attrib.keys()) - set(const.KEY_ATTRS))
+                if su:
+                    all_attrs.update(set(su.attrib.keys()) - set(const.KEY_ATTRS))
+
+            elif rc and rc.attrib['type'] == type:
+                all_attrs.update(set(rc.attrib.keys()) - set(const.KEY_ATTRS))
+                if ru:
+                    all_attrs.update(set(ru.attrib.keys()) - set(const.KEY_ATTRS))
+
+        return all_attrs
+
+    def attrs_in_matching_policies(self, r_type, w_type, a_type):
+        def_r_attrs = set()
+        for rule in self.root.iter('rule'):
+            sc=rule.find('subjectCondition')
+            rc=rule.find('resourceCondition')
+            ac=rule.find('action')
+
+            if ac.attrib['type'] == a_type and (
+                sc.attrib['type'] == r_type and rc.attrib['type'] == w_type) or (
+                sc.attrib['type'] == w_type and rc.attrib['type'] == r_type):
+                if len(def_r_attrs) == 0:
+                    def_r_attrs.update(set(sc.attrib.keys()))
+                else:
+                    def_r_attrs.intersection_update(set(sc.attrib.keys()))
+
+            su=rule.find('subjectUpdate')
+            ru=rule.find('resourceUpdate')
+
+        return def_r_attrs.difference(set(const.KEY_ATTRS))
+
 
     def evaluate(self, sub, res, act):
         status = False
@@ -203,7 +243,8 @@ class PolicyParser():
                 print('resource update', ru.attrib)
             print()
 
-# p = PolicyParser()
+p = PolicyParser()
+print(p.attrs_in_matching_policies('employee', 'bank', 'read'))
 # sub = {'type':'customer', 'attr': {}, 'id':'2'}
 # res = {'type':'song', 'attr': {}, 'id':'1' }
 # act = {'type': 'listen'}

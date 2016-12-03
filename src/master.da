@@ -143,12 +143,12 @@ class Application(process):
         self.read_write_map = dict()
         self.pending_q = dict()
 
-    def analyze_policies(sub, res, action):
+    def analyze_policies(self, sub, res, action):
         p = PolicyParser()
         self.read_write_map.update(p.get_read_write_map(sub, res, action))
 
-    def predict_objs ( sub , res , action ):
-        analyze_policies(sub, res, action)
+    def predict_objs (self, sub , res , action ):
+        self.analyze_policies(sub, res, action)
         req_type = const.READ_WRITE
         key = (sub['type'], res['type'], action['type'])
         if key not in read_write_map:
@@ -208,7 +208,7 @@ class Application(process):
 
         timer_ps = new(TimerP, args=(config,suffix,))
         start(timer_ps)
-        
+
         timer_payload = dict(app_id=app_id, latency_in_secs=2)
         send(('TIMER_REQUEST', timer_payload), to=timer_ps)
         self.logger.info('[SENT][TIMER_REQUEST][{}] payload:{}'
@@ -219,7 +219,7 @@ class Application(process):
                                                 .format(app_id, payload))
 
     def send_and_receive(app_id, request):
-        
+
         authorize(  request['sub'],
                     request['res'],
                     request['action'],
@@ -239,7 +239,7 @@ class Application(process):
             req_copy = copy.deepcopy(request)
             self.pending_q[app_id] = request
             send_and_receive(app_id, req_copy)
-            
+
 
     def restart(app_id):
         req = self.pending_q.get(app_id, None)
@@ -264,7 +264,7 @@ class Application(process):
         app_id = payload['app_id']
         self.logger.info('[RECEIVED][TIMER_RESPONSE][{}] payload:{}'
                                                     .format(app_id, payload))
-        
+
         if app_id in self.pending_q:
             restart(app_id)
 
