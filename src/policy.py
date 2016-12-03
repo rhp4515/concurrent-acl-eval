@@ -220,7 +220,7 @@ class PolicyParser():
         # sub, res should contain some attrs from db
         # print('evaluate', sub, res, act)
         read_attrs = dict()
-
+        updated_obj = None
         for rule in self.root.iter('rule'):
             sc=rule.find('subjectCondition')
 

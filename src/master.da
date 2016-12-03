@@ -84,16 +84,21 @@ class DBEmulator(process):
         self.logger.info('[FINAL_STATE][DB_DUMP] db_dump:{}'
                                                 .format(self.attr_db))
 
-    def _read(data):
+    def _read(data, ts):
         """ Operation to read data from db """
         resp = dict(type=data['type'], id=data['id'], attr=dict())
         for attr_name in data['attr']:
             key = (data['type'], data['id'], attr_name)
             val = None
-            if key in self.attr_db:
-                val = self.attr_db[key]
-            else:
+
+            attr_keys = [k for k in self.attr_db.keys() if k[0] == key[0] and k[1] == key[1] and k[2] == key[2] and k[3] <= ts]
+            if len(attr_keys) > 1:
+                attr_keys.sort(key= lambda k: k[3], reverse=True)
+                attr_key_v = attr_keys[0]
+                val = self.attr_db[attr_key_v]
+            else:    
                 val = 0 if attr_name in const.NUMERICAL_ATTR else ''
+                key = (data['type'], data['id'], attr_name, ts)
                 self.attr_db[key] = val
 
             resp['attr'][attr_name] = val
@@ -103,28 +108,24 @@ class DBEmulator(process):
 
     def _write(data):
         """ Operation to write data to db """
-        for attr in data['attr']:
-            key = (data['type'], data['id'], attr)
-            self.attr_db[key] = data['attr'][attr]
+        for attr in data['updates']:
+            key = (data['type'], data['id'], attr, data['ts'])
+            self.attr_db[key] = data['updates'][attr]
 
         return None
-
-    def _op(fn, data):
-        return fn(data)
 
     def receive(msg=('DB_READ_REQUEST', data), from_=p):
         self.logger.info('[RECEIVED][DB_READ_REQUEST][{}] payload:{}'
                                                 .format(data['app_id'], data))
-        # sub = self._op(self._read, data['sub'])
-        # res = self._op(self._read, data['res'])
+        ts = data['ts']
+        data['r_obj'] = self._read(data['r_obj'], ts)
+        data['w_obj'] = self._read(data['w_obj'], ts)
 
         # payload = dict( sub=sub,
         #                 res=res,
         #                 eval_id=data['eval_id'],
         #                 app_id=data['app_id'])
-        ts = data['ts']
-        data['r_obj']['attr'] = dict()
-        data['w_obj']['attr'] = dict()
+        
 
         send(('DB_READ_RESPONSE', data), to=p)
         self.logger.info('[SENT][DB_READ_RESPONSE][{}] payload:{}'
@@ -134,7 +135,7 @@ class DBEmulator(process):
     def receive(msg=('DB_WRITE_REQUEST', data), from_=p):
         self.logger.info('[RECEIVED][DB_WRITE_REQUEST][{}] payload:{}'
                                                 .format(data['app_id'], data))
-        self._op(self._write, data['data'])
+        self._write(data['data'])
 
 # Client corresponds to Application instance
 #TODO implement pending queue
@@ -383,8 +384,20 @@ class Coord(process):
 
         return payload
 
-    def update_attr_db(type, updates, ts):
-        pass
+    def update_attr_db(app_id, updated_obj, ts):
+        data = dict(type=updated_obj['type'],
+                    id=updated_obj['id'],
+                    updates=updated_obj['updates'],
+                    ts=ts)
+        db_payload = dict(app_id=app_id,
+                          data=data)
+        # # Hacks to introduce artifical delays for simulating few tests
+        # if 'before_db_read' in payload['delays']:
+        #     time.sleep(10)
+
+        send(('DB_WRITE_REQUEST', db_payload), to=db_ps)
+        self.logger.info('[SENT][DB_WRITE_REQUEST][{}] payload:{}'
+                                            .format(db_payload['app_id'], db_payload))
 
     def receive(msg= ('COORDR_REQUEST', payload), from_=p):
         self.logger.info('[RECEIVED][COORDR_REQUEST][{}] payload:{}'
@@ -433,14 +446,14 @@ class Coord(process):
     def receive(msg= ('COORDW_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][COORDW_RESPONSE][{}] payload:{}'
                                             .format(payload['app_id'], payload))
-        if not self.check_conflict(payload):
+        if not check_conflict(payload):
             x = payload['updated_obj']
-            attr_updates = payload['updated_obj']['updates']
-            write_updates_cache[payload['eval_id']] = payload['updated_obj']['updates'].keys()
+            attr_updates = x['updates']
+            write_updates_cache[payload['eval_id']] = attr_updates.keys()
 
             #await
-            if not self.check_conflict(payload):
-                self.update_attr_db(x['type'], x['updates'], payload['ts'])
+            if not check_conflict(payload):
+                update_attr_db(payload['app_id'], x, payload['ts'])
 
                 del write_updates_cache[payload['eval_id']]
 
@@ -459,7 +472,7 @@ class Coord(process):
                 might_read_attrs = attrs[x['type']]['might_r_attr']
 
                 for attr in set(def_read_attrs+might_read_attrs):
-                    v = self.latest_version_before(x, attr, payload['ts'])
+                    v = latest_version_before(x, attr, payload['ts'])
                     v['pending_might_read'] = [x for x in v['pending_might_read'] if x[0] != payload['eval_id']]
                     if attr in payload['read_attrs'][x['type']]:
                         v['rts'] = payload['ts']
@@ -479,7 +492,7 @@ class Coord(process):
                 else:
                     payload['obj'] = payload['w_obj']
 
-                payload['read_attrs'] = payload['read_attrs'][payload['obj']['type']]
+                payload['read_attrs'] = payload['read_attrs'].get(payload['obj']['type'],{})
                 send(('COORDR_RESPONSE', payload), to=payload['obj']['coord'])
                 self.logger.info('[SENT][COORDR_RESPONSE][{}] payload:{}'
                                             .format(payload['app_id'],
@@ -520,7 +533,6 @@ class Worker(process):
         policy = PolicyParser()
         # status, new_sub, new_res, action = policy.evaluate(sub, res, action)
         result = policy.execute_policy(r_obj, w_obj, action)
-
 
         return result
 
@@ -630,7 +642,7 @@ class Worker(process):
                                                 client_resp_payload))
 
             r_type = orig_payload['r_obj']['type']
-            orig_payload['read_attrs'] = result['read_attrs'][r_type]
+            orig_payload['read_attrs'] = result['read_attrs'].get(r_type,{})
             orig_payload['obj'] = orig_payload['r_obj']
             send(('COORDR_RESPONSE', orig_payload), to=orig_payload['obj']['coord'])
 
@@ -639,7 +651,7 @@ class Worker(process):
                                                 orig_payload))
 
             w_type = orig_payload['w_obj']['type']
-            orig_payload['read_attrs'] = result['read_attrs'][w_type]
+            orig_payload['read_attrs'] = result['read_attrs'].get(w_type,{})
             orig_payload['obj'] = orig_payload['w_obj']
             send(('COORDR_RESPONSE', orig_payload), to=orig_payload['obj']['coord'])
 
