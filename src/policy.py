@@ -157,17 +157,17 @@ class PolicyParser():
             su=rule.find('subjectUpdate')
             ru=rule.find('resourceUpdate')
 
-            if sc and sc.attrib['type'] == type:
-                all_attrs.update(set(sc.attrib.keys()) - set(const.KEY_ATTRS))
-                if su:
-                    all_attrs.update(set(su.attrib.keys()) - set(const.KEY_ATTRS))
+            if sc is not None and sc.attrib['type'] == type:
+                all_attrs.update(set(sc.attrib.keys()))
+                if su is not None:
+                    all_attrs.update(set(su.attrib.keys()))
 
-            elif rc and rc.attrib['type'] == type:
-                all_attrs.update(set(rc.attrib.keys()) - set(const.KEY_ATTRS))
-                if ru:
-                    all_attrs.update(set(ru.attrib.keys()) - set(const.KEY_ATTRS))
+            elif rc is not None and rc.attrib['type'] == type:
+                all_attrs.update(set(rc.attrib.keys()))
+                if ru is not None:
+                    all_attrs.update(set(ru.attrib.keys()))
 
-        return all_attrs
+        return all_attrs.difference(set(const.KEY_ATTRS))
 
     def attrs_in_matching_policies(self, r_type, w_type, a_type):
         def_r_attrs = set()
@@ -244,7 +244,7 @@ class PolicyParser():
             print()
 
 p = PolicyParser()
-print(p.attrs_in_matching_policies('employee', 'bank', 'read'))
+print(p.get_all_attrs('song'))
 # sub = {'type':'customer', 'attr': {}, 'id':'2'}
 # res = {'type':'song', 'attr': {}, 'id':'1' }
 # act = {'type': 'listen'}
