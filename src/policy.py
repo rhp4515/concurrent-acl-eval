@@ -189,6 +189,21 @@ class PolicyParser():
 
         return def_r_attrs.difference(set(const.KEY_ATTRS))
 
+    def execute_policy(self, r_obj, w_obj, act):
+        r_type = r_obj['type']
+        w_type = w_obj['type']
+        read_attrs = dict()
+        read_attrs[r_type] = dict()
+        read_attrs[w_type] = dict()
+
+        updated_obj = w_obj
+        updated_obj['updates'] = dict()
+
+        result = dict(decision=False, 
+                      updated_obj=None, 
+                      read_attrs=read_attrs)
+        
+        return result
 
     def evaluate(self, sub, res, act):
         status = False

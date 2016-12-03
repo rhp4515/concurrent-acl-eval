@@ -122,6 +122,9 @@ class DBEmulator(process):
         #                 res=res,
         #                 eval_id=data['eval_id'],
         #                 app_id=data['app_id'])
+        ts = data['ts']
+        data['r_obj']['attr'] = dict()
+        data['w_obj']['attr'] = dict()
 
         send(('DB_READ_RESPONSE', data), to=p)
         self.logger.info('[SENT][DB_READ_RESPONSE][{}] payload:{}'
@@ -433,7 +436,7 @@ class Coord(process):
         if not self.check_conflict(payload):
             x = payload['updated_obj']
             attr_updates = payload['updated_obj']['updates']
-            write_updates_cache[payload['eval_id']] = payload['updated_obj']['updates']['attrs']
+            write_updates_cache[payload['eval_id']] = payload['updated_obj']['updates'].keys()
 
             #await
             if not self.check_conflict(payload):
@@ -462,7 +465,7 @@ class Coord(process):
                         v['rts'] = payload['ts']
 
 
-                client_resp_payload = dict(result=payload['result'],
+                client_resp_payload = dict(result=payload['decision'],
                                        app_id=payload['app_id'])
 
                 send(('CLIENT_RESPONSE', client_resp_payload), to=payload['app_ps'])
@@ -506,32 +509,36 @@ class Worker(process):
         self.requests = dict()
 
 
-    def evaluate(eval_id, sub, res, action, orig_res):
+    def evaluate(db_payload, orig_payload):
+        r_obj = db_payload['r_obj']
+        w_obj = db_payload['w_obj']
+        action = orig_payload['action']
         # orig_res, _ = self.requests[eval_id]
         # change attr values based on policy rules
         # evaluate the policies
-        res['old_attr'] = orig_res['attr']
-        # print("!!!!!!!!!!!!!!!!!!!!!!!")
-        # print(sub)
-        # print(res)
+        # res['old_attr'] = orig_res['attr']
         policy = PolicyParser()
-        status, new_sub, new_res, action = policy.evaluate(sub, res, action)
-        # print(new_sub)
-        # print(new_res)
-        # print("!!!!!!!!!!!!!!!!!!!!!!!")
-        return status, new_sub, new_res, action
+        # status, new_sub, new_res, action = policy.evaluate(sub, res, action)
+        result = policy.execute_policy(r_obj, w_obj, action)
 
 
-    def setup_payload(app_id, eval_id, sub, res):
+        return result
+
+
+    def setup_payload(app_id, eval_id, r_obj, w_obj):
         policy = PolicyParser()
 
-        sub_attrs = list(policy.get_sub_attr(sub, res))
-        res_attrs = list(policy.get_res_attr(sub, res))
+        r_attrs = list(policy.get_all_attrs(r_obj['type']))
+        w_attrs = list(policy.get_all_attrs(w_obj['type']))
 
-        sub = dict(type=sub['type'], id=sub['id'], attr=sub_attrs)
-        res = dict(type=res['type'], id=res['id'], attr=res_attrs)
+        new_r_obj = dict(type=r_obj['type'], id=r_obj['id'], attr=r_attrs)
+        new_w_obj = dict(type=w_obj['type'], id=w_obj['id'], attr=w_attrs)
 
-        payload = dict(app_id=app_id, eval_id=eval_id, sub=sub, res=res)
+        payload = dict(app_id=app_id, 
+                       eval_id=eval_id, 
+                       r_obj=new_r_obj, 
+                       w_obj=new_w_obj)
+        
         return payload
 
 
@@ -543,36 +550,30 @@ class Worker(process):
 
         self.logger.info('[RECEIVED][WORKER_REQUEST][{}] payload:{}'
                                             .format(payload['app_id'], payload))
-        # self.requests[payload['eval_id']] = (payload['sub'],
-        #                                      payload['res'],
-        #                                      payload['action'],
-        #                                      payload['sub_coord'])
+        self.requests[payload['eval_id']] = copy.deepcopy(payload)
+        
+        db_payload = setup_payload(payload['app_id'], payload['eval_id'],
+                                                payload['r_obj'], payload['w_obj'])
 
-        # db_payload = setup_payload(payload['app_id'], payload['eval_id'],
-        #                                         payload['sub'], payload['res'])
-
-        # db_payload['sub']['attr'] = [attr for attr in db_payload['sub']['attr']
-        #                                 if attr not in payload['sub']['attr']]
-
-        # db_payload['res']['attr'] = [attr for attr in db_payload['res']['attr']
-        #                                 if attr not in payload['res']['attr']]
+        db_payload['ts'] = payload['ts']
 
         # # Hacks to introduce artifical delays for simulating few tests
         # if 'before_db_read' in payload['delays']:
         #     time.sleep(10)
 
-        send(('DB_READ_REQUEST', payload), to=db_ps)
+        
+        send(('DB_READ_REQUEST', db_payload), to=db_ps)
 
         self.logger.info('[SENT][DB_READ_REQUEST][{}] payload:{}'
-                                            .format(payload['app_id'], payload))
+                                            .format(db_payload['app_id'], db_payload))
 
 
 
     def receive(msg= ('DB_READ_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][DB_READ_RESPONSE][{}] payload:{}'
                                             .format(payload['app_id'], payload))
-        # eval_id = payload['eval_id']
-        # orig_sub, orig_res, orig_action, coord_ps = self.requests[eval_id]
+        eval_id = payload['eval_id']
+        orig_payload = self.requests[eval_id]
         # payload['sub']['attr'].update(orig_sub['attr'])
         # payload['res']['attr'].update(orig_res['attr'])
 
@@ -583,10 +584,9 @@ class Worker(process):
         #                                     payload['res'], orig_action,
         #                                     orig_res)
         # # print(result, sub, res, action)
-        result = False
-        client_resp_payload = dict(result=result,
-                                   app_id=payload['app_id'])
 
+        
+        # payload['r_obj']['attr'].update()
         # if worker_resp_payload['res']['id'].isdigit():
         #     seconds = 20 - int(worker_resp_payload['res']['id'])
         # else:
@@ -595,11 +595,58 @@ class Worker(process):
         # time.sleep(seconds)
         # if 'before_worker_response' in payload['delays']:
         #     time.sleep(10)
-        send(('CLIENT_RESPONSE', client_resp_payload), to=payload['app_ps'])
 
-        self.logger.info('[SENT][CLIENT_RESPONSE][{}] payload:{}'
+        payload['r_obj']['attr'].update(orig_payload['r_obj']['attr'])
+        payload['w_obj']['attr'].update(orig_payload['w_obj']['attr'])
+
+        result = evaluate(payload, orig_payload)
+
+        if result['updated_obj'] is not None:
+            orig_payload['read_attrs'] = result['read_attrs']
+            orig_payload['updated_obj'] = result['updated_obj']
+            orig_payload['decision'] = result['decision']
+
+            if orig_payload['w_obj']['type'] == result['updated_obj']['type']:
+                actual_w_coord = orig_payload['w_obj']['coord']
+            else:
+                actual_w_coord = orig_payload['r_obj']['coord']
+
+
+            send(('COORDW_RESPONSE', orig_payload), to=actual_w_coord)
+
+            self.logger.info('[SENT][COORDW_RESPONSE][{}] payload:{}'
+                                        .format(orig_payload['app_id'],
+                                                orig_payload))    
+
+        else:
+            client_resp_payload = dict(result=result['decision'],
+                                   app_id=payload['app_id'])
+
+           
+            send(('CLIENT_RESPONSE', client_resp_payload), to=orig_payload['app_ps'])
+
+            self.logger.info('[SENT][CLIENT_RESPONSE][{}] payload:{}'
                                         .format(client_resp_payload['app_id'],
                                                 client_resp_payload))
+            
+            r_type = orig_payload['r_obj']['type']
+            orig_payload['read_attrs'] = result['read_attrs'][r_type]
+            orig_payload['obj'] = orig_payload['r_obj']
+            send(('COORDR_RESPONSE', orig_payload), to=orig_payload['obj']['coord'])
+
+            self.logger.info('[SENT][COORDR_RESPONSE][{}] payload:{}'
+                                        .format(orig_payload['app_id'],
+                                                orig_payload))
+
+            w_type = orig_payload['w_obj']['type']
+            orig_payload['read_attrs'] = result['read_attrs'][w_type]
+            orig_payload['obj'] = orig_payload['w_obj']
+            send(('COORDR_RESPONSE', orig_payload), to=orig_payload['obj']['coord'])
+
+            self.logger.info('[SENT][COORDR_RESPONSE][{}] payload:{}'
+                                        .format(orig_payload['app_id'],
+                                                orig_payload))
+
 
 
 def parse_client_requests(fpath):
