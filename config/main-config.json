@@ -9,7 +9,7 @@
 			"num_coords": 1,
 			"worker_count": 1,
 			"randomize": false,
-			"workload": [1],
+			"workload": [2],
 			"p_time":10,
 			"path": "../config/dev.xml",
 			"log_suffix": "dev",

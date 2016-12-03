@@ -143,11 +143,11 @@ class Application(process):
         self.read_write_map = dict()
         self.pending_q = dict()
 
-    def analyze_policies(self, sub, res, action):
+    def analyze_policies(sub, res, action):
         p = PolicyParser()
         self.read_write_map.update(p.get_read_write_map(sub, res, action))
 
-    def predict_objs (self, sub , res , action ):
+    def predict_objs (sub , res , action ):
         self.analyze_policies(sub, res, action)
         req_type = const.READ_WRITE
         key = (sub['type'], res['type'], action['type'])
@@ -194,7 +194,7 @@ class Application(process):
                 delays = delays['delay']
         else:
             delays = []
-        # print(delays)
+
         r_obj, w_obj, action, req_type = predict_objs(sub, res, action)
         r_obj['coord'] = get_coord(r_obj)
         w_obj['coord'] = get_coord(w_obj)
@@ -240,7 +240,6 @@ class Application(process):
             self.pending_q[app_id] = request
             send_and_receive(app_id, req_copy)
 
-
     def restart(app_id):
         req = self.pending_q.get(app_id, None)
         if req is None :
@@ -276,7 +275,9 @@ class Coord(process):
         self.res_cache = dict()
         self.next_worker_idx = -1
         self.workers = list(workers)
+        self.attr_version = dict()
         self.attr_cache = dict()
+        self.write_updates_cache = dict()
         self.minLatency = config['minDBlatency']
         self.maxLatency = config['maxDBlatency']
 
@@ -288,17 +289,108 @@ class Coord(process):
         self.next_worker_idx += 1
         return self.workers[next_worker_idx%len(self.workers)]
 
+    def latest_version_before(x, attr, ts):
+        result = dict(rts=0, wts=0, pending_might_read=[])
+        attr_versions = [t for t in attr_version.keys() if t[0] == x['type'] and t[1] in x['attr']]
+
+        attr_versions.sort(key= lambda k: k[2])
+
+        for attr_v in attr_versions:
+            _, attr, attr_ts = attr_v
+            if attr_ts < ts:
+                return attr_version[attr_v]
+
+        return result
+
+    def check_conflict(response):
+        for attr in response['updated_obj']['updates']:
+            v = self.latest_version_before(response['updated_obj'], attr, response['ts'])
+            if v['rts'] > response['ts']:
+                return True
+        return False
+
+
+    def restart(response):
+        pass
+
+    def analyze_policies(payload):
+        r_type = payload['r_obj']['type']
+        w_type = payload['w_obj']['type']
+        a_type = payload['action']['type']
+
+        # print(">>>>>>>>>>>>>>>>>>", r_type, w_type, a_type)
+        attrs = dict()
+
+        p = PolicyParser()
+
+        r_attrs = p.get_all_attrs(r_type)
+        w_attrs = p.get_all_attrs(w_type)
+
+        # print(">>>>>>>>>>>>>>>>>>", r_attrs)
+        # print(">>>>>>>>>>>>>>>>>>", w_attrs)
+
+        attrs[r_type] = dict()
+        attrs[r_type]['def_r_attr'] = []
+        attrs[r_type]['might_r_attr'] = []
+
+        attrs[w_type] = dict()
+        attrs[w_type]['def_r_attr'] = []
+        attrs[w_type]['might_r_attr'] = []
+
+        for attr in r_attrs:
+            if attr in p.attrs_in_matching_policies(r_type, w_type, a_type):
+                attrs[r_type]['def_r_attr'].append(attr)
+            else:
+                attrs[r_type]['might_r_attr'].append(attr)
+
+        for attr in w_attrs:
+            if attr in p.attrs_in_matching_policies(r_type, w_type, a_type):
+                attrs[r_type]['def_r_attr'].append(attr)
+            else:
+                attrs[r_type]['might_r_attr'].append(attr)
+
+        return attrs
+
     def update_req(x, payload):
+        attrs = self.analyze_policies(payload)
+        def_read_attrs = attrs[x['type']]['def_r_attr']
+        might_read_attrs = attrs[x['type']]['might_r_attr']
+        # print(">>>>>>>", x['type'])
+        # print(">>>>>>>", def_read_attrs, might_read_attrs)
+        # print(">>>>>>>", payload)
+        if payload['req_type'] == const.READ_ONLY:
+            for attr in def_read_attrs:
+                v = self.latest_version_before(x, a, time.time())
+                v['rts'] = payload['ts']
+        else:
+            might_read_attrs.extend(def_read_attrs)
+
+        for attr in might_read_attrs:
+            v = self.latest_version_before(x, attr, time.time())
+            v['pending_might_read'].append((payload['eval_id'], payload['ts']))
+
+        # Piggy backing on cached data
+        for attr in set(def_read_attrs+might_read_attrs):
+            # print(">>>>>>>", attr)
+            # print("-------", x)
+
+            key = (x['type'], x['id'], attr)
+            if key in self.attr_cache:
+                x['attr'][attr] = self.attr_cache[key]
+
         return payload
+
+    def update_attr_db(type, updates, ts):
+        pass
 
     def receive(msg= ('COORDR_REQUEST', payload), from_=p):
         self.logger.info('[RECEIVED][COORDR_REQUEST][{}] payload:{}'
                                             .format(payload['app_id'], payload))
         x = payload['r_obj']
-        payload = update_req(x, payload)
-        payload['eval_id'] = uuid.uuid4()
+        payload['eval_id'] = str(uuid.uuid4())
         payload['ts'] = time.time()
         payload['app_ps'] = p
+        payload = self.update_req(x, payload)
         send(('COORDW_REQUEST', payload),to=payload['w_obj']['coord'])
 
         self.logger.info('[SENT][COORDW_REQUEST][{}] payload:{}'
@@ -308,6 +400,16 @@ class Coord(process):
         self.logger.info('[RECEIVED][COORDR_RESPONSE][{}] payload:{}'
                                             .format(payload['app_id'], payload))
 
+        x = payload['obj']
+        attrs = self.analyze_policies(payload)
+
+        might_read_attrs = attrs[x['type']]['might_r_attr']
+
+        for attr in might_read_attrs:
+            v = self.latest_version_before(x, attr, payload['ts'])
+            v['pending_might_read'] = [x for x in v['pending_might_read'] if x[0] != payload['eval_id']]
+            if attr in payload['read_attrs']:
+                v['rts'] = payload['ts']
 
         self.logger.info('[PROCESSED][COORDR_RESPONSE][{}] payload:{}'
                                             .format(payload['app_id'], payload))
@@ -317,8 +419,8 @@ class Coord(process):
                                             .format(payload['app_id'], payload))
 
         x = payload['w_obj']
-        payload = update_req(x, payload)
-        worker = get_worker()
+        payload = self.update_req(x, payload)
+        worker = self.get_worker()
 
         send(('WORKER_REQUEST', payload), to=worker)
         self.logger.info('[SENT][WORKER_REQUEST][{}] payload:{}'
@@ -328,21 +430,61 @@ class Coord(process):
     def receive(msg= ('COORDW_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][COORDW_RESPONSE][{}] payload:{}'
                                             .format(payload['app_id'], payload))
+        if not self.check_conflict(payload):
+            x = payload['updated_obj']
+            attr_updates = payload['updated_obj']['updates']
+            write_updates_cache[payload['eval_id']] = payload['updated_obj']['updates']['attrs']
 
-        client_resp_payload = dict(result=payload['result'],
-                                   app_id=payload['app_id'])
+            #await
+            if not self.check_conflict(payload):
+                self.update_attr_db(x['type'], x['updates'], payload['ts'])
 
-        send(('CLIENT_RESPONSE', client_resp_payload), to=payload['app_ps'])
+                del write_updates_cache[payload['eval_id']]
 
-        self.logger.info('[SENT][CLIENT_RESPONSE][{}] payload:{}'
-                                        .format(client_resp_payload['app_id'],
-                                                client_resp_payload))
+                for attr in x['updates']:
+                    key = (x['type'], x['id'], attr)
+                    attr_cache[key] = x['updates'][attr]
 
-        send(('COORDW_RESPONSE', payload), to=payload['app_ps'])
+                for attr in x['updates']:
+                    key = (x['type'], attr, payload['ts'])
+                    attr_version[key] = dict(rts=payload['ts'],
+                                             wts=payload['ts'],
+                                             pending_might_read=[])
 
-        self.logger.info('[SENT][COORDW_RESPONSE][{}] payload:{}'
-                                        .format(payload['app_id'],
-                                                payload))
+                attrs = analyze_policies(payload)
+                def_read_attrs = attrs[x['type']]['def_r_attr']
+                might_read_attrs = attrs[x['type']]['might_r_attr']
+
+                for attr in set(def_read_attrs+might_read_attrs):
+                    v = self.latest_version_before(x, attr, payload['ts'])
+                    v['pending_might_read'] = [x for x in v['pending_might_read'] if x[0] != payload['eval_id']]
+                    if attr in payload['read_attrs'][x['type']]:
+                        v['rts'] = payload['ts']
+
+
+                client_resp_payload = dict(result=payload['result'],
+                                       app_id=payload['app_id'])
+
+                send(('CLIENT_RESPONSE', client_resp_payload), to=payload['app_ps'])
+                self.logger.info('[SENT][CLIENT_RESPONSE][{}] payload:{}'
+                                            .format(client_resp_payload['app_id'],
+                                                    client_resp_payload))
+
+                if x['type'] == payload['w_obj']['type']:
+                    payload['obj'] = payload['r_obj']
+
+                else:
+                    payload['obj'] = payload['w_obj']
+
+                payload['read_attrs'] = payload['read_attrs'][payload['obj']['type']]
+                send(('COORDR_RESPONSE', payload), to=payload['obj']['coord'])
+                self.logger.info('[SENT][COORDR_RESPONSE][{}] payload:{}'
+                                            .format(payload['app_id'],
+                                                    payload))
+            else:
+                restart(payload)
+        else:
+            restart(payload)
 
     def receive(msg= ('TIMER_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][TIMER_RESPONSE][{}] payload:{}'
