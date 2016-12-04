@@ -214,10 +214,10 @@ class Application(process):
         timer_ps = new(TimerP, args=(config,suffix,))
         start(timer_ps)
 
-        # timer_payload = dict(app_id=app_id, latency_in_secs=10)
-        # send(('TIMER_REQUEST', timer_payload), to=timer_ps)
-        # self.logger.info('[SENT][TIMER_REQUEST][{}] payload:{}'
-        #                                 .format(app_id, timer_payload))
+        timer_payload = dict(app_id=app_id, latency_in_secs=10)
+        send(('TIMER_REQUEST', timer_payload), to=timer_ps)
+        self.logger.info('[SENT][TIMER_REQUEST][{}] payload:{}'
+                                        .format(app_id, timer_payload))
 
         send(('COORDR_REQUEST', payload), to=r_obj['coord'])
         self.logger.info('[SENT][COORDR_REQUEST][{}] payload:{}'
@@ -515,8 +515,16 @@ class Coord(process):
 
         if not check_conflict(payload):
             x = payload['updated_obj']
-            # attr_updates = x['updates']
-            update_attr_db(payload['app_id'], x, payload['ts'])
+            
+            timer_ps = new(TimerP, args=(config,suffix,))
+            start(timer_ps)
+            seconds = random.randint(self.minLatency, self.maxLatency)
+            timer_payload = dict(app_id=payload['app_id'],
+                                 data=payload, 
+                                 latency_in_secs=seconds)
+            send(('TIMER_REQUEST', timer_payload), to=timer_ps)
+            self.logger.info('[SENT][TIMER_REQUEST][{}] payload:{}'
+                                            .format(payload['app_id'], timer_payload))
 
             del write_updates_cache[payload['eval_id']]
 
@@ -644,12 +652,9 @@ class Coord(process):
         self.logger.info('[RECEIVED][TIMER_RESPONSE][{}] payload:{}'
                                             .format(payload['app_id'], payload))
 
-
-        # write_payload = dict(app_id=payload['app_id'], data=res)
-        # send(('DB_WRITE_REQUEST', write_payload),to=db_ps)
-
-        self.logger.info('[SENT][DB_WRITE_REQUEST][{}] payload:{}'
-                                      .format(payload['app_id'], payload))
+        x = payload['data']['updated_obj']
+            
+        update_attr_db(payload['data']['app_id'], x, payload['data']['ts'])
 
 class Worker(process):
 
