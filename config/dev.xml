@@ -10,4 +10,14 @@
 		<res type='bank' id='bank B'></res>
 		<action type='read'></action>
 	</request>
+	<request>
+		<sub type='employee' id='1'/>
+		<res type='bank' id='bank A'></res>
+		<action type='read'></action>
+	</request>
+	<request>
+		<sub type='employee' id='1'/>
+		<res type='bank' id='bank C'></res>
+		<action type='read'></action>
+	</request>
 </requests>

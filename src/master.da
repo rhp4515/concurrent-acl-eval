@@ -91,8 +91,9 @@ class DBEmulator(process):
             key = (data['type'], data['id'], attr_name)
             val = None
 
-            attr_keys = [k for k in self.attr_db.keys() if k[0] == key[0] and k[1] == key[1] and k[2] == key[2] and k[3] <= ts]
-            if len(attr_keys) > 1:
+            attr_keys = [k for k in self.attr_db.keys() if k[0] == key[0] and k[1] == key[1] and k[2] == key[2] and k[3] < ts]
+            # print (">>>>>>>>>>>>>>>>>",attr_keys)
+            if len(attr_keys):
                 attr_keys.sort(key= lambda k: k[3], reverse=True)
                 attr_key_v = attr_keys[0]
                 val = self.attr_db[attr_key_v]
@@ -213,10 +214,10 @@ class Application(process):
         timer_ps = new(TimerP, args=(config,suffix,))
         start(timer_ps)
 
-        timer_payload = dict(app_id=app_id, latency_in_secs=2)
-        send(('TIMER_REQUEST', timer_payload), to=timer_ps)
-        self.logger.info('[SENT][TIMER_REQUEST][{}] payload:{}'
-                                        .format(app_id, timer_payload))
+        # timer_payload = dict(app_id=app_id, latency_in_secs=10)
+        # send(('TIMER_REQUEST', timer_payload), to=timer_ps)
+        # self.logger.info('[SENT][TIMER_REQUEST][{}] payload:{}'
+        #                                 .format(app_id, timer_payload))
 
         send(('COORDR_REQUEST', payload), to=r_obj['coord'])
         self.logger.info('[SENT][COORDR_REQUEST][{}] payload:{}'
@@ -282,6 +283,7 @@ class Coord(process):
         self.attr_version = dict()
         self.attr_cache = dict()
         self.write_updates_cache = dict()
+        self.req_q = dict()
         self.minLatency = config['minDBlatency']
         self.maxLatency = config['maxDBlatency']
 
@@ -294,18 +296,21 @@ class Coord(process):
         return self.workers[next_worker_idx%len(self.workers)]
 
     def latest_version_before(x, attr, ts):
+        # print (x, attr, ts)
         result = dict(rts=0, wts=0, pending_might_read=[])
-        attr_versions = [t for t in attr_version.keys() if t[0] == x['type'] and t[1] in x['attr']]
+        attr_versions = [t for t in attr_version.keys() if t[0] == x['type'] and t[1] == attr]
 
         attr_versions.sort(key= lambda k: k[2])
+        # print (attr_versions)
 
         for attr_v in attr_versions:
-            _, attr, attr_ts = attr_v
+            _, _, attr_ts = attr_v
+            # print (attr_ts, ts)
             if attr_ts < ts:
                 return attr_version[attr_v]
 
         key = (x['type'], attr, ts)
-        self.attr_version[key] = result        
+        self.attr_version[key] = result
         return result
 
     def check_conflict(response):
@@ -367,7 +372,7 @@ class Coord(process):
         # print(">>>>>>>", payload)
         if payload['req_type'] == const.READ_ONLY:
             for attr in def_read_attrs:
-                v = self.latest_version_before(x, a, time.time())
+                v = self.latest_version_before(x, attr, time.time())
                 v['rts'] = payload['ts']
         else:
             might_read_attrs.extend(def_read_attrs)
@@ -409,7 +414,7 @@ class Coord(process):
         # print ("before>>>>>>>>",self.attr_version)
         x = payload['r_obj']
         payload['eval_id'] = str(uuid.uuid4())
-        payload['ts'] = time.time()
+        payload['ts'] = time.time()*1000000
         payload['app_ps'] = p
         payload = self.update_req(x, payload)
         # print ("after>>>>>>>>",self.attr_version)
@@ -430,17 +435,28 @@ class Coord(process):
         if payload['req_type'] == const.READ_WRITE:
             might_read_attrs.extend(attrs[x['type']]['def_r_attr'])
         
-        print ("before>>>>>>>>", self.attr_version)
+        # print ("before>>>>>>>>", self.attr_version)
         for attr in might_read_attrs:
             v = self.latest_version_before(x, attr, payload['ts'])
-            print ("before!!!!!!!",v)
-            v['pending_might_read'] = [x for x in v['pending_might_read'] if x[0] != payload['eval_id']]
+            # print ("before!!!!!!!",(x, attr, payload['ts']), v)
+            v['pending_might_read'] = [y for y in v['pending_might_read'] if y[0] != payload['eval_id']]
             if attr in payload['read_attrs']:
                 v['rts'] = payload['ts']
 
-            print ("after!!!!!!!",v)
+            if len(v['pending_might_read']) == 0:
+                for eval_id in self.req_q:
+                    attr_v, req_payload = self.req_q[eval_id]
+                    del attr_v[(x['type'], attr, payload['ts'])]
+                    if len(attr_v) == 0:
+                        wait_payload = dict(app_id=req_payload['app_id'],
+                                            eval_id=eval_id)    
+                        send(('WAIT_DONE', wait_payload,), to=req_payload['w_obj']['coord'])
+                        self.logger.info('[SENT][WAIT_DONE][{}] payload:{}'
+                                            .format(wait_payload['app_id'], wait_payload))
+
+            # print ("after!!!!!!!",(x, attr, payload['ts']), v)
         
-        print ("after>>>>>>>>",self.attr_version)
+        # print ("after>>>>>>>>",self.attr_version)
         self.logger.info('[PROCESSED][COORDR_RESPONSE][{}] payload:{}'
                                             .format(payload['app_id'], payload))
 
@@ -466,57 +482,91 @@ class Coord(process):
             attr_updates = x['updates']
             write_updates_cache[payload['eval_id']] = attr_updates.keys()
 
+            attr_v = []
             #await
-            if not check_conflict(payload):
-                update_attr_db(payload['app_id'], x, payload['ts'])
+            for attr in attr_updates:
+                v = latest_version_before (x, attr, payload['ts'])
+                if len(v['pending_might_read']):
+                    attr_v.append((x['type'], attr, payload['ts']))
+            
+            self.req_q[payload['eval_id']] = (attr_v, payload)
 
-                del write_updates_cache[payload['eval_id']]
-
-                for attr in x['updates']:
-                    key = (x['type'], x['id'], attr)
-                    attr_cache[key] = x['updates'][attr]
-
-                for attr in x['updates']:
-                    key = (x['type'], attr, payload['ts'])
-                    attr_version[key] = dict(rts=payload['ts'],
-                                             wts=payload['ts'],
-                                             pending_might_read=[])
-
-                attrs = analyze_policies(payload)
-                def_read_attrs = attrs[x['type']]['def_r_attr']
-                might_read_attrs = attrs[x['type']]['might_r_attr']
-
-                for attr in set(def_read_attrs+might_read_attrs):
-                    v = latest_version_before(x, attr, payload['ts'])
-                    v['pending_might_read'] = [x for x in v['pending_might_read'] if x[0] != payload['eval_id']]
-                    if attr in payload['read_attrs'][x['type']]:
-                        v['rts'] = payload['ts']
-
-
-                client_resp_payload = dict(result=payload['decision'],
-                                       app_id=payload['app_id'])
-
-                send(('CLIENT_RESPONSE', client_resp_payload), to=payload['app_ps'])
-                self.logger.info('[SENT][CLIENT_RESPONSE][{}] payload:{}'
-                                            .format(client_resp_payload['app_id'],
-                                                    client_resp_payload))
-
-                if x['type'] == payload['w_obj']['type']:
-                    payload['obj'] = payload['r_obj']
-
-                else:
-                    payload['obj'] = payload['w_obj']
-
-                payload['read_attrs'] = payload['read_attrs'].get(payload['obj']['type'],{})
-                send(('COORDR_RESPONSE', payload), to=payload['obj']['coord'])
-                self.logger.info('[SENT][COORDR_RESPONSE][{}] payload:{}'
-                                            .format(payload['app_id'],
-                                                    payload))
-            else:
-                restart(payload)
+            if len(attr_v) == 0:
+                wait_payload = dict(app_id=payload['app_id'],
+                                    eval_id=payload['eval_id'])    
+                send(('WAIT_DONE', wait_payload,), to=payload['w_obj']['coord'])
+                self.logger.info('[SENT][WAIT_DONE][{}] payload:{}'
+                                    .format(wait_payload['app_id'], wait_payload))
+                # send wait done    
         else:
             restart(payload)
 
+    def receive(msg= ('WAIT_DONE', payload), from_=p):
+        self.logger.info('[RECEIVED][WAIT_DONE][{}] payload:{}'
+                                            .format(payload['app_id'], payload))
+        _, payload = self.req_q[payload['eval_id']]
+        del self.req_q[payload['eval_id']]
+        if not check_conflict(payload):
+            x = payload['updated_obj']
+            # attr_updates = x['updates']
+            update_attr_db(payload['app_id'], x, payload['ts'])
+
+            del write_updates_cache[payload['eval_id']]
+
+            for attr in x['updates']:
+                key = (x['type'], x['id'], attr)
+                attr_cache[key] = x['updates'][attr]
+
+            for attr in x['updates']:
+                key = (x['type'], attr, payload['ts'])
+                attr_version[key] = dict(rts=payload['ts'],
+                                         wts=payload['ts'],
+                                         pending_might_read=[])
+
+            attrs = analyze_policies(payload)
+            def_read_attrs = attrs[x['type']]['def_r_attr']
+            might_read_attrs = attrs[x['type']]['might_r_attr']
+
+            for attr in set(def_read_attrs+might_read_attrs):
+                v = latest_version_before(x, attr, payload['ts'])
+                v['pending_might_read'] = [y for y in v['pending_might_read'] if y[0] != payload['eval_id']]
+                if attr in payload['read_attrs'][x['type']]:
+                    v['rts'] = payload['ts']
+
+                if len(v['pending_might_read']) == 0:
+                    for eval_id in self.req_q:
+                        attr_v, req_payload = self.req_q[eval_id]
+                        del attr_v[(x['type'], attr, payload['ts'])]
+                        if len(attr_v) == 0:
+                            wait_payload = dict(app_id=req_payload['app_id'],
+                                                eval_id=eval_id)    
+                            send(('WAIT_DONE', wait_payload,), to=req_payload['w_obj']['coord'])
+                            self.logger.info('[SENT][WAIT_DONE][{}] payload:{}'
+                                                .format(wait_payload['app_id'], wait_payload))
+
+
+            client_resp_payload = dict(result=payload['decision'],
+                                   app_id=payload['app_id'])
+
+            send(('CLIENT_RESPONSE', client_resp_payload), to=payload['app_ps'])
+            self.logger.info('[SENT][CLIENT_RESPONSE][{}] payload:{}'
+                                        .format(client_resp_payload['app_id'],
+                                                client_resp_payload))
+
+            if x['type'] == payload['w_obj']['type']:
+                payload['obj'] = payload['r_obj']
+
+            else:
+                payload['obj'] = payload['w_obj']
+
+            payload['read_attrs'] = payload['read_attrs'].get(payload['obj']['type'],{})
+            send(('COORDR_RESPONSE', payload), to=payload['obj']['coord'])
+            self.logger.info('[SENT][COORDR_RESPONSE][{}] payload:{}'
+                                        .format(payload['app_id'],
+                                                payload))
+        else:
+            restart(payload)
+    
     def receive(msg= ('TIMER_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][TIMER_RESPONSE][{}] payload:{}'
                                             .format(payload['app_id'], payload))
