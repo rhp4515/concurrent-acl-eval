@@ -96,7 +96,7 @@ class DBEmulator(process):
                 attr_keys.sort(key= lambda k: k[3], reverse=True)
                 attr_key_v = attr_keys[0]
                 val = self.attr_db[attr_key_v]
-            else:    
+            else:
                 val = 0 if attr_name in const.NUMERICAL_ATTR else ''
                 key = (data['type'], data['id'], attr_name, ts)
                 self.attr_db[key] = val
@@ -125,7 +125,7 @@ class DBEmulator(process):
         #                 res=res,
         #                 eval_id=data['eval_id'],
         #                 app_id=data['app_id'])
-        
+
 
         send(('DB_READ_RESPONSE', data), to=p)
         self.logger.info('[SENT][DB_READ_RESPONSE][{}] payload:{}'
@@ -534,6 +534,7 @@ class Worker(process):
         # status, new_sub, new_res, action = policy.evaluate(sub, res, action)
         result = policy.execute_policy(r_obj, w_obj, action)
 
+        print("Worker Evaluate >>>>>>> ", result)
         return result
 
 
@@ -742,7 +743,7 @@ def main():
         for type in types:
             coord_map[type] = len(coord_map)
 
-        print ('coord_map', coord_map)
+        # print ('coord_map', coord_map)
 
         # Setup and start DBEmulator
         db_ps = new(DBEmulator, args=(config, suffix, p_time,))

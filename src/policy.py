@@ -52,10 +52,11 @@ class PolicyParser():
     def check_sub_cond(self, sc, sub, res):
         read_attrs = set()
 
+        # print('subject condition', sc['type'], sub['type'])
+
         if sub['type'] != sc['type']:
             return False, read_attrs
 
-        # print('subject condition', sc)
         for attr in sc:
             if attr in const.KEY_ATTRS:
                 continue
@@ -82,6 +83,8 @@ class PolicyParser():
 
     def check_res_cond(self, rc, sub, res):
         read_attrs = set()
+
+        # print('resource condition', rc['type'], res['type'])
 
         if res['type'] != rc['type']:
             return False, read_attrs
@@ -204,11 +207,16 @@ class PolicyParser():
 
         decision, updated_obj, read_attrs = self.evaluate(r_obj, w_obj, act)
 
-        # if result['updated_obj'] is None:
-        #     result = self.evaluate(w_obj, r_obj, act)
+        if updated_obj is None:
+            decision, updated_obj, w_read_attrs = self.evaluate(w_obj, r_obj, act)
 
         # updated_obj['updates'] = dict()
+        # print ("????????", read_attrs)
+        # print ("????????", w_read_attrs)
 
+        read_attrs[r_type].update(w_read_attrs[r_type])
+        read_attrs[w_type].update(w_read_attrs[w_type])
+        # print("????????", read_attrs)
         result = dict(decision=decision,
                       updated_obj=updated_obj,
                       read_attrs=read_attrs)
@@ -220,16 +228,21 @@ class PolicyParser():
         # sub, res should contain some attrs from db
         # print('evaluate', sub, res, act)
         read_attrs = dict()
+        read_attrs[sub['type']] = set()
+        read_attrs[res['type']] = set()
+
         updated_obj = None
         for rule in self.root.iter('rule'):
             sc=rule.find('subjectCondition')
 
-            flag, read_attrs[sub['type']] = self.check_sub_cond(sc.attrib, sub, res)
+            flag, sub_read_attrs = self.check_sub_cond(sc.attrib, sub, res)
+            read_attrs[sub['type']].update(sub_read_attrs)
             if not flag:
                 continue
 
             rc=rule.find('resourceCondition')
-            flag, read_attrs[res['type']] = self.check_res_cond(rc.attrib, sub, res)
+            flag, res_read_attrs = self.check_res_cond(rc.attrib, sub, res)
+            read_attrs[res['type']].update(res_read_attrs)
             if not flag:
                 continue
 
@@ -238,6 +251,7 @@ class PolicyParser():
                 continue
             # All the conditions passed
 
+            # print(" evaluate >>>>>>>>>>>>", read_attrs)
             # Do updates if there are any
             su=rule.find('subjectUpdate')
             if su != None:
@@ -245,6 +259,7 @@ class PolicyParser():
                 updated_obj = sub
                 updated_obj['updates'] = self.update_sub_attr(su.attrib, sub, res)
                 read_attrs[sub['type']].update(set(updated_obj['updates'].keys()))
+                # print(" subjectUpdate >>>>>>>>>>>>", read_attrs)
                 status = True
             else:
                 status = True
@@ -254,12 +269,14 @@ class PolicyParser():
                 updated_obj = res
                 updated_obj['updates'] = self.update_res_attr(ru.attrib, sub, res)
                 read_attrs[res['type']].update(set(updated_obj['updates'].keys()))
+                # print(" resourceUpdate >>>>>>>>>>>>", read_attrs)
                 status = True
             else:
                 status = True
             # print('status', status)
         # print('status after all rules', status)
         # print('updated_obj', updated_obj)
+        print("returning read_attrs", read_attrs)
         return status, updated_obj, read_attrs
 
     def parse(self):
@@ -279,13 +296,13 @@ class PolicyParser():
                 print('resource update', ru.attrib)
             print()
 
-p = PolicyParser()
-sub = {'type':'customer', 'attr': {}, 'id':'2'}
-res = {'type':'song', 'attr': {'listenCount': 2}, 'id':'1' }
-act = {'type': 'listen'}
+# p = PolicyParser()
+# sub = {'type':'customer', 'attr': {}, 'id':'2'}
+# res = {'type':'song', 'attr': {'listenCount': 2}, 'id':'1' }
+# act = {'type': 'listen'}
 # print(p.get_read_write_map(sub, res, act))
 # sub = {'type':'employee', 'attr': {'history': 'bank B'}}
 # res = {'type':'bank', 'id': 'bank B', 'attr': {}}
 # act = {'type': 'read'}
 # update res attrs only if the status is True
-p.execute_policy(sub, res, act)
+# p.execute_policy(sub, res, act)
