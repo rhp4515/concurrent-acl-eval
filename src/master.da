@@ -299,7 +299,7 @@ class Coord(process):
     def latest_version_before(x, attr, ts):
         # print (x, attr, ts)
         result = dict(rts=0, wts=0, pending_might_read=[])
-        attr_versions = [t for t in attr_version.keys() if t[0] == x['type'] and t[1] == attr]
+        attr_versions = [t for t in self.attr_version.keys() if t[0] == x['type'] and t[1] == attr]
 
         attr_versions.sort(key= lambda k: k[2])
         # print (attr_versions)
@@ -324,13 +324,18 @@ class Coord(process):
 
     def restart(payload):
         print("*****************    RESTARTING     *******************")
+        self.logger.info("*****************    RESTARTING     *******************")
         if payload['r_obj']['type'] == payload['updated_obj']['type']:
             payload['r_obj'], payload['w_obj'] = payload['w_obj'], payload['r_obj']
 
         # Removing this request from all cache and starting fresh
-        del self.req_q[payload['eval_id']]
-        del self.write_updates_cache[payload['eval_id']]
-        del self.starvation_q[payload['eval_id']]
+        # print (payload['eval_id'])
+        self.req_q.pop(payload['eval_id'], None)
+        self.write_updates_cache.pop(payload['eval_id'], None)
+        self.starvation_q.pop(payload['eval_id'], None)
+
+        for k in self.attr_version:
+            self.attr_version[k]['pending_might_read'] = [p for p in self.attr_version[k]['pending_might_read'] if p[0] != payload['eval_id']]
 
         send(('COORDR_REQUEST', payload), to=payload['r_obj']['coord'])
         self.logger.info('[SENT][COORDR_REQUEST][{}] payload:{}'
@@ -480,7 +485,6 @@ class Coord(process):
             write_updates_cache[payload['eval_id']] = attr_updates.keys()
 
             attr_v = []
-            #await
             for attr in attr_updates:
                 v = latest_version_before (x, attr, payload['ts'])
                 if len(v['pending_might_read']):
@@ -501,8 +505,14 @@ class Coord(process):
     def receive(msg= ('WAIT_DONE', payload), from_=p):
         self.logger.info('[RECEIVED][WAIT_DONE][{}] payload:{}'
                                             .format(payload['app_id'], payload))
+        if payload['eval_id'] not in self.req_q:
+            self.logger.info('[IGNORED][WAIT_DONE][{}] payload:{}'
+                            .format(payload['app_id'], payload['eval_id']))
+            return
+
         _, payload = self.req_q[payload['eval_id']]
         del self.req_q[payload['eval_id']]
+
         if not check_conflict(payload):
             x = payload['updated_obj']
             # attr_updates = x['updates']
@@ -583,8 +593,15 @@ class Coord(process):
                                         .format(wait_payload['app_id'],
                                                 wait_payload))
 
+        if wait_payload['eval_id'] not in self.starvation_q:
+            self.logger.info('[IGORNED][STARVATION_WAIT_DONE][{}] payload:{}'
+                                        .format(wait_payload['app_id'],
+                                                wait_payload['eval_id']))
+            return
+
         _, x, next_msg_type, payload = self.starvation_q[wait_payload['eval_id']]
         del self.starvation_q[wait_payload['eval_id']]
+
         attrs = self.analyze_policies(payload)
         def_read_attrs = attrs[x['type']]['def_r_attr']
         might_read_attrs = attrs[x['type']]['might_r_attr']
