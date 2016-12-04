@@ -304,6 +304,8 @@ class Coord(process):
             if attr_ts < ts:
                 return attr_version[attr_v]
 
+        key = (x['type'], attr, ts)
+        self.attr_version[key] = result        
         return result
 
     def check_conflict(response):
@@ -359,6 +361,7 @@ class Coord(process):
         attrs = self.analyze_policies(payload)
         def_read_attrs = attrs[x['type']]['def_r_attr']
         might_read_attrs = attrs[x['type']]['might_r_attr']
+
         # print(">>>>>>>", x['type'])
         # print(">>>>>>>", def_read_attrs, might_read_attrs)
         # print(">>>>>>>", payload)
@@ -372,6 +375,7 @@ class Coord(process):
         for attr in might_read_attrs:
             v = self.latest_version_before(x, attr, time.time())
             v['pending_might_read'].append((payload['eval_id'], payload['ts']))
+
 
         # Piggy backing on cached data
         for attr in set(def_read_attrs+might_read_attrs):
@@ -402,11 +406,13 @@ class Coord(process):
     def receive(msg= ('COORDR_REQUEST', payload), from_=p):
         self.logger.info('[RECEIVED][COORDR_REQUEST][{}] payload:{}'
                                             .format(payload['app_id'], payload))
+        # print ("before>>>>>>>>",self.attr_version)
         x = payload['r_obj']
         payload['eval_id'] = str(uuid.uuid4())
         payload['ts'] = time.time()
         payload['app_ps'] = p
         payload = self.update_req(x, payload)
+        # print ("after>>>>>>>>",self.attr_version)
         send(('COORDW_REQUEST', payload),to=payload['w_obj']['coord'])
 
         self.logger.info('[SENT][COORDW_REQUEST][{}] payload:{}'
@@ -421,12 +427,20 @@ class Coord(process):
 
         might_read_attrs = attrs[x['type']]['might_r_attr']
 
+        if payload['req_type'] == const.READ_WRITE:
+            might_read_attrs.extend(attrs[x['type']]['def_r_attr'])
+        
+        print ("before>>>>>>>>", self.attr_version)
         for attr in might_read_attrs:
             v = self.latest_version_before(x, attr, payload['ts'])
+            print ("before!!!!!!!",v)
             v['pending_might_read'] = [x for x in v['pending_might_read'] if x[0] != payload['eval_id']]
             if attr in payload['read_attrs']:
                 v['rts'] = payload['ts']
 
+            print ("after!!!!!!!",v)
+        
+        print ("after>>>>>>>>",self.attr_version)
         self.logger.info('[PROCESSED][COORDR_RESPONSE][{}] payload:{}'
                                             .format(payload['app_id'], payload))
 
@@ -434,10 +448,11 @@ class Coord(process):
         self.logger.info('[RECEIVED][COORDW_REQUEST][{}] payload:{}'
                                             .format(payload['app_id'], payload))
 
+        # print ("before>>>>>>>>",self.attr_version)
         x = payload['w_obj']
         payload = self.update_req(x, payload)
         worker = self.get_worker()
-
+        # print ("after>>>>>>>>",self.attr_version)
         send(('WORKER_REQUEST', payload), to=worker)
         self.logger.info('[SENT][WORKER_REQUEST][{}] payload:{}'
                                         .format(payload['app_id'],
