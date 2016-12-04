@@ -207,6 +207,8 @@ class PolicyParser():
 
         decision, updated_obj, read_attrs = self.evaluate(r_obj, w_obj, act)
 
+        w_read_attrs = None
+
         if updated_obj is None:
             decision, updated_obj, w_read_attrs = self.evaluate(w_obj, r_obj, act)
 
@@ -214,8 +216,9 @@ class PolicyParser():
         # print ("????????", read_attrs)
         # print ("????????", w_read_attrs)
 
-        read_attrs[r_type].update(w_read_attrs[r_type])
-        read_attrs[w_type].update(w_read_attrs[w_type])
+        if w_read_attrs is not None:
+            read_attrs[r_type].update(w_read_attrs[r_type])
+            read_attrs[w_type].update(w_read_attrs[w_type])
         # print("????????", read_attrs)
         result = dict(decision=decision,
                       updated_obj=updated_obj,

@@ -322,8 +322,19 @@ class Coord(process):
         return False
 
 
-    def restart(response):
-        pass
+    def restart(payload):
+        print("*****************    RESTARTING     *******************")
+        if payload['r_obj']['type'] == payload['updated_obj']['type']:
+            payload['r_obj'], payload['w_obj'] = payload['w_obj'], payload['r_obj']
+
+        # Removing this request from all cache and starting fresh
+        del self.req_q[payload['eval_id']]
+        del self.write_updates_cache[payload['eval_id']]
+        del self.starvation_q[payload['eval_id']]
+
+        send(('COORDR_REQUEST', payload), to=payload['r_obj']['coord'])
+        self.logger.info('[SENT][COORDR_REQUEST][{}] payload:{}'
+                                                .format(payload['app_id'], payload))
 
     def analyze_policies(payload):
         r_type = payload['r_obj']['type']
@@ -413,7 +424,7 @@ class Coord(process):
         payload['app_ps'] = p
         self.update_req(x, payload, 'COORDW_REQUEST')
         # print ("after>>>>>>>>",self.attr_version)
-        
+
 
     def receive(msg= ('COORDR_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][COORDR_RESPONSE][{}] payload:{}'
@@ -426,7 +437,7 @@ class Coord(process):
 
         if payload['req_type'] == const.READ_WRITE:
             might_read_attrs.extend(attrs[x['type']]['def_r_attr'])
-        
+
         # print ("before>>>>>>>>", self.attr_version)
         for attr in might_read_attrs:
             v = self.latest_version_before(x, attr, payload['ts'])
@@ -441,13 +452,13 @@ class Coord(process):
                     del attr_v[(x['type'], attr, payload['ts'])]
                     if len(attr_v) == 0:
                         wait_payload = dict(app_id=req_payload['app_id'],
-                                            eval_id=eval_id)    
+                                            eval_id=eval_id)
                         send(('WAIT_DONE', wait_payload,), to=req_payload['w_obj']['coord'])
                         self.logger.info('[SENT][WAIT_DONE][{}] payload:{}'
                                             .format(wait_payload['app_id'], wait_payload))
 
             # print ("after!!!!!!!",(x, attr, payload['ts']), v)
-        
+
         # print ("after>>>>>>>>",self.attr_version)
         self.logger.info('[PROCESSED][COORDR_RESPONSE][{}] payload:{}'
                                             .format(payload['app_id'], payload))
@@ -458,7 +469,7 @@ class Coord(process):
         # print ("before>>>>>>>>",self.attr_version)
         x = payload['w_obj']
         self.update_req(x, payload, 'WORKER_REQUEST')
-        
+
 
     def receive(msg= ('COORDW_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][COORDW_RESPONSE][{}] payload:{}'
@@ -474,16 +485,16 @@ class Coord(process):
                 v = latest_version_before (x, attr, payload['ts'])
                 if len(v['pending_might_read']):
                     attr_v.append((x['type'], attr, payload['ts']))
-            
+
             self.req_q[payload['eval_id']] = (attr_v, payload)
 
             if len(attr_v) == 0:
                 wait_payload = dict(app_id=payload['app_id'],
-                                    eval_id=payload['eval_id'])    
+                                    eval_id=payload['eval_id'])
                 send(('WAIT_DONE', wait_payload,), to=payload['w_obj']['coord'])
                 self.logger.info('[SENT][WAIT_DONE][{}] payload:{}'
                                     .format(wait_payload['app_id'], wait_payload))
-                # send wait done    
+                # send wait done
         else:
             restart(payload)
 
@@ -498,7 +509,7 @@ class Coord(process):
             update_attr_db(payload['app_id'], x, payload['ts'])
 
             del write_updates_cache[payload['eval_id']]
-            
+
             attr_to_be_updated = []
             for req_id in self.write_updates_cache:
                 attr_to_be_updated.extend(write_updates_cache[req_id])
@@ -539,7 +550,7 @@ class Coord(process):
                         del attr_v[(x['type'], attr, payload['ts'])]
                         if len(attr_v) == 0:
                             wait_payload = dict(app_id=req_payload['app_id'],
-                                                eval_id=eval_id)    
+                                                eval_id=eval_id)
                             send(('WAIT_DONE', wait_payload,), to=req_payload['w_obj']['coord'])
                             self.logger.info('[SENT][WAIT_DONE][{}] payload:{}'
                                                 .format(wait_payload['app_id'], wait_payload))
@@ -566,7 +577,7 @@ class Coord(process):
                                                 payload))
         else:
             restart(payload)
-    
+
     def receive(msg= ('STARVATION_WAIT_DONE', wait_payload), from_=p):
         self.logger.info('[RECEIVED][STARVATION_WAIT_DONE][{}] payload:{}'
                                         .format(wait_payload['app_id'],
@@ -644,7 +655,7 @@ class Worker(process):
         # status, new_sub, new_res, action = policy.evaluate(sub, res, action)
         result = policy.execute_policy(r_obj, w_obj, action)
 
-        print("Worker Evaluate >>>>>>> ", result)
+        # print("Worker Evaluate >>>>>>> ", result)
         return result
 
 
