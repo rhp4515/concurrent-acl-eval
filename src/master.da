@@ -532,6 +532,10 @@ class Coord(process):
                                             .format(payload['app_id'], payload))
         if 'coordw_response' in payload['delays']:
             time.sleep(4)
+
+        print ("@@@@@@@@@@@@@@@@@@@@")
+        print (self.starvation_q)
+        print ("@@@@@@@@@@@@@@@@@@@@")
         if not check_conflict(payload):
             x = payload['updated_obj']
             attr_updates = x['updates']
@@ -601,10 +605,15 @@ class Coord(process):
 
             attr_to_be_updated = []
             for req_id in self.write_updates_cache:
-                attr_to_be_updated.extend(write_updates_cache[req_id])
+                if req_id not in self.starvation_q:
+                    attr_to_be_updated.extend(write_updates_cache[req_id])
             attr_to_be_updated = set(attr_to_be_updated)
+            print ('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
+            print (self.starvation_q)
+            print ('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
             for req_id in self.starvation_q:
                 req_attrs, y, next_msg_type, starv_payload = self.starvation_q[req_id]
+                print (req_attrs, write_updates_cache)
                 if len(attr_to_be_updated.intersection(req_attrs)) == 0:
                     wait_payload = dict(app_id=starv_payload['app_id'],
                                         eval_id=starv_payload['eval_id'])

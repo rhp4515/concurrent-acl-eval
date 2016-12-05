@@ -5,7 +5,7 @@
 		<res type='movie' id='A'></res>
 		<action type='view'></action>
 		<delays>
-			<delay>coordw_response</delay>
+			<delay>worker_response</delay>
 		</delays>
 	</request>
 	<request>
@@ -17,9 +17,6 @@
 		<sub type='customer' id='3'/>
 		<res type='movie' id='A'></res>
 		<action type='view'></action>
-		<delays>
-			<delay>coordw_response</delay>
-		</delays>
 	</request>
 	<request>
 		<sub type='customer' id='3'/>

@@ -3,18 +3,18 @@
 	"maxDBlatency": 0,
 	"testing": [
 		{
-			"name": "read write starvation",
-			"description": "a write request waits for another write request to complete",
+			"name": "write starvation",
+			"description": "a request evaluation aborts due to a conflict on a resource attribute",
 			"num_clients": 2,
 			"num_coords": 2,
 			"worker_count": 2,
 			"randomize": false,
-			"workload": [2,2],
-			"p_time":10,
+			"workload": [2, 2],
+			"p_time":20,
 			"serialize_app_req_delay": true,
-			"path": "../config/read_write_starvation_reqs.xml",
-			"log_suffix": "read_write_starvation",
-			"expected_db_content": "read_write_starvation.log contains final db state. expected db_dump:{('movie', 'A', 'viewed'): 'true', ('movie', 'A', 'viewCount'): 4}"
+			"path": "../config/write_starvation_reqs.xml",
+			"log_suffix": "write_starvation",
+			"expected_db_content": "write_starvation.log contains final db state. expected db_dump:{('movie', 'A', 'viewed'): 'true', ('movie', 'A', 'viewCount'): 2}"
 		}
 	],
 	"old": [
@@ -123,7 +123,7 @@
 			"worker_count": 2,
 			"randomize": false,
 			"workload": [2,2],
-			"p_time":5,
+			"p_time":10,
 			"serialize_app_req_delay": true,
 			"path": "../config/read_write_starvation_reqs.xml",
 			"log_suffix": "read_write_starvation",
