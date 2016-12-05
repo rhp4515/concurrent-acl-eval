@@ -184,17 +184,30 @@ class PolicyParser():
             sc=rule.find('subjectCondition')
             rc=rule.find('resourceCondition')
             ac=rule.find('action')
-
-            if ac.attrib['type'] == a_type and (
-                sc.attrib['type'] == r_type and rc.attrib['type'] == w_type) or (
-                sc.attrib['type'] == w_type and rc.attrib['type'] == r_type):
-                if len(def_r_attrs) == 0:
-                    def_r_attrs.update(set(sc.attrib.keys()))
-                else:
-                    def_r_attrs.intersection_update(set(sc.attrib.keys()))
-
             su=rule.find('subjectUpdate')
             ru=rule.find('resourceUpdate')
+
+            if ac.attrib['type'] == a_type and (sc.attrib['type'] == r_type and rc.attrib['type'] == w_type):
+                if len(def_r_attrs) == 0:
+                    def_r_attrs.update(set(sc.attrib.keys()))
+                    if su is not None:
+                        def_r_attrs.update(set(su.attrib.keys()))
+                else:
+                    if su is not None:
+                        def_r_attrs.intersection_update(set(sc.attrib.keys()).union(set(su.attrib.keys())))
+                    else:
+                        def_r_attrs.intersection_update(set(sc.attrib.keys()))
+
+            elif ac.attrib['type'] == a_type and (sc.attrib['type'] == w_type and rc.attrib['type'] == r_type):
+                if len(def_r_attrs) == 0:
+                    def_r_attrs.update(set(rc.attrib.keys()))
+                    if ru is not None:
+                        def_r_attrs.update(set(ru.attrib.keys()))
+                else:
+                    if ru is not None:
+                        def_r_attrs.intersection_update(set(rc.attrib.keys()).union(set(ru.attrib.keys())))
+                    else:
+                        def_r_attrs.intersection_update(set(rc.attrib.keys()))
 
         return def_r_attrs.difference(set(const.KEY_ATTRS))
 
