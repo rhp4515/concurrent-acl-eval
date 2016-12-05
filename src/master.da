@@ -482,7 +482,7 @@ class Coord(process):
             v['pending_might_read'] = [y for y in v['pending_might_read'] if y[0] != payload['eval_id']]
             if attr in payload['read_attrs']:
                 v['rts'] = payload['ts']
-            key = (x['type'], attr, payload['ts'])    
+            key = (x['type'], attr, payload['ts'])
             self.attr_version[key] = v
             # print (">>>>>>>>>>>>>>>>attr", v['pending_might_read'], attr)
             if len(v['pending_might_read']) == 0:
@@ -503,6 +503,10 @@ class Coord(process):
 
         self.logger.info('[PROCESSED][COORDR_RESPONSE][{}] payload:{}'
                                             .format(payload['app_id'], payload))
+        if 'wait_done' in payload['delays']:
+            print('sleeping')
+            time.sleep(4)
+        print('sleeping done')
 
     def receive(msg= ('COORDW_REQUEST', payload), from_=p):
         self.logger.info('[RECEIVED][COORDW_REQUEST][{}] payload:{}'
@@ -529,7 +533,7 @@ class Coord(process):
                 if len([q for q in v['pending_might_read'] if q[0] != payload['eval_id']]):
                     attr_v.append((x['type'], attr, payload['ts']))
 
-                # if len(v['pending_might_read']) == 0:   
+                # if len(v['pending_might_read']) == 0:
                 #     key = (x['type'], attr, payload['ts'])
                 #     self.attr_version[key] = v
 
@@ -557,7 +561,6 @@ class Coord(process):
 
         # print(payload)
         # self.req_q.pop(payload['eval_id'], None)
-
         if not check_conflict(payload):
             x = payload['updated_obj']
 
@@ -630,7 +633,7 @@ class Coord(process):
 
             client_resp_payload = dict(result=payload['decision'],
                                    app_id=payload['app_id'])
-            
+
             send(('CLIENT_RESPONSE', client_resp_payload), to=payload['app_ps'])
             self.logger.info('[SENT][CLIENT_RESPONSE][{}] payload:{}'
                                         .format(client_resp_payload['app_id'],
@@ -648,6 +651,7 @@ class Coord(process):
                                         .format(payload['app_id'],
                                                 payload))
         else:
+            print("-----------------WAIT DONE RESTART-----------------")
             restart(payload)
 
     def receive(msg= ('STARVATION_WAIT_DONE', wait_payload), from_=p):
@@ -796,7 +800,7 @@ class Worker(process):
             time.sleep(1)
 
         print ("waiting done........")
-        
+
         eval_id = payload['eval_id']
         orig_payload = self.requests[eval_id]
 

@@ -3,7 +3,7 @@
 	"maxDBlatency": 0,
 	"testing": [
 		{
-			"name": "conflict_check",
+			"name": "conflict_check2",
 			"description": "a request waits for another write request to complete",
 			"num_clients": 2,
 			"num_coords": 2,
@@ -12,9 +12,9 @@
 			"workload": [1,1],
 			"p_time":5,
 			"serialize_app_req_delay": false,
-			"path": "../config/conflict_check_reqs.xml",
-			"log_suffix": "conflict_check",
-			"expected_db_content": "conflict_check.log contains final db state. expected db_dump:{('movie', 'A', 'viewed'): 'true', ('movie', 'A', 'viewCount'): 4}"
+			"path": "../config/conflict_check2_reqs.xml",
+			"log_suffix": "conflict_check2",
+			"expected_db_content": "conflict_check2.log contains final db state. expected db_dump:{('movie', 'A', 'viewed'): 'true', ('movie', 'A', 'viewCount'): 4}"
 		}
 	],
 	"old": [
