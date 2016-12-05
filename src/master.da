@@ -681,6 +681,9 @@ class Coord(process):
         # print ("after",self.attr_version)
         for attr in might_read_attrs:
             v = self.latest_version_before(x, attr, time.time()*1000000)
+            if len(v['pending_might_read']) == 0:
+                    key = (x['type'], attr, payload['ts'])
+                    self.attr_version[key] = v
             v['pending_might_read'].append((payload['eval_id'], payload['ts']))
 
 
