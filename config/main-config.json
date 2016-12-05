@@ -3,18 +3,18 @@
 	"maxDBlatency": 0,
 	"testing": [
 		{
-			"name": "misprediction",
+			"name": "conflict_check",
 			"description": "a request waits for another write request to complete",
-			"num_clients": 1,
+			"num_clients": 2,
 			"num_coords": 2,
 			"worker_count": 1,
 			"randomize": false,
-			"workload": [2],
+			"workload": [1,1],
 			"p_time":5,
 			"serialize_app_req_delay": false,
-			"path": "../config/misprediction_reqs.xml",
-			"log_suffix": "misprediction",
-			"expected_db_content": "misprediction.log contains final db state. expected db_dump:{('movie', 'A', 'viewed'): 'true', ('movie', 'A', 'viewCount'): 4}"
+			"path": "../config/conflict_check_reqs.xml",
+			"log_suffix": "conflict_check",
+			"expected_db_content": "conflict_check.log contains final db state. expected db_dump:{('movie', 'A', 'viewed'): 'true', ('movie', 'A', 'viewCount'): 4}"
 		}
 	],
 	"old": [
@@ -100,6 +100,20 @@
 			"path": "../config/read_write_starvation_reqs.xml",
 			"log_suffix": "read_write_starvation",
 			"expected_db_content": "read_write_starvation.log contains final db state. expected db_dump:{('movie', 'A', 'viewed'): 'true', ('movie', 'A', 'viewCount'): 4}"
+		},
+		{
+			"name": "misprediction",
+			"description": "a request waits for another write request to complete",
+			"num_clients": 1,
+			"num_coords": 2,
+			"worker_count": 1,
+			"randomize": false,
+			"workload": [2],
+			"p_time":5,
+			"serialize_app_req_delay": false,
+			"path": "../config/misprediction_reqs.xml",
+			"log_suffix": "misprediction",
+			"expected_db_content": "misprediction.log contains final db state. expected db_dump:{('movie', 'A', 'viewed'): 'true', ('movie', 'A', 'viewCount'): 4}"
 		},
 		{
 			"name": "wait for tentative evals to complete",

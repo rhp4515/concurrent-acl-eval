@@ -209,7 +209,7 @@ class Application(process):
         if 'read_only' in delays:
             req_type = const.READ_ONLY
 
-        print (req_type, app_id)
+        # print (req_type, app_id)
         payload=dict(app_id=app_id,
                      r_obj=r_obj,
                      w_obj=w_obj,
@@ -316,10 +316,28 @@ class Coord(process):
         self.attr_version[key] = result
         return result
 
+    def latest_version_till(x, attr, ts):
+        result = dict(rts=0, wts=0, pending_might_read=[])
+        attr_versions = [t for t in self.attr_version.keys() if t[0] == x['type'] and t[1] == attr]
+
+        attr_versions.sort(key= lambda k: k[2])
+
+        for attr_v in attr_versions:
+            _, _, attr_ts = attr_v
+            if attr_ts <= ts:
+                return attr_version[attr_v]
+
+        key = (x['type'], attr, ts)
+        self.attr_version[key] = result
+        return result
+
     def check_conflict(response):
+        # print(response)
         for attr in response['updated_obj']['updates']:
-            v = self.latest_version_before(response['updated_obj'], attr, response['ts'])
+            v = self.latest_version_till(response['updated_obj'], attr, response['ts'])
             if v['rts'] > response['ts']:
+                return True
+            elif v['rts'] == response['ts'] and v['wts'] != 0:
                 return True
         return False
 
@@ -430,6 +448,11 @@ class Coord(process):
         x = payload['r_obj']
         payload['eval_id'] = str(uuid.uuid4())
         payload['ts'] = time.time()*1000000
+        # print(payload['ts'])
+        if 'same_time' in payload['delays']:
+            payload['ts'] = int(time.time())*1000000
+            # print(payload['ts'])
+
         payload['app_ps'] = p
         self.update_req(x, payload, 'COORDW_REQUEST')
 
@@ -458,10 +481,10 @@ class Coord(process):
             # or len([xyz for xyz in v['pending_might_read'] if xyz != payload['eval_id']]):
                 # print (">>>>>>>>>>>in", payload['eval_id'], attr)
                 for eval_id in self.req_q:
-                    print ("@@@@@",self.req_q)
+                    # print ("@@@@@",self.req_q)
                     attr_v, req_payload = self.req_q[eval_id]
                     del attr_v[(x['type'], attr, payload['ts'])]
-                    print ("@@@@@",self.req_q)
+                    # print ("@@@@@",self.req_q)
                     if len(attr_v) == 0:
                         wait_payload = dict(app_id=req_payload['app_id'],
                                             eval_id=eval_id)
@@ -508,6 +531,7 @@ class Coord(process):
                 self.logger.info('[SENT][WAIT_DONE][NO_WAIT][{}] payload:{}'
                                     .format(payload['app_id'], payload))
         else:
+            print("-----------------COORDW RESTART-----------------")
             restart(payload)
 
     def receive(msg= ('WAIT_DONE', payload), from_=p):
@@ -518,7 +542,7 @@ class Coord(process):
         #                     .format(payload['app_id'], payload['eval_id']))
         #     return
 
-        print(payload)
+        # print(payload)
         # self.req_q.pop(payload['eval_id'], None)
 
         if not check_conflict(payload):
@@ -557,7 +581,7 @@ class Coord(process):
             for attr in x['updates']:
                 key = (x['type'], attr, payload['ts'])
                 attr_version[key] = dict(rts=payload['ts'],
-                                         wts=payload['ts'],
+                                         wts=time.time()*1000000,
                                          pending_might_read=[])
 
             attrs = analyze_policies(payload)
@@ -586,7 +610,7 @@ class Coord(process):
                                                 .format(req_payload['app_id'], req_payload))
 
                     for eval_id in to_del_eval_id:
-                        print("!!!!!!!!!deleting", eval_id)
+                        # print("!!!!!!!!!deleting", eval_id)
                         self.req_q.pop(eval_id, None)
                         self.write_updates_cache.pop(eval_id, None)
 
