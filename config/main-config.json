@@ -3,18 +3,18 @@
 	"maxDBlatency": 0,
 	"testing": [
 		{
-			"name": "resource attribute conflict",
-			"description": "a request evaluation aborts due to a conflict on a resource attribute",
+			"name": "write starvation",
+			"description": "a write request waits for another write request to complete",
 			"num_clients": 2,
 			"num_coords": 2,
 			"worker_count": 2,
 			"randomize": false,
-			"workload": [1, 1],
-			"p_time":20,
+			"workload": [2, 2],
+			"p_time":5,
 			"serialize_app_req_delay": false,
-			"path": "../config/res_attr_conflict_reqs.xml",
-			"log_suffix": "res_attr_conflict",
-			"expected_db_content": "db_res_attr_conflict.log contains final db state. expected db_dump:{('movie', 'A', 'viewed'): 'true', ('movie', 'A', 'viewCount'): 2}"
+			"path": "../config/write_starvation_reqs.xml",
+			"log_suffix": "write_starvation",
+			"expected_db_content": "write_starvation.log contains final db state. expected db_dump:{('movie', 'A', 'viewed'): 'true', ('movie', 'A', 'viewCount'): 4}"
 		}
 	],
 	"old": [
@@ -69,9 +69,9 @@
 			"workload": [1, 1],
 			"p_time":20,
 			"serialize_app_req_delay": false,
-			"path": "../config/res_attr_conflict_reqs.xml",
-			"log_suffix": "res_attr_conflict",
-			"expected_db_content": "db_res_attr_conflict.log contains final db state. expected db_dump:{('movie', 'A', 'viewed'): 'true', ('movie', 'A', 'viewCount'): 2}"
+			"path": "../config/write_starvation_reqs.xml",
+			"log_suffix": "write_starvation",
+			"expected_db_content": "write_starvation.log contains final db state. expected db_dump:{('movie', 'A', 'viewed'): 'true', ('movie', 'A', 'viewCount'): 2}"
 		},
 		{
 			"name": "wait for tentative evals to complete",
@@ -98,9 +98,9 @@
 			"workload": [3, 3],
 			"p_time":30,
 			"serialize_app_req_delay": false,
-			"path": "../config/res_attr_conflict_rand_reqs.xml",
-			"log_suffix": "res_attr_conflict_rand",
-			"expected_db_content": "db_res_attr_conflict_rand.log contains final db state. expected db_dump:{('movie', 'A', 'viewed'): 'true', ('movie', 'C', 'viewed'): 'true', ('movie', 'B', 'viewed'): 'true', ('movie', 'B', 'viewCount'): 1, ('movie', 'C', 'viewCount'): 1, ('movie', 'A', 'viewCount'): 4}"
+			"path": "../config/write_starvation_rand_reqs.xml",
+			"log_suffix": "write_starvation_rand",
+			"expected_db_content": "write_starvation_rand.log contains final db state. expected db_dump:{('movie', 'A', 'viewed'): 'true', ('movie', 'C', 'viewed'): 'true', ('movie', 'B', 'viewed'): 'true', ('movie', 'B', 'viewCount'): 1, ('movie', 'C', 'viewCount'): 1, ('movie', 'A', 'viewCount'): 4}"
 		},
 		{
 			"name": "stress test",
