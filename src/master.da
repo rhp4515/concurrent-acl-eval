@@ -14,6 +14,8 @@ from threading import Lock
 from tabulate import tabulate
 from policy import PolicyParser
 from random import shuffle
+import os
+import glob
 
 
 def get_logger(name, path):
@@ -1046,6 +1048,10 @@ def gen_reqs(conf):
 
 
 def main():
+    files = glob.glob('../logs/*')
+    for f in files:
+        os.remove(f)
+
     DEFAULT_MAIN_CONFIG = "../config/main-config.json"
     config_fpath = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_MAIN_CONFIG
     config = cfg.load_config(config_fpath)
