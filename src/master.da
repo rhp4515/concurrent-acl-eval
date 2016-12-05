@@ -33,6 +33,7 @@ class TimerP(process):
     def run():
         # Kill after sending one message
         await(received(('DONE',)))
+        # print ("Killed")
 
 
     def receive(msg= ('TIMER_REQUEST', payload), from_=p):
@@ -81,8 +82,9 @@ class DBEmulator(process):
 
     def run():
         await(False, timeout=p_time)
+        sorted_attr_db = sorted(self.attr_db.items(), key= lambda k: (k[0][0],k[0][3]))
         self.logger.info('[FINAL_STATE][DB_DUMP] db_dump:{}'
-                                                .format(self.attr_db))
+                                                .format(sorted_attr_db))
 
     def _read(data, ts):
         """ Operation to read data from db """
@@ -150,7 +152,9 @@ class Application(process):
 
     def analyze_policies(sub, res, action):
         p = PolicyParser()
-        self.read_write_map.update(p.get_read_write_map(sub, res, action))
+        rw_map = p.get_read_write_map(sub, res, action)
+        if rw_map:
+            self.read_write_map.update(rw_map)
 
     def predict_objs (sub , res , action ):
         self.analyze_policies(sub, res, action)
@@ -160,8 +164,9 @@ class Application(process):
             req_type = const.READ_ONLY
             return (sub, res, action, req_type)
 
-        r_type , w_type = read_write_map[key]
-        if res['type'] == r_type :
+            
+        r_type, w_type = read_write_map[key]
+        if res['type'] == r_type:
             return (res, sub, action, req_type)
         else :
             return (sub, res, action, req_type)
@@ -201,6 +206,11 @@ class Application(process):
             delays = []
 
         r_obj, w_obj, action, req_type = predict_objs(sub, res, action)
+        # if req_type == const.POLICY_MISMATCH:
+        #     self.logger.info('[EARLY RETURN][CLIENT_RESPONSE][{}] result:False'
+        #                                             .format(app_id))
+        #     send(('DONE', app_id), to=self)
+        #     return
         r_obj['coord'] = get_coord(r_obj)
         w_obj['coord'] = get_coord(w_obj)
 
@@ -514,6 +524,7 @@ class Coord(process):
         del self.req_q[payload['eval_id']]
 
         if not check_conflict(payload):
+            # print ("!!!!!!!!", payload)
             x = payload['updated_obj']
             
             timer_ps = new(TimerP, args=(config,suffix,))
@@ -533,15 +544,15 @@ class Coord(process):
                 attr_to_be_updated.extend(write_updates_cache[req_id])
             attr_to_be_updated = set(attr_to_be_updated)
             for req_id in self.starvation_q:
-                req_attrs, x, next_msg_type, payload = self.starvation_q[req_id]
+                req_attrs, y, next_msg_type, starv_payload = self.starvation_q[req_id]
                 if len(attr_to_be_updated.intersection(req_attrs)) == 0:
-                    wait_payload = dict(app_id=payload['app_id'],
-                                        eval_id=payload['eval_id'])
+                    wait_payload = dict(app_id=starv_payload['app_id'],
+                                        eval_id=starv_payload['eval_id'])
 
-                    send(('STARVATION_WAIT_DONE', wait_payload,), to=x['coord'])
+                    send(('STARVATION_WAIT_DONE', wait_payload,), to=y['coord'])
                     self.logger.info('[SENT][STARVATION_WAIT_DONE][{}] payload:{}'
                                         .format(wait_payload['app_id'], wait_payload))
-
+            
             for attr in x['updates']:
                 key = (x['type'], x['id'], attr)
                 attr_cache[key] = x['updates'][attr]
@@ -852,7 +863,7 @@ def gen_reqs(conf):
                         test_truth[key] = 1
                 reqs.append(req)
 
-    print(test_truth)
+    # print(test_truth)
     # print (len(reqs))
     with open(conf['test_truth_path'], 'w') as f:
         f.write(json.dumps(str(test_truth)))
@@ -915,7 +926,7 @@ def main():
 
         # Setup and start Application instances
 
-        print (coords)
+        # print (coords)
         i = 0
         start = 0
 

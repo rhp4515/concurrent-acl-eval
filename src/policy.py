@@ -107,7 +107,7 @@ class PolicyParser():
 
     def update_sub_attr(self, su, sub, res):
         # updating history
-        print('updating subject attr')
+        # print('updating subject attr')
         sub_attr = sub['attr']
         for attr in su:
             value = self.resolve_expr(su[attr], sub, res)
@@ -119,7 +119,7 @@ class PolicyParser():
 
     def update_res_attr(self, ru, sub, res):
         # updating view count
-        print('updating resource attr')
+        # print('updating resource attr')
         res_attr = res['attr']
         for attr in ru:
             if ru[attr] == '++':
@@ -279,7 +279,7 @@ class PolicyParser():
             # print('status', status)
         # print('status after all rules', status)
         # print('updated_obj', updated_obj)
-        print("returning read_attrs", read_attrs)
+        # print("returning read_attrs", read_attrs)
         return status, updated_obj, read_attrs
 
     def parse(self):

@@ -3,6 +3,27 @@
 	"maxDBlatency": 0,
 	"testing": [
 		{
+			"name": "stress test",
+			"description": "a test to keep all the process (client, sub_coord, res_coord, worker, db busy at the same time)",
+			"num_clients": 10,
+			"num_coords": 10,
+			"worker_count": 5,
+			"randomize": false,
+			"generate": true,
+			"workload": 40,
+			"p_time":20,
+			"serialize_app_req_delay": false,
+			"action": "view",
+			"subs" : ["A","B","C","D","E","F","G","H","I","J"],
+			"res"  : ["a","b","c","d","e","f","g","h","i","j"],
+			"path": "../config/stress_res.json",
+			"test_truth_path": "../config/stress_truth.json",
+			"log_suffix": "stress_test",
+			"expected_db_content": "stress_truth contains expected results and the db_stress_test.log contains final db state"
+		}
+	],
+	"old": [
+		{
 			"name": "dev",
 			"description": "dev config",
 			"num_clients": 2,
@@ -14,9 +35,7 @@
 			"path": "../config/dev.xml",
 			"log_suffix": "dev",
 			"expected_db_content": "dev.log contains final db state. expected db_dump:{('employee', '1', 'history'): 'bank A'}"
-		}
-	],
-	"old": [
+		},
 		{
 			"name": "subject attribute conflict",
 			"description": "a request evaluation aborts due to a conflict on a subject attribute",

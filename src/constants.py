@@ -9,3 +9,4 @@ NUMERICAL_ATTR = ['viewCount', 'listenCount']
 KEY_ATTRS = ['type', 'id']
 READ_ONLY = 'READ_ONLY'
 READ_WRITE = 'READ_WRITE'
+POLICY_MISMATCH = 'POLICY_MISMATCH'
