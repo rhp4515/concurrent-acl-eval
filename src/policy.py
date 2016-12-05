@@ -163,6 +163,25 @@ class PolicyParser():
 
         return read_write_map
 
+    def get_might_write_attrs(self, r_type, w_type, a_type):
+        write_attrs = set()
+
+        for rule in self.root.iter('rule'):
+            sc=rule.find('subjectCondition')
+            rc=rule.find('resourceCondition')
+            ac=rule.find('action')
+            su=rule.find('subjectUpdate')
+            ru=rule.find('resourceUpdate')
+            if ac.attrib['type'] == a_type and sc.attrib['type'] == r_type and rc.attrib['type'] == w_type:
+                if su is not None:
+                    write_attrs.update(set(su.attrib.keys()))
+
+            elif ac.attrib['type'] == a_type and rc.attrib['type'] == r_type and sc.attrib['type'] == w_type:
+                if ru is not None:
+                    write_attrs.update(set(ru.attrib.keys()))
+
+        return list(write_attrs.difference(set(const.KEY_ATTRS)))
+
     # Assuming subject types and resource types are disjoint
     def get_all_attrs(self, type1, type2, a_type):
         all_attrs = set()
@@ -323,11 +342,12 @@ class PolicyParser():
                 print('resource update', ru.attrib)
             print()
 
-# p = PolicyParser()
-# sub = {'type':'customer', 'attr': {}, 'id':'2'}
-# res = {'type':'song', 'attr': {'listenCount': 2}, 'id':'1' }
-# act = {'type': 'listen'}
-# print(p.get_read_write_map(sub, res, act))
+p = PolicyParser()
+sub = {'type':'customer', 'attr': {}, 'id':'2'}
+res = {'type':'movie', 'attr': {'listenCount': 2}, 'id':'1' }
+act = {'type': 'view'}
+print(p.get_might_write_attrs(sub['type'], res['type'], act['type']))
+print(p.get_might_write_attrs(res['type'], sub['type'], act['type']))
 # sub = {'type':'employee', 'attr': {'history': 'bank B'}}
 # res = {'type':'bank', 'id': 'bank B', 'attr': {}}
 # act = {'type': 'read'}

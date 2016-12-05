@@ -394,10 +394,12 @@ class Coord(process):
         attrs[r_type] = dict()
         attrs[r_type]['def_r_attr'] = []
         attrs[r_type]['might_r_attr'] = []
+        attrs[r_type]['might_w_attr'] = p.get_might_write_attrs(r_type, w_type, a_type)
 
         attrs[w_type] = dict()
         attrs[w_type]['def_r_attr'] = []
         attrs[w_type]['might_r_attr'] = []
+        attrs[w_type]['might_w_attr'] = p.get_might_write_attrs(w_type, r_type, a_type)
 
         # print ("r_policy", p.attrs_in_matching_policies(r_type, w_type, a_type))
         for attr in r_attrs:
@@ -419,6 +421,7 @@ class Coord(process):
         attrs = self.analyze_policies(payload)
         def_read_attrs = attrs[x['type']]['def_r_attr']
         might_read_attrs = attrs[x['type']]['might_r_attr']
+        might_write_attrs = attrs[x['type']]['might_w_attr']
 
         attr_to_be_updated = []
         for req_id in self.write_updates_cache:
@@ -426,7 +429,10 @@ class Coord(process):
 
         attr_to_be_updated = set(attr_to_be_updated)
         req_attrs = set(def_read_attrs+might_read_attrs)
-
+        
+        if 'read_only' not in payload['delays']:
+            self.write_updates_cache[payload['eval_id']] = list(might_write_attrs)
+        
         print(next_msg_type)
         print (payload['eval_id'])
         print (x['type'], attr_to_be_updated, (def_read_attrs, might_read_attrs))
@@ -573,7 +579,7 @@ class Coord(process):
             # seconds = random.randint(self.minLatency, self.maxLatency)
             timer_payload = dict(app_id=payload['app_id'],
                                  data=payload,
-                                 latency_in_secs=1)
+                                 latency_in_secs=4)
             send(('TIMER_DELAY_REQUEST', timer_payload), to=timer_ps)
             print (('TIMER_DELAY_REQUEST', timer_payload), timer_ps)
             return
@@ -909,7 +915,7 @@ class Worker(process):
 
         if 'worker_response' in payload['delays']:
             print ("waiting........")
-            time.sleep(1)
+            time.sleep(2)
         if 'worker_w_response' in payload['delays']:
             time.sleep(1)
 
@@ -924,7 +930,7 @@ class Worker(process):
         result = evaluate(payload, orig_payload)
 
         print ("$$$$$$$$$$$", result)
-        if result['updated_obj'] is not None:
+        if result['updated_obj'] is not None and 'read_only' not in payload['delays']:
             orig_payload['read_attrs'] = result['read_attrs']
             orig_payload['updated_obj'] = result['updated_obj']
             orig_payload['decision'] = result['decision']
