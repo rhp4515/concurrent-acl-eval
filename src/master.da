@@ -215,7 +215,8 @@ class Application(process):
                      w_obj=w_obj,
                      action=action,
                      req_type=req_type,
-                     delays=delays)
+                     delays=delays,
+                     app_ps=self)
 
         timer_ps = new(TimerP, args=(config,suffix,))
         start(timer_ps)
@@ -289,6 +290,7 @@ class Coord(process):
         self.attr_cache = dict()
         self.write_updates_cache = dict()
         self.req_q = dict()
+        self.orig_req = dict()
         self.starvation_q = dict()
         self.minLatency = config['minDBlatency']
         self.maxLatency = config['maxDBlatency']
@@ -445,6 +447,7 @@ class Coord(process):
     def receive(msg= ('COORDR_REQUEST', payload), from_=p):
         self.logger.info('[RECEIVED][COORDR_REQUEST][{}] payload:{}'
                                             .format(payload['app_id'], payload))
+        # copy.deepcopy
         x = payload['r_obj']
         payload['eval_id'] = str(uuid.uuid4())
         payload['ts'] = time.time()*1000000
@@ -453,7 +456,6 @@ class Coord(process):
             payload['ts'] = int(time.time())*1000000
             # print(payload['ts'])
 
-        payload['app_ps'] = p
         self.update_req(x, payload, 'COORDW_REQUEST')
 
 
@@ -616,7 +618,7 @@ class Coord(process):
 
             client_resp_payload = dict(result=payload['decision'],
                                    app_id=payload['app_id'])
-
+            
             send(('CLIENT_RESPONSE', client_resp_payload), to=payload['app_ps'])
             self.logger.info('[SENT][CLIENT_RESPONSE][{}] payload:{}'
                                         .format(client_resp_payload['app_id'],
