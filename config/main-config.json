@@ -108,7 +108,7 @@
 			"num_coords": 2,
 			"worker_count": 2,
 			"randomize": false,
-			"workload": [4, 4],
+			"workload": [3, 3],
 			"p_time":5,
 			"serialize_app_req_delay": false,
 			"path": "../config/read_write_no_starvation_reqs.xml",

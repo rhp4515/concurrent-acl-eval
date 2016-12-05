@@ -440,7 +440,7 @@ class Coord(process):
         print (x['type'], attr_to_be_updated, (def_read_attrs, might_read_attrs))
 
         self.starvation_q[payload['eval_id']] = (req_attrs, x, next_msg_type, payload)
-        if len(attr_to_be_updated.intersection(req_attrs)) == 0:
+        if len(attr_to_be_updated.intersection(def_read_attrs)) == 0:
             wait_payload = dict(app_id=payload['app_id'],
                                 eval_id=payload['eval_id'])
 
@@ -928,7 +928,7 @@ class Worker(process):
             print ("waiting........")
             time.sleep(2)
         if 'worker_w_response' in payload['delays']:
-            time.sleep(1)
+            time.sleep(2)
 
         print ("waiting done........")
 
