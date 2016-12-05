@@ -45,6 +45,16 @@ class TimerP(process):
                                             .format(payload['app_id'], payload))
         send(('DONE',),to=self)
 
+    def receive(msg= ('TIMER_DELAY_REQUEST', payload), from_=p):
+        self.logger.info('[RECEIVED][TIMER_DELAY_REQUEST][{}] payload:{}'
+                         .format(payload['app_id'], payload))
+        time.sleep(payload['latency_in_secs'])
+        del payload['latency_in_secs']
+        send(('TIMER_DELAY_RESPONSE', payload),to=p)
+        self.logger.info('[SENT][TIMER_DELAY_RESPONSE][{}] payload:{}'
+                                            .format(payload['app_id'], payload))
+        send(('DONE',),to=self)
+
 class DBEmulator(process):
     def setup(config, suffix, p_time):
         self.conf = config['db_config']
@@ -503,10 +513,6 @@ class Coord(process):
 
         self.logger.info('[PROCESSED][COORDR_RESPONSE][{}] payload:{}'
                                             .format(payload['app_id'], payload))
-        if 'wait_done' in payload['delays']:
-            print('sleeping')
-            time.sleep(4)
-        print('sleeping done')
 
     def receive(msg= ('COORDW_REQUEST', payload), from_=p):
         self.logger.info('[RECEIVED][COORDW_REQUEST][{}] payload:{}'
@@ -561,6 +567,17 @@ class Coord(process):
 
         # print(payload)
         # self.req_q.pop(payload['eval_id'], None)
+        if 'wait_done' in payload['delays']:
+            timer_ps = new(TimerP, args=(config,suffix,))
+            start(timer_ps)
+            # seconds = random.randint(self.minLatency, self.maxLatency)
+            timer_payload = dict(app_id=payload['app_id'],
+                                 data=payload,
+                                 latency_in_secs=1)
+            send(('TIMER_DELAY_REQUEST', timer_payload), to=timer_ps)
+            print (('TIMER_DELAY_REQUEST', timer_payload), timer_ps)
+            return
+        
         if not check_conflict(payload):
             x = payload['updated_obj']
 
@@ -722,6 +739,103 @@ class Coord(process):
         x = payload['data']['updated_obj']
 
         update_attr_db(payload['data']['app_id'], x, payload['data']['ts'])
+
+    def receive(msg= ('TIMER_DELAY_RESPONSE', payload), from_=p):
+        self.logger.info('[RECEIVED][TIMER_DELAY_RESPONSE][{}] payload:{}'
+                                            .format(payload['app_id'], payload))
+        payload = payload['data']
+        if not check_conflict(payload):
+            x = payload['updated_obj']
+
+            timer_ps = new(TimerP, args=(config,suffix,))
+            start(timer_ps)
+            seconds = random.randint(self.minLatency, self.maxLatency)
+            timer_payload = dict(app_id=payload['app_id'],
+                                 data=payload,
+                                 latency_in_secs=seconds)
+            send(('TIMER_REQUEST', timer_payload), to=timer_ps)
+            self.logger.info('[SENT][TIMER_REQUEST][{}] payload:{}'
+                                            .format(payload['app_id'], timer_payload))
+
+            write_updates_cache.pop(payload['eval_id'], None)
+
+            attr_to_be_updated = []
+            for req_id in self.write_updates_cache:
+                attr_to_be_updated.extend(write_updates_cache[req_id])
+            attr_to_be_updated = set(attr_to_be_updated)
+            for req_id in self.starvation_q:
+                req_attrs, y, next_msg_type, starv_payload = self.starvation_q[req_id]
+                if len(attr_to_be_updated.intersection(req_attrs)) == 0:
+                    wait_payload = dict(app_id=starv_payload['app_id'],
+                                        eval_id=starv_payload['eval_id'])
+
+                    send(('STARVATION_WAIT_DONE', wait_payload,), to=y['coord'])
+                    self.logger.info('[SENT][STARVATION_WAIT_DONE][{}] payload:{}'
+                                        .format(wait_payload['app_id'], wait_payload))
+
+            for attr in x['updates']:
+                key = (x['type'], x['id'], attr)
+                attr_cache[key] = x['updates'][attr]
+
+            for attr in x['updates']:
+                key = (x['type'], attr, payload['ts'])
+                attr_version[key] = dict(rts=payload['ts'],
+                                         wts=time.time()*1000000,
+                                         pending_might_read=[])
+
+            attrs = analyze_policies(payload)
+            def_read_attrs = attrs[x['type']]['def_r_attr']
+            might_read_attrs = attrs[x['type']]['might_r_attr']
+
+            # print (def_read_attrs, might_read_attrs)
+            for attr in set(def_read_attrs+might_read_attrs):
+                v = latest_version_before(x, attr, time.time()*1000000)
+                # print ("!!!!!", v)
+                v['pending_might_read'] = [y for y in v['pending_might_read'] if y[0] != payload['eval_id']]
+                # print ("!!!!!!", v)
+                if attr in payload['read_attrs'][x['type']]:
+                    v['rts'] = payload['ts']
+
+
+                if len(v['pending_might_read']) == 0:
+                    # print ("@@@@@@@@@@@@@@", self.req_q)
+                    to_del_eval_id = []
+                    for eval_id in self.req_q:
+                        attr_v, req_payload = self.req_q[eval_id]
+                        del attr_v[(x['type'], attr, payload['ts'])]
+                        if len(attr_v) == 0:
+                            to_del_eval_id.append(eval_id)
+                            send(('WAIT_DONE', req_payload,), to=req_payload['w_obj']['coord'])
+                            self.logger.info('[SENT][WAIT_DONE][{}] payload:{}'
+                                                .format(req_payload['app_id'], req_payload))
+
+                    for eval_id in to_del_eval_id:
+                        # print("!!!!!!!!!deleting", eval_id)
+                        self.req_q.pop(eval_id, None)
+                        self.write_updates_cache.pop(eval_id, None)
+
+            client_resp_payload = dict(result=payload['decision'],
+                                   app_id=payload['app_id'])
+
+            send(('CLIENT_RESPONSE', client_resp_payload), to=payload['app_ps'])
+            self.logger.info('[SENT][CLIENT_RESPONSE][{}] payload:{}'
+                                        .format(client_resp_payload['app_id'],
+                                                client_resp_payload))
+
+            if x['type'] == payload['w_obj']['type']:
+                payload['obj'] = payload['r_obj']
+
+            else:
+                payload['obj'] = payload['w_obj']
+
+            payload['read_attrs'] = payload['read_attrs'].get(payload['obj']['type'],{})
+            send(('COORDR_RESPONSE', payload), to=payload['obj']['coord'])
+            self.logger.info('[SENT][COORDR_RESPONSE][{}] payload:{}'
+                                        .format(payload['app_id'],
+                                                payload))
+        else:
+            print("-----------------WAIT DONE RESTART-----------------")
+            restart(payload)
 
 class Worker(process):
 
@@ -973,7 +1087,7 @@ def main():
         start = 0
 
         for i in range(test['num_clients']):
-            app_ps = new(Application, num=1, args=(coords, config,
+            app_ps = new(Application, args=(coords, config,
                         cli_requests[start:start+test['workload'][i]], suffix,
                         coord_map,))
             # setup(p, )

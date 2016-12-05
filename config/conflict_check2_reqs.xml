@@ -6,6 +6,7 @@
 		<action type='view'></action>
 		<delays>
 			<delay>wait_done</delay>
+			<delay>worker_response</delay>
 		</delays>
 	</request>
 	<request>
