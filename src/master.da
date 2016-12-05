@@ -158,6 +158,7 @@ class Application(process):
             return (sub, res, action, req_type)
 
         r_type, w_type = read_write_map[key]
+
         if res['type'] == r_type:
             return (res, sub, action, req_type)
         else :
@@ -198,13 +199,16 @@ class Application(process):
             delays = []
 
         r_obj, w_obj, action, req_type = predict_objs(sub, res, action)
-        
+
         r_obj['coord'] = get_coord(r_obj)
         w_obj['coord'] = get_coord(w_obj)
 
+        if 'misprediction' in delays:
+            r_obj, w_obj = w_obj, r_obj
+
         if 'read_only' in delays:
             req_type = const.READ_ONLY
-        
+
         print (req_type, app_id)
         payload=dict(app_id=app_id,
                      r_obj=r_obj,
@@ -367,14 +371,14 @@ class Coord(process):
                 attrs[r_type]['def_r_attr'].append(attr)
             else:
                 attrs[r_type]['might_r_attr'].append(attr)
-        # print ("w_policy", p.attrs_in_matching_policies(w_type, r_type, a_type))        
+        # print ("w_policy", p.attrs_in_matching_policies(w_type, r_type, a_type))
         for attr in w_attrs:
             if attr in p.attrs_in_matching_policies(w_type, r_type, a_type):
                 attrs[w_type]['def_r_attr'].append(attr)
             else:
                 attrs[w_type]['might_r_attr'].append(attr)
 
-        # print ("attrs", attrs)        
+        # print ("attrs", attrs)
         return attrs
 
     def update_req(x, payload, next_msg_type):
@@ -449,7 +453,7 @@ class Coord(process):
             v['pending_might_read'] = [y for y in v['pending_might_read'] if y[0] != payload['eval_id']]
             if attr in payload['read_attrs']:
                 v['rts'] = payload['ts']
-            # print (">>>>>>>>>>>>>>>>attr", v['pending_might_read'], attr)    
+            # print (">>>>>>>>>>>>>>>>attr", v['pending_might_read'], attr)
             if len(v['pending_might_read']) == 0:
             # or len([xyz for xyz in v['pending_might_read'] if xyz != payload['eval_id']]):
                 # print (">>>>>>>>>>>in", payload['eval_id'], attr)
@@ -498,39 +502,39 @@ class Coord(process):
 
             # print ("attr_v", attr_v)
             if len(attr_v) == 0:
-                wait_payload = dict(app_id=payload['app_id'],
-                                    eval_id=payload['eval_id'])
-                send(('WAIT_DONE', wait_payload,), to=payload['w_obj']['coord'])
+                del self.req_q[payload['eval_id']]
+                del write_updates_cache[payload['eval_id']]
+                send(('WAIT_DONE', payload,), to=payload['w_obj']['coord'])
                 self.logger.info('[SENT][WAIT_DONE][NO_WAIT][{}] payload:{}'
-                                    .format(wait_payload['app_id'], wait_payload))
+                                    .format(payload['app_id'], payload))
         else:
             restart(payload)
 
     def receive(msg= ('WAIT_DONE', payload), from_=p):
         self.logger.info('[RECEIVED][WAIT_DONE][{}] payload:{}'
                                             .format(payload['app_id'], payload))
-        if payload['eval_id'] not in self.req_q:
-            self.logger.info('[IGNORED][WAIT_DONE][{}] payload:{}'
-                            .format(payload['app_id'], payload['eval_id']))
-            return
+        # if payload['eval_id'] not in self.req_q:
+        #     self.logger.info('[IGNORED][WAIT_DONE][{}] payload:{}'
+        #                     .format(payload['app_id'], payload['eval_id']))
+        #     return
 
-        _, payload = self.req_q[payload['eval_id']]
-        del self.req_q[payload['eval_id']]
+        print(payload)
+        # self.req_q.pop(payload['eval_id'], None)
 
         if not check_conflict(payload):
             x = payload['updated_obj']
-            
+
             timer_ps = new(TimerP, args=(config,suffix,))
             start(timer_ps)
             seconds = random.randint(self.minLatency, self.maxLatency)
             timer_payload = dict(app_id=payload['app_id'],
-                                 data=payload, 
+                                 data=payload,
                                  latency_in_secs=seconds)
             send(('TIMER_REQUEST', timer_payload), to=timer_ps)
             self.logger.info('[SENT][TIMER_REQUEST][{}] payload:{}'
                                             .format(payload['app_id'], timer_payload))
 
-            del write_updates_cache[payload['eval_id']]
+            write_updates_cache.pop(payload['eval_id'], None)
 
             attr_to_be_updated = []
             for req_id in self.write_updates_cache:
@@ -545,7 +549,7 @@ class Coord(process):
                     send(('STARVATION_WAIT_DONE', wait_payload,), to=y['coord'])
                     self.logger.info('[SENT][STARVATION_WAIT_DONE][{}] payload:{}'
                                         .format(wait_payload['app_id'], wait_payload))
-            
+
             for attr in x['updates']:
                 key = (x['type'], x['id'], attr)
                 attr_cache[key] = x['updates'][attr]
@@ -571,16 +575,20 @@ class Coord(process):
 
                 if len(v['pending_might_read']) == 0:
                     # print ("@@@@@@@@@@@@@@", self.req_q)
+                    to_del_eval_id = []
                     for eval_id in self.req_q:
                         attr_v, req_payload = self.req_q[eval_id]
                         del attr_v[(x['type'], attr, payload['ts'])]
                         if len(attr_v) == 0:
-                            wait_payload = dict(app_id=req_payload['app_id'],
-                                                eval_id=eval_id)
-                            send(('WAIT_DONE', wait_payload,), to=req_payload['w_obj']['coord'])
+                            to_del_eval_id.append(eval_id)
+                            send(('WAIT_DONE', req_payload,), to=req_payload['w_obj']['coord'])
                             self.logger.info('[SENT][WAIT_DONE][{}] payload:{}'
-                                                .format(wait_payload['app_id'], wait_payload))
+                                                .format(req_payload['app_id'], req_payload))
 
+                    for eval_id in to_del_eval_id:
+                        print("!!!!!!!!!deleting", eval_id)
+                        self.req_q.pop(eval_id, None)
+                        self.write_updates_cache.pop(eval_id, None)
 
             client_resp_payload = dict(result=payload['decision'],
                                    app_id=payload['app_id'])
@@ -657,7 +665,7 @@ class Coord(process):
                                             .format(payload['app_id'], payload))
 
         x = payload['data']['updated_obj']
-            
+
         update_attr_db(payload['data']['app_id'], x, payload['data']['ts'])
 
 class Worker(process):
