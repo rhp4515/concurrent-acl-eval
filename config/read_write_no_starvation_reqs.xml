@@ -1,0 +1,49 @@
+<!-- Explicit client request sequences goes here -->
+<requests>
+	<request>
+		<sub type='X' id='1'/>
+		<res type='x' id='A'></res>
+		<action type='view'></action>
+	</request>
+	<request>
+		<sub type='customer' id='1'/>
+		<res type='movie' id='A'></res>
+		<action type='view'></action>
+		<delays>
+			<delay>coordw_response</delay>
+		</delays>
+	</request>
+	<request>
+		<sub type='customer' id='2'/>
+		<res type='movie' id='A'></res>
+		<action type='view'></action>
+	</request>
+	<request>
+		<sub type='X' id='1'/>
+		<res type='x' id='A'></res>
+		<action type='view'></action>
+	</request>
+	<request>
+		<sub type='X' id='1'/>
+		<res type='x' id='A'></res>
+		<action type='view'></action>
+	</request>
+	<request>
+		<sub type='customer' id='3'/>
+		<res type='movie' id='A'></res>
+		<action type='view'></action>
+		<delays>
+			<delay>coordw_response</delay>
+		</delays>
+	</request>
+	<request>
+		<sub type='customer' id='3'/>
+		<res type='movie' id='A'></res>
+		<action type='view'></action>
+	</request>
+	<request>
+		<sub type='X' id='1'/>
+		<res type='x' id='A'></res>
+		<action type='view'></action>
+	</request>
+</requests>

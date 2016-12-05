@@ -99,8 +99,11 @@ class PolicyParser():
             elif rc[attr].find('>') > -1:
                 if res['attr'][attr] <= int(rc[attr][1:]):
                     return False, read_attrs
-            else:
+            elif rc[attr].find('=') > -1:
                 if res['attr'][attr] != int(rc[attr]):
+                    return False, read_attrs
+            else:
+                if res['attr'][attr] != rc[attr]:
                     return False, read_attrs
 
         return True, read_attrs
@@ -154,7 +157,7 @@ class PolicyParser():
             elif ru is not None and su is None:
                 read_write_map[key] = (sub['type'], res['type'])
 
-            return read_write_map
+        return read_write_map
 
     # Assuming subject types and resource types are disjoint
     def get_all_attrs(self, type):

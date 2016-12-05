@@ -19,12 +19,23 @@
     <action type="view"/>
     <resourceUpdate viewed="true" viewCount="++"/>
   </rule>
+  
+  <rule type="customers collectively can view each movie at most 5 times">
+    <subjectCondition type="customer"/>
+    <resourceCondition type="movie" viewed="true" viewCount="&lt;15"/>
+    <action type="view"/>
+  </rule>
 
   <rule type="customers collectively can listen each song at most 10 times">
     <subjectCondition type="customer"/>
     <resourceCondition type="song" listenCount="&lt;100"/>
     <action type="listen"/>
     <resourceUpdate listened="true" listenCount="++"/>
+  </rule>
+  <rule type="J collectively can view each j at most 150 times">
+      <subjectCondition type="X"/>
+      <resourceCondition type="x" viewCount="&lt;150"/>
+      <action type="view"/>
   </rule>
   <rule type="A collectively can view each a at most 150 times">
       <subjectCondition type="A"/>

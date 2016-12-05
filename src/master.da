@@ -157,7 +157,6 @@ class Application(process):
             req_type = const.READ_ONLY
             return (sub, res, action, req_type)
 
-            
         r_type, w_type = read_write_map[key]
         if res['type'] == r_type:
             return (res, sub, action, req_type)
@@ -199,9 +198,14 @@ class Application(process):
             delays = []
 
         r_obj, w_obj, action, req_type = predict_objs(sub, res, action)
+        
         r_obj['coord'] = get_coord(r_obj)
         w_obj['coord'] = get_coord(w_obj)
 
+        if 'read_only' in delays:
+            req_type = const.READ_ONLY
+        
+        print (req_type, app_id)
         payload=dict(app_id=app_id,
                      r_obj=r_obj,
                      w_obj=w_obj,
@@ -476,7 +480,7 @@ class Coord(process):
         self.logger.info('[RECEIVED][COORDW_RESPONSE][{}] payload:{}'
                                             .format(payload['app_id'], payload))
         if 'coordw_response' in payload['delays']:
-            time.sleep(2)
+            time.sleep(4)
         if not check_conflict(payload):
             x = payload['updated_obj']
             attr_updates = x['updates']
