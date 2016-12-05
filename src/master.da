@@ -33,7 +33,6 @@ class TimerP(process):
     def run():
         # Kill after sending one message
         await(received(('DONE',)))
-        # print ("Killed")
 
 
     def receive(msg= ('TIMER_REQUEST', payload), from_=p):
@@ -206,11 +205,6 @@ class Application(process):
             delays = []
 
         r_obj, w_obj, action, req_type = predict_objs(sub, res, action)
-        # if req_type == const.POLICY_MISMATCH:
-        #     self.logger.info('[EARLY RETURN][CLIENT_RESPONSE][{}] result:False'
-        #                                             .format(app_id))
-        #     send(('DONE', app_id), to=self)
-        #     return
         r_obj['coord'] = get_coord(r_obj)
         w_obj['coord'] = get_coord(w_obj)
 
@@ -246,7 +240,6 @@ class Application(process):
         self.logger.info('[RECEIVED][DONE]')
 
     def run():
-        # print('num requests = ', len(self.requests))
         for request in self.requests:
             # Creating an app id for the subject coordinator to send the response
             # to corresponding application
@@ -307,16 +300,13 @@ class Coord(process):
         return self.workers[next_worker_idx%len(self.workers)]
 
     def latest_version_before(x, attr, ts):
-        # print (x, attr, ts)
         result = dict(rts=0, wts=0, pending_might_read=[])
         attr_versions = [t for t in self.attr_version.keys() if t[0] == x['type'] and t[1] == attr]
 
         attr_versions.sort(key= lambda k: k[2])
-        # print (attr_versions)
 
         for attr_v in attr_versions:
             _, _, attr_ts = attr_v
-            # print (attr_ts, ts)
             if attr_ts < ts:
                 return attr_version[attr_v]
 
@@ -356,16 +346,12 @@ class Coord(process):
         w_type = payload['w_obj']['type']
         a_type = payload['action']['type']
 
-        # print(">>>>>>>>>>>>>>>>>>", r_type, w_type, a_type)
         attrs = dict()
 
         p = PolicyParser()
 
         r_attrs = p.get_all_attrs(r_type)
         w_attrs = p.get_all_attrs(w_type)
-
-        # print(">>>>>>>>>>>>>>>>>>", r_attrs)
-        # print(">>>>>>>>>>>>>>>>>>", w_attrs)
 
         attrs[r_type] = dict()
         attrs[r_type]['def_r_attr'] = []
@@ -394,9 +380,6 @@ class Coord(process):
         def_read_attrs = attrs[x['type']]['def_r_attr']
         might_read_attrs = attrs[x['type']]['might_r_attr']
 
-        # print(">>>>>>>", x['type'])
-        # print(">>>>>>>", def_read_attrs, might_read_attrs)
-        # print(">>>>>>>", payload)
         attr_to_be_updated = []
         for req_id in self.write_updates_cache:
             attr_to_be_updated.extend(write_updates_cache[req_id])
@@ -432,13 +415,11 @@ class Coord(process):
     def receive(msg= ('COORDR_REQUEST', payload), from_=p):
         self.logger.info('[RECEIVED][COORDR_REQUEST][{}] payload:{}'
                                             .format(payload['app_id'], payload))
-        # print ("before>>>>>>>>",self.attr_version)
         x = payload['r_obj']
         payload['eval_id'] = str(uuid.uuid4())
         payload['ts'] = time.time()*1000000
         payload['app_ps'] = p
         self.update_req(x, payload, 'COORDW_REQUEST')
-        # print ("after>>>>>>>>",self.attr_version)
 
 
     def receive(msg= ('COORDR_RESPONSE', payload), from_=p):
@@ -453,10 +434,8 @@ class Coord(process):
         if payload['req_type'] == const.READ_WRITE:
             might_read_attrs.extend(attrs[x['type']]['def_r_attr'])
 
-        # print ("before>>>>>>>>", self.attr_version)
         for attr in might_read_attrs:
             v = self.latest_version_before(x, attr, payload['ts'])
-            # print ("before!!!!!!!",(x, attr, payload['ts']), v)
             v['pending_might_read'] = [y for y in v['pending_might_read'] if y[0] != payload['eval_id']]
             if attr in payload['read_attrs']:
                 v['rts'] = payload['ts']
@@ -472,16 +451,13 @@ class Coord(process):
                         self.logger.info('[SENT][WAIT_DONE][{}] payload:{}'
                                             .format(wait_payload['app_id'], wait_payload))
 
-            # print ("after!!!!!!!",(x, attr, payload['ts']), v)
 
-        # print ("after>>>>>>>>",self.attr_version)
         self.logger.info('[PROCESSED][COORDR_RESPONSE][{}] payload:{}'
                                             .format(payload['app_id'], payload))
 
     def receive(msg= ('COORDW_REQUEST', payload), from_=p):
         self.logger.info('[RECEIVED][COORDW_REQUEST][{}] payload:{}'
                                             .format(payload['app_id'], payload))
-        # print ("before>>>>>>>>",self.attr_version)
         x = payload['w_obj']
         self.update_req(x, payload, 'WORKER_REQUEST')
 
@@ -508,7 +484,6 @@ class Coord(process):
                 send(('WAIT_DONE', wait_payload,), to=payload['w_obj']['coord'])
                 self.logger.info('[SENT][WAIT_DONE][{}] payload:{}'
                                     .format(wait_payload['app_id'], wait_payload))
-                # send wait done
         else:
             restart(payload)
 
@@ -524,7 +499,6 @@ class Coord(process):
         del self.req_q[payload['eval_id']]
 
         if not check_conflict(payload):
-            # print ("!!!!!!!!", payload)
             x = payload['updated_obj']
             
             timer_ps = new(TimerP, args=(config,suffix,))
@@ -639,9 +613,6 @@ class Coord(process):
 
         # Piggy backing on cached data
         for attr in set(def_read_attrs+might_read_attrs):
-            # print(">>>>>>>", attr)
-            # print("-------", x)
-
             key = (x['type'], x['id'], attr)
             if key in self.attr_cache:
                 x['attr'][attr] = self.attr_cache[key]
@@ -653,7 +624,6 @@ class Coord(process):
                                             .format(payload['app_id'], payload))
         else:
             worker = self.get_worker()
-            # print ("after>>>>>>>>",self.attr_version)
             send(('WORKER_REQUEST', payload), to=worker)
             self.logger.info('[SENT][WORKER_REQUEST][{}] payload:{}'
                                             .format(payload['app_id'],
@@ -680,14 +650,8 @@ class Worker(process):
         r_obj = db_payload['r_obj']
         w_obj = db_payload['w_obj']
         action = orig_payload['action']
-        # orig_res, _ = self.requests[eval_id]
-        # change attr values based on policy rules
-        # evaluate the policies
-        # res['old_attr'] = orig_res['attr']
         policy = PolicyParser()
-        # status, new_sub, new_res, action = policy.evaluate(sub, res, action)
         result = policy.execute_policy(r_obj, w_obj, action)
-
         # print("Worker Evaluate >>>>>>> ", result)
         return result
 
@@ -741,24 +705,7 @@ class Worker(process):
                                             .format(payload['app_id'], payload))
         eval_id = payload['eval_id']
         orig_payload = self.requests[eval_id]
-        # payload['sub']['attr'].update(orig_sub['attr'])
-        # payload['res']['attr'].update(orig_res['attr'])
 
-        # if len(orig_res['attr']) == 0:
-        #     orig_res['attr'] = copy.deepcopy(payload['res']['attr'])
-
-        # result, sub, res, action = evaluate(payload['eval_id'], payload['sub'],
-        #                                     payload['res'], orig_action,
-        #                                     orig_res)
-        # # print(result, sub, res, action)
-
-
-        # payload['r_obj']['attr'].update()
-        # if worker_resp_payload['res']['id'].isdigit():
-        #     seconds = 20 - int(worker_resp_payload['res']['id'])
-        # else:
-        #     seconds = random.randint(1,10)
-        # print ("sleeping {} by {}", worker_resp_payload['app_id'], seconds)
         # time.sleep(seconds)
         # if 'before_worker_response' in payload['delays']:
         #     time.sleep(10)

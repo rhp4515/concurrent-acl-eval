@@ -3,23 +3,18 @@
 	"maxDBlatency": 0,
 	"testing": [
 		{
-			"name": "stress test",
-			"description": "a test to keep all the process (client, sub_coord, res_coord, worker, db busy at the same time)",
-			"num_clients": 10,
-			"num_coords": 10,
-			"worker_count": 5,
+			"name": "resource attribute conflict",
+			"description": "a request evaluation aborts due to a conflict on a resource attribute",
+			"num_clients": 2,
+			"num_coords": 2,
+			"worker_count": 2,
 			"randomize": false,
-			"generate": true,
-			"workload": 40,
+			"workload": [1, 1],
 			"p_time":20,
 			"serialize_app_req_delay": false,
-			"action": "view",
-			"subs" : ["A","B","C","D","E","F","G","H","I","J"],
-			"res"  : ["a","b","c","d","e","f","g","h","i","j"],
-			"path": "../config/stress_res.json",
-			"test_truth_path": "../config/stress_truth.json",
-			"log_suffix": "stress_test",
-			"expected_db_content": "stress_truth contains expected results and the db_stress_test.log contains final db state"
+			"path": "../config/res_attr_conflict_reqs.xml",
+			"log_suffix": "res_attr_conflict",
+			"expected_db_content": "db_res_attr_conflict.log contains final db state. expected db_dump:{('movie', 'A', 'viewed'): 'true', ('movie', 'A', 'viewCount'): 2}"
 		}
 	],
 	"old": [
