@@ -61,6 +61,8 @@ class PolicyParser():
             if attr in const.KEY_ATTRS:
                 continue
             # print(attr)
+            if attr not in sub['attr']:
+                continue
             read_attrs.add(attr)
             value = self.resolve_expr(sc[attr], sub, res)
             # print ("value -- check_sub_cond", value)
@@ -91,6 +93,8 @@ class PolicyParser():
 
         for attr in rc:
             if attr in const.KEY_ATTRS:
+                continue
+            if attr not in res['attr']:
                 continue
             read_attrs.add(attr)
             if rc[attr].find('<') > -1:
@@ -126,9 +130,9 @@ class PolicyParser():
         res_attr = res['attr']
         for attr in ru:
             if ru[attr] == '++':
-                res_attr[attr] += 1
+                res_attr[attr] = res_attr.get(attr,0) + 1
             elif ru[attr] == '--':
-                res_attr[attr] -= 1
+                res_attr[attr] = res_attr.get(attr,0) - 1
             else:
                 res_attr[attr] = ru[attr]
         return res_attr
@@ -160,24 +164,24 @@ class PolicyParser():
         return read_write_map
 
     # Assuming subject types and resource types are disjoint
-    def get_all_attrs(self, type):
+    def get_all_attrs(self, type1, type2, a_type):
         all_attrs = set()
         for rule in self.root.iter('rule'):
             sc=rule.find('subjectCondition')
             rc=rule.find('resourceCondition')
-
+            ac=rule.find('action')
             su=rule.find('subjectUpdate')
             ru=rule.find('resourceUpdate')
 
-            if sc is not None and sc.attrib['type'] == type:
+            if ac.attrib['type'] == a_type and sc.attrib['type'] == type1 and rc.attrib['type'] == type2:
                 all_attrs.update(set(sc.attrib.keys()))
-                if su is not None:
-                    all_attrs.update(set(su.attrib.keys()))
+                # if su is not None:
+                #     all_attrs.update(set(su.attrib.keys()))
 
-            elif rc is not None and rc.attrib['type'] == type:
+            elif ac.attrib['type'] == a_type and rc.attrib['type'] == type1 and sc.attrib['type'] == type2:
                 all_attrs.update(set(rc.attrib.keys()))
-                if ru is not None:
-                    all_attrs.update(set(ru.attrib.keys()))
+                # if ru is not None:
+                #     all_attrs.update(set(ru.attrib.keys()))
 
         return all_attrs.difference(set(const.KEY_ATTRS))
 
@@ -191,26 +195,30 @@ class PolicyParser():
             ru=rule.find('resourceUpdate')
 
             if ac.attrib['type'] == a_type and (sc.attrib['type'] == r_type and rc.attrib['type'] == w_type):
+                # print (a_type, r_type, w_type)
+                # print (ac.attrib['type'], sc.attrib['type'], rc.attrib['type'])
                 if len(def_r_attrs) == 0:
                     def_r_attrs.update(set(sc.attrib.keys()))
-                    if su is not None:
-                        def_r_attrs.update(set(su.attrib.keys()))
+                    # if su is not None:
+                    #     def_r_attrs.update(set(su.attrib.keys()))
                 else:
-                    if su is not None:
-                        def_r_attrs.intersection_update(set(sc.attrib.keys()).union(set(su.attrib.keys())))
-                    else:
-                        def_r_attrs.intersection_update(set(sc.attrib.keys()))
+                    # if su is not None:
+                    #     def_r_attrs.intersection_update(set(sc.attrib.keys()).union(set(su.attrib.keys())))
+                    # else:
+                    def_r_attrs.intersection_update(set(sc.attrib.keys()))
 
             elif ac.attrib['type'] == a_type and (sc.attrib['type'] == w_type and rc.attrib['type'] == r_type):
+                # print ("##",a_type, r_type, w_type)
+                # print (ac.attrib['type'], sc.attrib['type'], rc.attrib['type'])
                 if len(def_r_attrs) == 0:
                     def_r_attrs.update(set(rc.attrib.keys()))
-                    if ru is not None:
-                        def_r_attrs.update(set(ru.attrib.keys()))
+                    # if ru is not None:
+                    #     def_r_attrs.update(set(ru.attrib.keys()))
                 else:
-                    if ru is not None:
-                        def_r_attrs.intersection_update(set(rc.attrib.keys()).union(set(ru.attrib.keys())))
-                    else:
-                        def_r_attrs.intersection_update(set(rc.attrib.keys()))
+                    # if ru is not None:
+                    #     def_r_attrs.intersection_update(set(rc.attrib.keys()).union(set(ru.attrib.keys())))
+                    # else:
+                    def_r_attrs.intersection_update(set(rc.attrib.keys()))
 
         return def_r_attrs.difference(set(const.KEY_ATTRS))
 

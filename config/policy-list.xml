@@ -13,16 +13,28 @@
     <action type="read"/>
   </rule>
 
-  <rule type="customers collectively can view each movie at most 5 times">
+  <!-- <rule type="customers collectively can view each movie at most 5 times">
     <subjectCondition type="customer"/>
     <resourceCondition type="movie" viewCount="&lt;15"/>
+    <action type="view"/>
+    <resourceUpdate viewed="true" viewCount="++"/>
+  </rule> -->
+
+  <rule type="customers collectively can view each movie at most 5 times">
+    <subjectCondition type="customer"/>
+    <resourceCondition type="movie"/>
     <action type="view"/>
     <resourceUpdate viewed="true" viewCount="++"/>
   </rule>
   
   <rule type="customers collectively can view each movie at most 5 times">
-    <subjectCondition type="customer"/>
-    <resourceCondition type="movie" viewed="true" viewCount="&lt;15"/>
+    <subjectCondition type="employee"/>
+    <resourceCondition type="movie" viewed="true"/>
+    <action type="view"/>
+  </rule>
+  <rule type="customers collectively can view each movie at most 5 times">
+    <subjectCondition type="employee"/>
+    <resourceCondition type="movie" viewCount="&lt;15" />
     <action type="view"/>
   </rule>
 
