@@ -1,17 +1,17 @@
 Testing Documentation
 
 The main method fecthes all the testing scenarios from the main-config.json and runs
-them. The logs for each test cases are distinguished by the suffix name 
+them. The logs for each test cases are distinguished by the suffix name
 e.g waiting_condition, conflict_check. The logs for each unique
 process is created in separate file with its port number appended to its name.
 
-We have run the test scenarios once and stored all the logs in respective 
-folders inside the log folder. The initial and final db state are also logged 
+We have run the test scenarios once and stored all the logs in respective
+folders inside the log folder. The initial and final db state are also logged
 in the corresponding db_log file.
 
 How did we simulate ?
 
-Each test scenario uses its own list of requests from the config file. We have 
+Each test scenario uses its own list of requests from the config file. We have
 introduced the delay parameters for each requests if needed. We introduce
 manual delay if the correspoing flag is set against the request.
 
@@ -28,14 +28,17 @@ Scenarios
 	REQUESTS FILE: 		 '../config/waiting_condition_reqs.xml'
 	LOG_SUFFIX: 		 waiting_condition,
 
-	EXPECTED_DB_CONTENT: db_waiting_condition.log contains final db state. 
+	EXPECTED_DB_CONTENT: db_waiting_condition.log contains final db state.
 						 Expected db_dump:
-						 ('employee', '1', 'history'): 'bank A'
-		
+						 [(('movie', 'A', 'viewCount', 1480995640118535.0), 0),
+						 (('movie', 'A', 'viewed', 1480995640118535.0), ''),
+						 (('movie', 'A', 'viewed', 1480995640141424.0), 'true'),
+						 (('movie', 'A', 'viewCount', 1480995640141424.0), 1)]
+
 **********************************************
 #2 Restart immediately after worker completion
 **********************************************
-			
+
 	NUM_CLIENTS: 		 2
 	NUM_COORDS:		 	 2
 	WORKER_COUNT: 		 2
@@ -43,16 +46,18 @@ Scenarios
 	REQUESTS FILE: 		 '../config/conflict_check_reqs.xml'
 	LOG_SUFFIX: 		 conflict_check,
 
-	EXPECTED_DB_CONTENT: db_conflict_check.log contains final db state. 
+	EXPECTED_DB_CONTENT: db_conflict_check.log contains final db state.
 						 Expected db_dump:
-						 ('movie', 'A', 'viewed'): 'true' 
-						 ('movie', 'A', 'viewCount'): 2
+						 [(('movie', 'A', 'viewed', 1480995559204415.0), ''),
+						 (('movie', 'A', 'viewCount', 1480995559204415.0), 0),
+						 (('movie', 'A', 'viewCount', 1480995563209657.0), 1),
+						 (('movie', 'A', 'viewed', 1480995563209657.0), 'true')]
 
 
 ***************************************************
 #3 Restart after waiting for all Pending Might Read
 ***************************************************
-			
+
 	NUM_CLIENTS: 		 2
 	NUM_COORDS:		 	 3
 	WORKER_COUNT: 		 2
@@ -60,10 +65,12 @@ Scenarios
 	REQUESTS FILE: 		 '../config/conflict_check2_reqs.xml'
 	LOG_SUFFIX: 		 conflict_check2,
 
-	EXPECTED_DB_CONTENT: db_conflict_check2.log contains final db state. 
+	EXPECTED_DB_CONTENT: db_conflict_check2.log contains final db state.
 						 Expected db_dump:
-						 ('movie', 'A', 'viewed'): 'true' 
-						 ('movie', 'A', 'viewCount'): 2
+						 [(('movie', 'A', 'viewed', 1480995478797701.0), ''),
+						  (('movie', 'A', 'viewCount', 1480995478797701.0), 0),
+						  (('movie', 'A', 'viewed', 1480995481838662.0), 'true'),
+						  (('movie', 'A', 'viewCount', 1480995481838662.0), 1)]
 
 
 ************************
@@ -77,9 +84,9 @@ Scenarios
 	REQUESTS FILE: 		 '../config/write_starvation_reqs.xml'
 	LOG_SUFFIX: 		 write_starvation,
 
-	EXPECTED_DB_CONTENT: db_write_starvation.log contains final db state. 
+	EXPECTED_DB_CONTENT: db_write_starvation.log contains final db state.
 						 Expected db_dump:
-						 ('movie', 'A', 'viewed'): 'true' 
+						 ('movie', 'A', 'viewed'): 'true'
 						 ('movie', 'A', 'viewCount'): 2
 
 ***************************
@@ -93,9 +100,9 @@ Scenarios
 	REQUESTS FILE: 		 '../config/read_write_no_starvation_reqs.xml'
 	LOG_SUFFIX: 		 read_write_no_starvation,
 
-	EXPECTED_DB_CONTENT: db_read_write_no_starvation.log contains final db state. 
+	EXPECTED_DB_CONTENT: db_read_write_no_starvation.log contains final db state.
 						 Expected db_dump:
-						 ('movie', 'A', 'viewed'): 'true' 
+						 ('movie', 'A', 'viewed'): 'true'
 						 ('movie', 'A', 'viewCount'): 2
 
 ****************
@@ -109,23 +116,25 @@ Scenarios
 	REQUESTS FILE: 		 '../config/misprediction_reqs.xml'
 	LOG_SUFFIX: 		 misprediction,
 
-	EXPECTED_DB_CONTENT: db_misprediction.log contains final db state. 
+	EXPECTED_DB_CONTENT: db_misprediction.log contains final db state.
 						 Expected db_dump:
-						 ('movie', 'A', 'viewed'): 'true' 
-						 ('movie', 'A', 'viewCount'): 2
+						 [(('movie', 'A', 'viewed', 1480995741948687.0), 'true'),
+						 (('movie', 'A', 'viewCount', 1480995741948687.0), 1),
+						 (('movie', 'A', 'viewed', 1480995742008356.0), 'true'),
+						 (('movie', 'A', 'viewCount', 1480995742008356.0), 1)]
 
 **************
 #6 Stress Test
 **************
 
-This test scenario is to engage all the process (client, sub_coord, res_coord, 
-worker, db busy throughout the execution. This process generates the requests 
-to send based on the specified subjects, resources and action in the following 
-config. The total request count is computed based on the number of clients and 
+This test scenario is to engage all the process (client, sub_coord, res_coord,
+worker, db busy throughout the execution. This process generates the requests
+to send based on the specified subjects, resources and action in the following
+config. The total request count is computed based on the number of clients and
 the workload of each client. It evenly splits the request to all the application
 clients.
 
-	
+
 	NUM_CLIENTS: 		 10
 	NUM_COORDS: 	 	 10
 	WORKER_COUNT: 		 10
@@ -134,10 +143,9 @@ clients.
 
 	REQUESTS FILE: 		 '../config/stress_res.json'
 	LOG_SUFFIX: 		 stress_test,
-	
+
 	SUBJECTS:			 ["A","B","C","D","E","F","G","H","I","J"]
 	RESOURCES:			 ["a","b","c","d","e","f","g","h","i","j"]
 
-	EXPECTED_DB_RESULT:	 '../config/stress_truth.json'	
-	EXPECTED_DB_CONTENT: db_stress_test.log contains final db state. 
-						 
+	EXPECTED_DB_RESULT:	 '../config/stress_truth.json'
+	EXPECTED_DB_CONTENT: logs/stress_test/stress_test_db.log contains final db state.

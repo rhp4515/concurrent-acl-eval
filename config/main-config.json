@@ -3,16 +3,21 @@
 	"maxDBlatency": 0,
 	"testing": [
 		{
-			"name": "write starvation",
-			"num_clients": 2,
-			"num_coords": 2,
-			"worker_count": 2,
+			"name": "stress test",
+			"num_clients": 10,
+			"num_coords": 10,
+			"worker_count": 5,
 			"randomize": false,
-			"workload": [2, 2],
-			"p_time":20,
-			"serialize_app_req_delay": true,
-			"path": "../config/write_starvation_reqs.xml",
-			"log_suffix": "write_starvation"
+			"generate": true,
+			"workload": 50,
+			"p_time":45,
+			"serialize_app_req_delay": false,
+			"action": "view",
+			"subs" : ["A","B","C","D","E","F","G","H","I","J"],
+			"res"  : ["a","b","c","d","e","f","g","h","i","j"],
+			"path": "../config/stress_res.json",
+			"test_truth_path": "../config/stress_truth.json",
+			"log_suffix": "stress_test"
 		}
 	],
 	"old": [
@@ -120,10 +125,10 @@
 	],
 	"policy_config": "../config/policy-list.xml",
 	"db_config": "../config/db-config.xml",
-	"db_log": "../logs/db_{}.log",
-	"app_log": "../logs/app_{}_{}.log",
-	"sub_coord_log": "../logs/sub_coord_{}_{}.log",
-	"res_coord_log": "../logs/res_coord_{}_{}.log",
-	"timer_log": "../logs/timer_{}_{}.log",
-	"worker_log": "../logs/worker_{}_{}.log"
+	"db_log": "../logs/{}_db.log",
+	"app_log": "../logs/{}_{}.log",
+	"sub_coord_log": "../logs/{}_{}.log",
+	"res_coord_log": "../logs/{}_{}.log",
+	"timer_log": "../logs/timer{}{}.log",
+	"worker_log": "../logs/{}_{}.log"
 }
