@@ -25,7 +25,7 @@
 			"workload": [1, 1],
 			"p_time":20,
 			"serialize_app_req_delay": false,
-			"path": "../config/waiting_condition.xml",
+			"path": "../config/waiting_condition_reqs.xml",
 			"log_suffix": "waiting_condition"
 		},
 		{

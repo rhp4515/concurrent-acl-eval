@@ -86,8 +86,14 @@ Scenarios
 
 	EXPECTED_DB_CONTENT: db_write_starvation.log contains final db state.
 						 Expected db_dump:
-						 ('movie', 'A', 'viewed'): 'true'
-						 ('movie', 'A', 'viewCount'): 2
+						 [(('movie', 'A', 'viewed', 1480996373324781.0), 'true'),
+						 (('movie', 'A', 'viewCount', 1480996373324781.0), 1),
+						 (('movie', 'A', 'viewed', 1480996373381542.0), 'true'),
+						 (('movie', 'A', 'viewCount', 1480996373381542.0), 1),
+						 (('movie', 'A', 'viewed', 1480996374323290.0), 'true'),
+						 (('movie', 'A', 'viewCount', 1480996374323290.0), 1),
+						 (('movie', 'A', 'viewed', 1480996376408692.0), 'true'),
+						 (('movie', 'A', 'viewCount', 1480996376408692.0), 1)]
 
 ***************************
 #5 Read Write No Starvation
@@ -102,8 +108,9 @@ Scenarios
 
 	EXPECTED_DB_CONTENT: db_read_write_no_starvation.log contains final db state.
 						 Expected db_dump:
-						 ('movie', 'A', 'viewed'): 'true'
-						 ('movie', 'A', 'viewCount'): 2
+						 [(('movie', 'A', 'viewCount', 1480996560971046.0), 1),
+						 (('movie', 'A', 'viewed', 1480996560971046.0), 'true'),
+						 (('x', 'A', 'viewCount', 1480996560933918.0), 0)]
 
 ****************
 #6 Misprediction
