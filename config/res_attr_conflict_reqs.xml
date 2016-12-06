@@ -1,17 +1,14 @@
-<!-- Explicit client request sequences goes here -->
 <requests>
 	<request>
 		<sub type='customer' id='1'/>
 		<res type='movie' id='A'></res>
 		<action type='view'></action>
-		<delays>
-			<delay>wait_done</delay>
-			<!-- <delay>worker_response</delay> -->
-			<delay>misprediction</delay>
-		</delays>
+		<!-- <delays>
+			<delay>before_res_commit</delay>
+		</delays> -->
 	</request>
 	<request>
-		<sub type='employee' id='1'/>
+		<sub type='customer' id='2'/>
 		<res type='movie' id='A'></res>
 		<action type='view'></action>
 	</request>

@@ -52,7 +52,7 @@ class TimerP(process):
                          .format(payload['app_id'], payload))
         time.sleep(payload['latency_in_secs'])
         del payload['latency_in_secs']
-        send(('TIMER_DELAY_RESPONSE', payload),to=p)
+        send(('TIMER_DELAY_RESPONSE', payload),to=payload['data']['r_obj']['coord'])
         self.logger.info('[SENT][TIMER_DELAY_RESPONSE][{}] payload:{}'
                                             .format(payload['app_id'], payload))
         send(('DONE',),to=self)
@@ -346,7 +346,7 @@ class Coord(process):
         return result
 
     def check_conflict(response):
-        print ("########################")
+        print ("########################", self)
         print(response)
         print (self.attr_version)
         for attr in response['updated_obj']['updates']:
@@ -356,7 +356,7 @@ class Coord(process):
             elif v['rts'] == response['ts'] and v['wts'] != 0:
                 return True
 
-        print ("########################")
+        print ("########################", self)
         return False
 
 
@@ -448,6 +448,7 @@ class Coord(process):
             self.logger.info('[SENT][STARVATION_WAIT_DONE][NO_STARVATION][{}] payload:{}'
                                 .format(wait_payload['app_id'], wait_payload))
         else:
+            print("-----------------STARVING-----------------")
             self.logger.info('[STARVING][{}] payload:{}'
                                 .format(payload['app_id'], payload))
 
@@ -479,12 +480,15 @@ class Coord(process):
             # print(payload['ts'])
 
         self.update_req(x, payload, 'COORDW_REQUEST')
+        print ("-----------------COORDR_REQ------------------------", self)
+        print (self.attr_version)
+        print ("-----------------COORDR_REQ------------------------", self)
 
 
     def receive(msg= ('COORDR_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][COORDR_RESPONSE][{}] payload:{}'
                                             .format(payload['app_id'], payload))
-
+        
         x = payload['obj']
         attrs = self.analyze_policies(payload)
 
@@ -493,18 +497,18 @@ class Coord(process):
         if payload['req_type'] == const.READ_WRITE:
             might_read_attrs.extend(attrs[x['type']]['def_r_attr'])
 
-        # print ("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$",might_read_attrs)
+        print ("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$",might_read_attrs)
 
         for attr in might_read_attrs:
             v = self.latest_version_before(x, attr, payload['ts'])
             v['pending_might_read'] = [y for y in v['pending_might_read'] if y[0] != payload['eval_id']]
             if attr in payload['read_attrs']:
                 v['rts'] = payload['ts']
-            key = (x['type'], attr, payload['ts'])
-            self.attr_version[key] = v
             # print (">>>>>>>>>>>>>>>>attr", v['pending_might_read'], attr)
             if len(v['pending_might_read']) == 0:
-            # or len([xyz for xyz in v['pending_might_read'] if xyz != payload['eval_id']]):
+                key = (x['type'], attr, payload['ts'])
+                self.attr_version[key] = v
+                # or len([xyz for xyz in v['pending_might_read'] if xyz != payload['eval_id']]):
                 # print (">>>>>>>>>>>in", payload['eval_id'], attr)
                 for eval_id in self.req_q:
                     # print ("@@@@@",self.req_q)
@@ -521,17 +525,24 @@ class Coord(process):
 
         self.logger.info('[PROCESSED][COORDR_RESPONSE][{}] payload:{}'
                                             .format(payload['app_id'], payload))
+        print ("-----------------COORDR------------------------", self)
+        print (self.attr_version)
+        print ("-----------------COORDR------------------------", self)
 
     def receive(msg= ('COORDW_REQUEST', payload), from_=p):
         self.logger.info('[RECEIVED][COORDW_REQUEST][{}] payload:{}'
                                             .format(payload['app_id'], payload))
         x = payload['w_obj']
         self.update_req(x, payload, 'WORKER_REQUEST')
+        print ("-----------------COORDW_REQ------------------------", self)
+        print (self.attr_version)
+        print ("-----------------COORDW_REQ------------------------", self)
 
 
     def receive(msg= ('COORDW_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][COORDW_RESPONSE][{}] payload:{}'
                                             .format(payload['app_id'], payload))
+
         if 'coordw_response' in payload['delays']:
             time.sleep(4)
 
@@ -565,6 +576,10 @@ class Coord(process):
                 send(('WAIT_DONE', payload,), to=payload['w_obj']['coord'])
                 self.logger.info('[SENT][WAIT_DONE][NO_WAIT][{}] payload:{}'
                                     .format(payload['app_id'], payload))
+            else:
+                print("-----------------WAITING-----------------")
+                self.logger.info('[WAITING][{}] payload:{}'
+                                            .format(payload['app_id'], payload))
         else:
             print("-----------------COORDW RESTART-----------------")
             restart(payload)
@@ -587,7 +602,7 @@ class Coord(process):
                                  data=payload,
                                  latency_in_secs=4)
             send(('TIMER_DELAY_REQUEST', timer_payload), to=timer_ps)
-            print (('TIMER_DELAY_REQUEST', timer_payload), timer_ps)
+            print (('TIMER_DELAY_REQUEST', timer_payload), self, timer_ps)
             return
         
         if not check_conflict(payload):
@@ -743,11 +758,11 @@ class Coord(process):
                                             .format(payload['app_id'],
                                                     payload))
 
-            print (">>>>>>>>>>>>>>>>>>>>>")
+            print (">>>>>>>>>>>>>>>>>>>>>",self)
             for v in self.attr_version:
                 print (v, self.attr_version[v])
             # print (self.attr_version)
-            print (">>>>>>>>>>>>>>>>>>>>>")
+            print (">>>>>>>>>>>>>>>>>>>>>",self)
 
     def receive(msg= ('TIMER_RESPONSE', payload), from_=p):
         self.logger.info('[RECEIVED][TIMER_RESPONSE][{}] payload:{}'
@@ -950,7 +965,6 @@ class Worker(process):
                 actual_w_coord = orig_payload['w_obj']['coord']
             else:
                 actual_w_coord = orig_payload['r_obj']['coord']
-
 
             send(('COORDW_RESPONSE', orig_payload), to=actual_w_coord)
 
