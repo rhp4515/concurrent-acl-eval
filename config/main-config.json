@@ -3,21 +3,21 @@
 	"maxDBlatency": 0,
 	"testing": [
 		{
-			"name": "conflict_check",
+			"name": "write starvation",
 			"num_clients": 2,
 			"num_coords": 2,
 			"worker_count": 2,
 			"randomize": false,
-			"workload": [1,1],
-			"p_time":5,
-			"serialize_app_req_delay": false,
-			"path": "../config/conflict_check_reqs.xml",
-			"log_suffix": "conflict_check"
+			"workload": [2, 2],
+			"p_time":20,
+			"serialize_app_req_delay": true,
+			"path": "../config/write_starvation_reqs.xml",
+			"log_suffix": "write_starvation"
 		}
 	],
 	"old": [
 		{
-			"name": "waiting condition",
+			"name": "Waiting Pending Might Read Condition",
 			"num_clients": 2,
 			"num_coords": 2,
 			"worker_count": 2,
@@ -29,19 +29,7 @@
 			"log_suffix": "waiting_condition"
 		},
 		{
-			"name": "conflict_check2",
-			"num_clients": 2,
-			"num_coords": 3,
-			"worker_count": 2,
-			"randomize": false,
-			"workload": [1,1],
-			"p_time":5,
-			"serialize_app_req_delay": true,
-			"path": "../config/conflict_check2_reqs.xml",
-			"log_suffix": "conflict_check2"
-		},
-		{
-			"name": "conflict_check",
+			"name": "Restart immediately after worker completion",
 			"num_clients": 2,
 			"num_coords": 2,
 			"worker_count": 2,
@@ -53,31 +41,19 @@
 			"log_suffix": "conflict_check"
 		},
 		{
-			"name": "write starvation",
+			"name": "Restart after waiting for all Pending Might Read",
 			"num_clients": 2,
-			"num_coords": 2,
+			"num_coords": 3,
 			"worker_count": 2,
 			"randomize": false,
-			"workload": [2, 2],
-			"p_time":20,
-			"serialize_app_req_delay": true,
-			"path": "../config/write_starvation_reqs.xml",
-			"log_suffix": "write_starvation"
-		},
-		{
-			"name": "read write no starvation",
-			"num_clients": 2,
-			"num_coords": 2,
-			"worker_count": 2,
-			"randomize": false,
-			"workload": [3, 3],
+			"workload": [1,1],
 			"p_time":5,
-			"serialize_app_req_delay": false,
-			"path": "../config/read_write_no_starvation_reqs.xml",
-			"log_suffix": "read_write_no_starvation"
+			"serialize_app_req_delay": true,
+			"path": "../config/conflict_check2_reqs.xml",
+			"log_suffix": "conflict_check2"
 		},
 		{
-			"name": "read write starvation",
+			"name": "Read Write Starvation",
 			"num_clients": 2,
 			"num_coords": 2,
 			"worker_count": 2,
@@ -89,7 +65,19 @@
 			"log_suffix": "read_write_starvation"
 		},
 		{
-			"name": "misprediction",
+			"name": "Read Write No Starvation",
+			"num_clients": 2,
+			"num_coords": 2,
+			"worker_count": 2,
+			"randomize": false,
+			"workload": [2, 2],
+			"p_time":20,
+			"serialize_app_req_delay": true,
+			"path": "../config/write_starvation_reqs.xml",
+			"log_suffix": "write_starvation"
+		},
+		{
+			"name": "Misprediction",
 			"num_clients": 1,
 			"num_coords": 2,
 			"worker_count": 1,
@@ -101,7 +89,7 @@
 			"log_suffix": "misprediction"
 		},
 		{
-			"name": "stress test",
+			"name": "Stress Test",
 			"num_clients": 10,
 			"num_coords": 10,
 			"worker_count": 5,
@@ -116,7 +104,19 @@
 			"path": "../config/stress_res.json",
 			"test_truth_path": "../config/stress_truth.json",
 			"log_suffix": "stress_test"
-		}
+		},
+		{
+			"name": "write starvation",
+			"num_clients": 2,
+			"num_coords": 2,
+			"worker_count": 2,
+			"randomize": false,
+			"workload": [3, 3],
+			"p_time":5,
+			"serialize_app_req_delay": false,
+			"path": "../config/read_write_no_starvation_reqs.xml",
+			"log_suffix": "read_write_no_starvation"
+		},
 	],
 	"policy_config": "../config/policy-list.xml",
 	"db_config": "../config/db-config.xml",

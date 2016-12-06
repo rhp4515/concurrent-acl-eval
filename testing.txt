@@ -74,10 +74,10 @@ Scenarios
 	NUM_COORDS:		 	 2
 	WORKER_COUNT: 		 2
 
-	REQUESTS FILE: 		 '../config/read_write_starvation_reqs.xml'
-	LOG_SUFFIX: 		 read_write_starvation,
+	REQUESTS FILE: 		 '../config/write_starvation_reqs.xml'
+	LOG_SUFFIX: 		 write_starvation,
 
-	EXPECTED_DB_CONTENT: db_read_write_starvation.log contains final db state. 
+	EXPECTED_DB_CONTENT: db_write_starvation.log contains final db state. 
 						 Expected db_dump:
 						 ('movie', 'A', 'viewed'): 'true' 
 						 ('movie', 'A', 'viewCount'): 2
