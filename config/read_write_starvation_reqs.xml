@@ -5,7 +5,6 @@
 		<res type='movie' id='A'></res>
 		<action type='view'></action>
 		<delays>
-			<delay>wait_done</delay>
 			<delay>worker_response</delay>
 		</delays>
 	</request>
@@ -23,7 +22,6 @@
 		<action type='view'></action>
 		<delays>
 			<delay>read_only</delay>
-			<!-- <delay>worker_response</delay> -->
 		</delays>
 	</request>
 	<request>
