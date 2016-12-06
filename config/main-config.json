@@ -3,18 +3,18 @@
 	"maxDBlatency": 0,
 	"testing": [
 		{
-			"name": "conflict_check2",
-			"description": "a request waits for another write request to complete",
+			"name": "waiting condition",
+			"description": "a request evaluation aborts due to a conflict on a resource attribute",
 			"num_clients": 2,
-			"num_coords": 3,
+			"num_coords": 2,
 			"worker_count": 2,
 			"randomize": false,
-			"workload": [1,1],
-			"p_time":5,
-			"serialize_app_req_delay": true,
-			"path": "../config/conflict_check2_reqs.xml",
-			"log_suffix": "conflict_check2",
-			"expected_db_content": "conflict_check2.log contains final db state. expected db_dump:{('movie', 'A', 'viewed'): 'true', ('movie', 'A', 'viewCount'): 4}"
+			"workload": [1, 1],
+			"p_time":20,
+			"serialize_app_req_delay": false,
+			"path": "../config/waiting_condition_reqs.xml",
+			"log_suffix": "waiting_condition",
+			"expected_db_content": "waiting_condition.log contains final db state. expected db_dump:{('movie', 'A', 'viewed'): 'true', ('movie', 'A', 'viewCount'): 2}"
 		}
 	],
 	"old": [
@@ -32,15 +32,29 @@
 			"expected_db_content": "dev.log contains final db state. expected db_dump:{('employee', '1', 'history'): 'bank A'}"
 		},
 		{
-			"name": "conflict_check2",
-			"description": "a request waits for another write request to complete",
+			"name": "waiting condition",
+			"description": "a request evaluation aborts due to a conflict on a resource attribute",
 			"num_clients": 2,
 			"num_coords": 2,
 			"worker_count": 2,
 			"randomize": false,
+			"workload": [1, 1],
+			"p_time":20,
+			"serialize_app_req_delay": false,
+			"path": "../config/waiting_condition.xml",
+			"log_suffix": "waiting_condition",
+			"expected_db_content": "waiting_condition.log contains final db state. expected db_dump:{('movie', 'A', 'viewed'): 'true', ('movie', 'A', 'viewCount'): 2}"
+		},
+		{
+			"name": "conflict_check2",
+			"description": "a request waits for another write request to complete",
+			"num_clients": 2,
+			"num_coords": 3,
+			"worker_count": 2,
+			"randomize": false,
 			"workload": [1,1],
 			"p_time":5,
-			"serialize_app_req_delay": false,
+			"serialize_app_req_delay": true,
 			"path": "../config/conflict_check2_reqs.xml",
 			"log_suffix": "conflict_check2",
 			"expected_db_content": "conflict_check2.log contains final db state. expected db_dump:{('movie', 'A', 'viewed'): 'true', ('movie', 'A', 'viewCount'): 4}"
