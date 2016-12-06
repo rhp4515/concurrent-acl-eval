@@ -3,16 +3,16 @@
 	"maxDBlatency": 0,
 	"testing": [
 		{
-			"name": "waiting condition",
+			"name": "conflict_check",
 			"num_clients": 2,
 			"num_coords": 2,
 			"worker_count": 2,
 			"randomize": false,
-			"workload": [1, 1],
-			"p_time":20,
+			"workload": [1,1],
+			"p_time":5,
 			"serialize_app_req_delay": false,
-			"path": "../config/waiting_condition_reqs.xml",
-			"log_suffix": "waiting_condition",
+			"path": "../config/conflict_check_reqs.xml",
+			"log_suffix": "conflict_check"
 		}
 	],
 	"old": [
@@ -26,7 +26,7 @@
 			"p_time":20,
 			"serialize_app_req_delay": false,
 			"path": "../config/waiting_condition.xml",
-			"log_suffix": "waiting_condition",
+			"log_suffix": "waiting_condition"
 		},
 		{
 			"name": "conflict_check2",
@@ -38,7 +38,7 @@
 			"p_time":5,
 			"serialize_app_req_delay": true,
 			"path": "../config/conflict_check2_reqs.xml",
-			"log_suffix": "conflict_check2",
+			"log_suffix": "conflict_check2"
 		},
 		{
 			"name": "conflict_check",
@@ -50,7 +50,7 @@
 			"p_time":5,
 			"serialize_app_req_delay": false,
 			"path": "../config/conflict_check_reqs.xml",
-			"log_suffix": "conflict_check",
+			"log_suffix": "conflict_check"
 		},
 		{
 			"name": "write starvation",
@@ -62,7 +62,7 @@
 			"p_time":20,
 			"serialize_app_req_delay": true,
 			"path": "../config/write_starvation_reqs.xml",
-			"log_suffix": "write_starvation",
+			"log_suffix": "write_starvation"
 		},
 		{
 			"name": "read write no starvation",
@@ -74,7 +74,7 @@
 			"p_time":5,
 			"serialize_app_req_delay": false,
 			"path": "../config/read_write_no_starvation_reqs.xml",
-			"log_suffix": "read_write_no_starvation",
+			"log_suffix": "read_write_no_starvation"
 		},
 		{
 			"name": "read write starvation",
@@ -86,7 +86,7 @@
 			"p_time":10,
 			"serialize_app_req_delay": true,
 			"path": "../config/read_write_starvation_reqs.xml",
-			"log_suffix": "read_write_starvation",
+			"log_suffix": "read_write_starvation"
 		},
 		{
 			"name": "misprediction",
@@ -98,7 +98,7 @@
 			"p_time":5,
 			"serialize_app_req_delay": false,
 			"path": "../config/misprediction_reqs.xml",
-			"log_suffix": "misprediction",
+			"log_suffix": "misprediction"
 		},
 		{
 			"name": "stress test",
@@ -115,7 +115,7 @@
 			"res"  : ["a","b","c","d","e","f","g","h","i","j"],
 			"path": "../config/stress_res.json",
 			"test_truth_path": "../config/stress_truth.json",
-			"log_suffix": "stress_test",
+			"log_suffix": "stress_test"
 		}
 	],
 	"policy_config": "../config/policy-list.xml",
