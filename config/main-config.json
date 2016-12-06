@@ -3,21 +3,16 @@
 	"maxDBlatency": 0,
 	"testing": [
 		{
-			"name": "stress test",
-			"num_clients": 10,
-			"num_coords": 10,
-			"worker_count": 5,
+			"name": "Waiting Pending Might Read Condition",
+			"num_clients": 2,
+			"num_coords": 2,
+			"worker_count": 2,
 			"randomize": false,
-			"generate": true,
-			"workload": 50,
-			"p_time":45,
+			"workload": [1, 1],
+			"p_time":20,
 			"serialize_app_req_delay": false,
-			"action": "view",
-			"subs" : ["A","B","C","D","E","F","G","H","I","J"],
-			"res"  : ["a","b","c","d","e","f","g","h","i","j"],
-			"path": "../config/stress_res.json",
-			"test_truth_path": "../config/stress_truth.json",
-			"log_suffix": "stress_test"
+			"path": "../config/waiting_condition_reqs.xml",
+			"log_suffix": "waiting_condition"
 		}
 	],
 	"old": [
@@ -66,8 +61,8 @@
 			"workload": [2,2],
 			"p_time":10,
 			"serialize_app_req_delay": true,
-			"path": "../config/read_write_starvation_reqs.xml",
-			"log_suffix": "read_write_starvation"
+			"path": "../config/write_starvation_reqs.xml",
+			"log_suffix": "write_starvation"
 		},
 		{
 			"name": "Read Write No Starvation",
@@ -78,8 +73,8 @@
 			"workload": [2, 2],
 			"p_time":20,
 			"serialize_app_req_delay": true,
-			"path": "../config/write_starvation_reqs.xml",
-			"log_suffix": "write_starvation"
+			"path": "../config/read_write_no_starvation_reqs.xml",
+			"log_suffix": "read_write_no_starvation"
 		},
 		{
 			"name": "Misprediction",
@@ -119,9 +114,9 @@
 			"workload": [3, 3],
 			"p_time":5,
 			"serialize_app_req_delay": false,
-			"path": "../config/read_write_no_starvation_reqs.xml",
-			"log_suffix": "read_write_no_starvation"
-		},
+			"path": "../config/read_write_starvation_reqs.xml",
+			"log_suffix": "read_write_starvation"
+		}
 	],
 	"policy_config": "../config/policy-list.xml",
 	"db_config": "../config/db-config.xml",
