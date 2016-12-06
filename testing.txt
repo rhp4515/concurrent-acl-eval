@@ -2,7 +2,7 @@ Testing Documentation
 
 The main method fecthes all the testing scenarios from the main-config.json and runs
 them. The logs for each test cases are distinguished by the suffix name 
-e.g sub_attr_conflict, tentative_update_abortion. The logs for each unique
+e.g waiting_condition, conflict_check. The logs for each unique
 process is created in separate file with its port number appended to its name.
 
 We have run the test scenarios once and stored all the logs in respective 
@@ -17,133 +17,102 @@ manual delay if the correspoing flag is set against the request.
 
 Scenarios
 
-*****************************
-#1 Subject Attribute Conflict
-*****************************
-
-When the same employee(1) tries to access different banks(bank A, bank B) at 
-the same time. A request evaluation aborts due to a conflict on a subject 
-attribute. We have made sure bank A always succeeds by introducing a delay in 
-before resource commit for the conflict to occur in a deterministic manner.
+***************************************
+#1 Waiting Pending Might Read Condition
+***************************************
 
 	NUM_CLIENTS: 		 2
-	NUM_SUB_COORDS: 	 2
-	NUM_RES_COORDS: 	 2 
+	NUM_COORDS:		 	 2
 	WORKER_COUNT: 		 2
 
-	REQUESTS FILE: 		 '../config/sub_attr_conflict_reqs.xml'
-	LOG_SUFFIX: 		 sub_attr_conflict,
+	REQUESTS FILE: 		 '../config/waiting_condition_reqs.xml'
+	LOG_SUFFIX: 		 waiting_condition,
 
-	EXPECTED_DB_CONTENT: db_sub_attr_conflict.log contains final db state. 
+	EXPECTED_DB_CONTENT: db_waiting_condition.log contains final db state. 
 						 Expected db_dump:
 						 ('employee', '1', 'history'): 'bank A'
 		
-
-******************************
-#2 Resource Attribute Conflict
-******************************
-
-When two evaluations tries to modify the view count of a resource, one should 
-succeed and other should end up with a resource attribute conflict and restart
-itself and then succeed with proper attribute value.
+**********************************************
+#2 Restart immediately after worker completion
+**********************************************
 			
 	NUM_CLIENTS: 		 2
-	NUM_SUB_COORDS: 	 2
-	NUM_RES_COORDS: 	 2 
+	NUM_COORDS:		 	 2
 	WORKER_COUNT: 		 2
 
-	REQUESTS FILE: 		 '../config/res_attr_conflict_reqs.xml'
-	LOG_SUFFIX: 		 res_attr_conflict,
+	REQUESTS FILE: 		 '../config/conflict_check_reqs.xml'
+	LOG_SUFFIX: 		 conflict_check,
 
-	EXPECTED_DB_CONTENT: db_res_attr_conflict.log contains final db state. 
+	EXPECTED_DB_CONTENT: db_conflict_check.log contains final db state. 
 						 Expected db_dump:
 						 ('movie', 'A', 'viewed'): 'true' 
 						 ('movie', 'A', 'viewCount'): 2
 
 
-***********************************
-#3 Abortion due to Tentative Update
-***********************************
-
-
-When the evaluations piggy back on tentative attr updates of an evaluation and 
-that evaluation fails, we need to restart all the dependant evaluations.
-We simulated this a relay before the resource commit of the first request, so
-all others depend on it and then fail it using a res_commit_fail flag, this
-will make all the process to restart and then complete in proper order.
-
-	NUM_CLIENTS: 		 4
-	NUM_SUB_COORDS: 	 2
-	NUM_RES_COORDS: 	 2 
-	WORKER_COUNT: 		 2
-
-	REQUESTS FILE: 		 '../config/tentative_update_abortion_reqs.xml'
-	LOG_SUFFIX: 		 tentative_update_abortion,
-
-	EXPECTED_DB_CONTENT: db_tentative_update_abortion.log contains final db 
-						 state. 
-						 Expected db_dump:
-						 ('employee', '1', 'history'): 'bank A' 
-						 
-
-**********************************************
-#4 Wait for Tentative Evalualtions to Complete
-**********************************************
-
-
-A request evaluation is delayed because it depends on a tentative update by a 
-request that has not yet committed or aborted. We have simulated this with a
-delay before the resource commit of the first requests and sending the requests
-in a sequence. Now, all the requests depends on the first request and will wait
-till it is committed to proceed with their commit.  
-
-	
-	NUM_CLIENTS: 		 4
-	NUM_SUB_COORDS: 	 2
-	NUM_RES_COORDS: 	 2 
-	WORKER_COUNT: 		 2
-
-	REQUESTS FILE: 		 '../config/wait_tentative_update_completion_reqs.xml'
-	LOG_SUFFIX: 		 wait_tentative_update_completion_reqs,
-
-	EXPECTED_DB_CONTENT: wait_tentative_update_completion.log contains final db 
-						 state. 
-						 Expected db_dump:
-						 ('employee', '1', 'history'): 'bank A'
-		
-
-****************************************
-#5 Randomize Resource Attribute Conflict
-****************************************
-
-This is similar to the resource attribute conflict, but we randomize the order
-in which the requests are sent. Thus, this will not always result in a 
-resource attribute conflict. But, a resource attribute conflict occurs when the 
-first request in the list is picked first. This is to demonstrate the 
-randomization of request scenario.
-
-	
-	
+***************************************************
+#3 Restart after waiting for all Pending Might Read
+***************************************************
+			
 	NUM_CLIENTS: 		 2
-	NUM_SUB_COORDS: 	 2
-	NUM_RES_COORDS: 	 2 
+	NUM_COORDS:		 	 3
 	WORKER_COUNT: 		 2
 
-	REQUESTS FILE: 		 '../config/res_attr_conflict_rand_reqs.xml'
-	LOG_SUFFIX: 		 res_attr_conflict_rand,
-	
-	RANDOMIZE:			 False
-	SEED:				 110283876
+	REQUESTS FILE: 		 '../config/conflict_check2_reqs.xml'
+	LOG_SUFFIX: 		 conflict_check2,
 
-	EXPECTED_DB_CONTENT: db_res_attr_conflict_rand.log contains final db state. 
+	EXPECTED_DB_CONTENT: db_conflict_check2.log contains final db state. 
 						 Expected db_dump:
-						 ('movie', 'A', 'viewed'): 'true'
-						 ('movie', 'C', 'viewed'): 'true' 
-						 ('movie', 'B', 'viewed'): 'true' 
-						 ('movie', 'B', 'viewCount'): 1
-						 ('movie', 'C', 'viewCount'): 1 
-						 ('movie', 'A', 'viewCount'): 4
+						 ('movie', 'A', 'viewed'): 'true' 
+						 ('movie', 'A', 'viewCount'): 2
 
+
+************************
+#4 Read Write Starvation
+************************
+
+	NUM_CLIENTS: 		 2
+	NUM_COORDS:		 	 2
+	WORKER_COUNT: 		 2
+
+	REQUESTS FILE: 		 '../config/read_write_starvation_reqs.xml'
+	LOG_SUFFIX: 		 read_write_starvation,
+
+	EXPECTED_DB_CONTENT: db_read_write_starvation.log contains final db state. 
+						 Expected db_dump:
+						 ('movie', 'A', 'viewed'): 'true' 
+						 ('movie', 'A', 'viewCount'): 2
+
+***************************
+#5 Read Write No Starvation
+***************************
+
+	NUM_CLIENTS: 		 2
+	NUM_COORDS:		 	 2
+	WORKER_COUNT: 		 2
+
+	REQUESTS FILE: 		 '../config/read_write_no_starvation_reqs.xml'
+	LOG_SUFFIX: 		 read_write_no_starvation,
+
+	EXPECTED_DB_CONTENT: db_read_write_no_starvation.log contains final db state. 
+						 Expected db_dump:
+						 ('movie', 'A', 'viewed'): 'true' 
+						 ('movie', 'A', 'viewCount'): 2
+
+****************
+#6 Misprediction
+****************
+
+	NUM_CLIENTS: 		 1
+	NUM_COORDS:		 	 2
+	WORKER_COUNT: 		 1
+
+	REQUESTS FILE: 		 '../config/misprediction_reqs.xml'
+	LOG_SUFFIX: 		 misprediction,
+
+	EXPECTED_DB_CONTENT: db_misprediction.log contains final db state. 
+						 Expected db_dump:
+						 ('movie', 'A', 'viewed'): 'true' 
+						 ('movie', 'A', 'viewCount'): 2
 
 **************
 #6 Stress Test
@@ -158,8 +127,7 @@ clients.
 
 	
 	NUM_CLIENTS: 		 10
-	NUM_SUB_COORDS: 	 10
-	NUM_RES_COORDS: 	 10
+	NUM_COORDS: 	 	 10
 	WORKER_COUNT: 		 10
 
 	WORKLOAD: 		 	 50
