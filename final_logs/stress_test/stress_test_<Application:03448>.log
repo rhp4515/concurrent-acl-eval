@@ -1,0 +1,250 @@
+Coord process for A -> <Coord:0343b>
+Coord process for a -> <Coord:03438>
+[SENT][COORDR_REQUEST][29eed431-e227-459d-9b03-409d4a7f0ed6] payload:{'req_type': 'READ_WRITE', 'app_ps': <Application:03448>, 'app_id': '29eed431-e227-459d-9b03-409d4a7f0ed6', 'delays': [], 'w_obj': {'coord': <Coord:03438>, 'type': 'a', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][29eed431-e227-459d-9b03-409d4a7f0ed6] payload:{'app_id': '29eed431-e227-459d-9b03-409d4a7f0ed6', 'result': True}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for b -> <Coord:03439>
+[SENT][COORDR_REQUEST][2e7b713d-ab25-40f1-bde1-64acf3f5127e] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '2e7b713d-ab25-40f1-bde1-64acf3f5127e', 'delays': [], 'w_obj': {'coord': <Coord:03439>, 'type': 'b', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][2e7b713d-ab25-40f1-bde1-64acf3f5127e] payload:{'app_id': '2e7b713d-ab25-40f1-bde1-64acf3f5127e', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for c -> <Coord:0343e>
+[SENT][COORDR_REQUEST][8a3e2f5f-f013-4d75-b431-976dea0b5148] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '8a3e2f5f-f013-4d75-b431-976dea0b5148', 'delays': [], 'w_obj': {'coord': <Coord:0343e>, 'type': 'c', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][8a3e2f5f-f013-4d75-b431-976dea0b5148] payload:{'app_id': '8a3e2f5f-f013-4d75-b431-976dea0b5148', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for d -> <Coord:03436>
+[SENT][COORDR_REQUEST][c126b27a-566f-4896-9ff2-82133f5482da] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': 'c126b27a-566f-4896-9ff2-82133f5482da', 'delays': [], 'w_obj': {'coord': <Coord:03436>, 'type': 'd', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][c126b27a-566f-4896-9ff2-82133f5482da] payload:{'app_id': 'c126b27a-566f-4896-9ff2-82133f5482da', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for e -> <Coord:03438>
+[SENT][COORDR_REQUEST][2236cc60-933c-4faf-92ab-ab73921b65a8] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '2236cc60-933c-4faf-92ab-ab73921b65a8', 'delays': [], 'w_obj': {'coord': <Coord:03438>, 'type': 'e', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][2236cc60-933c-4faf-92ab-ab73921b65a8] payload:{'app_id': '2236cc60-933c-4faf-92ab-ab73921b65a8', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for f -> <Coord:0343b>
+[SENT][COORDR_REQUEST][0bd8e1d4-164e-479d-a3b1-0a4976df7e0e] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '0bd8e1d4-164e-479d-a3b1-0a4976df7e0e', 'delays': [], 'w_obj': {'coord': <Coord:0343b>, 'type': 'f', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][0bd8e1d4-164e-479d-a3b1-0a4976df7e0e] payload:{'app_id': '0bd8e1d4-164e-479d-a3b1-0a4976df7e0e', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for g -> <Coord:03436>
+[SENT][COORDR_REQUEST][8198f5df-97a9-42ba-ae5d-2c5458647182] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '8198f5df-97a9-42ba-ae5d-2c5458647182', 'delays': [], 'w_obj': {'coord': <Coord:03436>, 'type': 'g', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][8198f5df-97a9-42ba-ae5d-2c5458647182] payload:{'app_id': '8198f5df-97a9-42ba-ae5d-2c5458647182', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for h -> <Coord:0343e>
+[SENT][COORDR_REQUEST][595767da-2a55-482d-a3bb-78563c3a8f8b] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '595767da-2a55-482d-a3bb-78563c3a8f8b', 'delays': [], 'w_obj': {'coord': <Coord:0343e>, 'type': 'h', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][595767da-2a55-482d-a3bb-78563c3a8f8b] payload:{'app_id': '595767da-2a55-482d-a3bb-78563c3a8f8b', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for i -> <Coord:03437>
+[SENT][COORDR_REQUEST][6a2bf662-004d-4aeb-b023-81e94cd83de9] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '6a2bf662-004d-4aeb-b023-81e94cd83de9', 'delays': [], 'w_obj': {'coord': <Coord:03437>, 'type': 'i', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][6a2bf662-004d-4aeb-b023-81e94cd83de9] payload:{'app_id': '6a2bf662-004d-4aeb-b023-81e94cd83de9', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for j -> <Coord:03435>
+[SENT][COORDR_REQUEST][6d3cee80-f164-416f-a1ac-d16297b72b70] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '6d3cee80-f164-416f-a1ac-d16297b72b70', 'delays': [], 'w_obj': {'coord': <Coord:03435>, 'type': 'j', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][6d3cee80-f164-416f-a1ac-d16297b72b70] payload:{'app_id': '6d3cee80-f164-416f-a1ac-d16297b72b70', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for a -> <Coord:03438>
+[SENT][COORDR_REQUEST][b1acb8bb-ebd8-43de-b353-de418575e3b7] payload:{'req_type': 'READ_WRITE', 'app_ps': <Application:03448>, 'app_id': 'b1acb8bb-ebd8-43de-b353-de418575e3b7', 'delays': [], 'w_obj': {'coord': <Coord:03438>, 'type': 'a', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][b1acb8bb-ebd8-43de-b353-de418575e3b7] payload:{'app_id': 'b1acb8bb-ebd8-43de-b353-de418575e3b7', 'result': True}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for b -> <Coord:03439>
+[SENT][COORDR_REQUEST][7ebf3d9d-40fb-411f-b5dd-9959c1b39ffc] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '7ebf3d9d-40fb-411f-b5dd-9959c1b39ffc', 'delays': [], 'w_obj': {'coord': <Coord:03439>, 'type': 'b', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][7ebf3d9d-40fb-411f-b5dd-9959c1b39ffc] payload:{'app_id': '7ebf3d9d-40fb-411f-b5dd-9959c1b39ffc', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for c -> <Coord:0343e>
+[SENT][COORDR_REQUEST][7a90168f-b0c6-4452-ad5c-a6d12b2f620d] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '7a90168f-b0c6-4452-ad5c-a6d12b2f620d', 'delays': [], 'w_obj': {'coord': <Coord:0343e>, 'type': 'c', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][7a90168f-b0c6-4452-ad5c-a6d12b2f620d] payload:{'app_id': '7a90168f-b0c6-4452-ad5c-a6d12b2f620d', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for d -> <Coord:03436>
+[SENT][COORDR_REQUEST][e409f69e-376e-4488-b193-0eb053369369] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': 'e409f69e-376e-4488-b193-0eb053369369', 'delays': [], 'w_obj': {'coord': <Coord:03436>, 'type': 'd', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][e409f69e-376e-4488-b193-0eb053369369] payload:{'app_id': 'e409f69e-376e-4488-b193-0eb053369369', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for e -> <Coord:03438>
+[SENT][COORDR_REQUEST][be502438-e03b-4363-be1a-c01f021d5677] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': 'be502438-e03b-4363-be1a-c01f021d5677', 'delays': [], 'w_obj': {'coord': <Coord:03438>, 'type': 'e', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][be502438-e03b-4363-be1a-c01f021d5677] payload:{'app_id': 'be502438-e03b-4363-be1a-c01f021d5677', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for f -> <Coord:0343b>
+[SENT][COORDR_REQUEST][761ac8ef-2197-44dc-ab4d-1116fda64e86] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '761ac8ef-2197-44dc-ab4d-1116fda64e86', 'delays': [], 'w_obj': {'coord': <Coord:0343b>, 'type': 'f', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][761ac8ef-2197-44dc-ab4d-1116fda64e86] payload:{'app_id': '761ac8ef-2197-44dc-ab4d-1116fda64e86', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for g -> <Coord:03436>
+[SENT][COORDR_REQUEST][60d8e0bc-c9ef-4cab-8c9f-8270d6824d37] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '60d8e0bc-c9ef-4cab-8c9f-8270d6824d37', 'delays': [], 'w_obj': {'coord': <Coord:03436>, 'type': 'g', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][60d8e0bc-c9ef-4cab-8c9f-8270d6824d37] payload:{'app_id': '60d8e0bc-c9ef-4cab-8c9f-8270d6824d37', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for h -> <Coord:0343e>
+[SENT][COORDR_REQUEST][15f30254-b172-4ea5-a39c-6385f2e9f900] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '15f30254-b172-4ea5-a39c-6385f2e9f900', 'delays': [], 'w_obj': {'coord': <Coord:0343e>, 'type': 'h', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][15f30254-b172-4ea5-a39c-6385f2e9f900] payload:{'app_id': '15f30254-b172-4ea5-a39c-6385f2e9f900', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for i -> <Coord:03437>
+[SENT][COORDR_REQUEST][13d3eda7-9a6a-4dce-8537-12623004b3cd] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '13d3eda7-9a6a-4dce-8537-12623004b3cd', 'delays': [], 'w_obj': {'coord': <Coord:03437>, 'type': 'i', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][13d3eda7-9a6a-4dce-8537-12623004b3cd] payload:{'app_id': '13d3eda7-9a6a-4dce-8537-12623004b3cd', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for j -> <Coord:03435>
+[SENT][COORDR_REQUEST][b7f2153f-4c3b-45c2-866a-59e84c4bb9ab] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': 'b7f2153f-4c3b-45c2-866a-59e84c4bb9ab', 'delays': [], 'w_obj': {'coord': <Coord:03435>, 'type': 'j', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][b7f2153f-4c3b-45c2-866a-59e84c4bb9ab] payload:{'app_id': 'b7f2153f-4c3b-45c2-866a-59e84c4bb9ab', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for a -> <Coord:03438>
+[SENT][COORDR_REQUEST][91ea84f0-640f-4b5e-acbb-09ad629fe68f] payload:{'req_type': 'READ_WRITE', 'app_ps': <Application:03448>, 'app_id': '91ea84f0-640f-4b5e-acbb-09ad629fe68f', 'delays': [], 'w_obj': {'coord': <Coord:03438>, 'type': 'a', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][91ea84f0-640f-4b5e-acbb-09ad629fe68f] payload:{'app_id': '91ea84f0-640f-4b5e-acbb-09ad629fe68f', 'result': True}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for b -> <Coord:03439>
+[SENT][COORDR_REQUEST][848d5387-97c7-4586-9d57-4583707bbed4] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '848d5387-97c7-4586-9d57-4583707bbed4', 'delays': [], 'w_obj': {'coord': <Coord:03439>, 'type': 'b', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][848d5387-97c7-4586-9d57-4583707bbed4] payload:{'app_id': '848d5387-97c7-4586-9d57-4583707bbed4', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for c -> <Coord:0343e>
+[SENT][COORDR_REQUEST][34c681fc-e42e-4f63-ba14-811654083a2c] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '34c681fc-e42e-4f63-ba14-811654083a2c', 'delays': [], 'w_obj': {'coord': <Coord:0343e>, 'type': 'c', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][34c681fc-e42e-4f63-ba14-811654083a2c] payload:{'app_id': '34c681fc-e42e-4f63-ba14-811654083a2c', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for d -> <Coord:03436>
+[SENT][COORDR_REQUEST][4a722fe2-2431-4cb8-8369-b1e795d4d1d1] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '4a722fe2-2431-4cb8-8369-b1e795d4d1d1', 'delays': [], 'w_obj': {'coord': <Coord:03436>, 'type': 'd', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][4a722fe2-2431-4cb8-8369-b1e795d4d1d1] payload:{'app_id': '4a722fe2-2431-4cb8-8369-b1e795d4d1d1', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for e -> <Coord:03438>
+[SENT][COORDR_REQUEST][92765691-4b01-4188-8580-1fdf5005a546] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '92765691-4b01-4188-8580-1fdf5005a546', 'delays': [], 'w_obj': {'coord': <Coord:03438>, 'type': 'e', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][92765691-4b01-4188-8580-1fdf5005a546] payload:{'app_id': '92765691-4b01-4188-8580-1fdf5005a546', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for f -> <Coord:0343b>
+[SENT][COORDR_REQUEST][64e97fd8-4a5c-4609-a39b-c014867227bd] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '64e97fd8-4a5c-4609-a39b-c014867227bd', 'delays': [], 'w_obj': {'coord': <Coord:0343b>, 'type': 'f', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][64e97fd8-4a5c-4609-a39b-c014867227bd] payload:{'app_id': '64e97fd8-4a5c-4609-a39b-c014867227bd', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for g -> <Coord:03436>
+[SENT][COORDR_REQUEST][477308c9-5fd4-46ac-bf51-4d38c3bea7d6] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '477308c9-5fd4-46ac-bf51-4d38c3bea7d6', 'delays': [], 'w_obj': {'coord': <Coord:03436>, 'type': 'g', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][477308c9-5fd4-46ac-bf51-4d38c3bea7d6] payload:{'app_id': '477308c9-5fd4-46ac-bf51-4d38c3bea7d6', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for h -> <Coord:0343e>
+[SENT][COORDR_REQUEST][247023a6-5fbb-4861-a140-7d89bd06010d] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '247023a6-5fbb-4861-a140-7d89bd06010d', 'delays': [], 'w_obj': {'coord': <Coord:0343e>, 'type': 'h', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][247023a6-5fbb-4861-a140-7d89bd06010d] payload:{'app_id': '247023a6-5fbb-4861-a140-7d89bd06010d', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for i -> <Coord:03437>
+[SENT][COORDR_REQUEST][597268c5-dcca-4f6d-afb3-57c801558641] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '597268c5-dcca-4f6d-afb3-57c801558641', 'delays': [], 'w_obj': {'coord': <Coord:03437>, 'type': 'i', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][597268c5-dcca-4f6d-afb3-57c801558641] payload:{'app_id': '597268c5-dcca-4f6d-afb3-57c801558641', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for j -> <Coord:03435>
+[SENT][COORDR_REQUEST][847fec4b-c8d0-45c2-8ec8-3471bafeddd6] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '847fec4b-c8d0-45c2-8ec8-3471bafeddd6', 'delays': [], 'w_obj': {'coord': <Coord:03435>, 'type': 'j', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][847fec4b-c8d0-45c2-8ec8-3471bafeddd6] payload:{'app_id': '847fec4b-c8d0-45c2-8ec8-3471bafeddd6', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for a -> <Coord:03438>
+[SENT][COORDR_REQUEST][06937238-7c59-4b2d-b90c-905bcb7dfb5c] payload:{'req_type': 'READ_WRITE', 'app_ps': <Application:03448>, 'app_id': '06937238-7c59-4b2d-b90c-905bcb7dfb5c', 'delays': [], 'w_obj': {'coord': <Coord:03438>, 'type': 'a', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][06937238-7c59-4b2d-b90c-905bcb7dfb5c] payload:{'app_id': '06937238-7c59-4b2d-b90c-905bcb7dfb5c', 'result': True}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for b -> <Coord:03439>
+[SENT][COORDR_REQUEST][26c1a948-2b6a-411f-a508-9ad66374b204] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '26c1a948-2b6a-411f-a508-9ad66374b204', 'delays': [], 'w_obj': {'coord': <Coord:03439>, 'type': 'b', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][26c1a948-2b6a-411f-a508-9ad66374b204] payload:{'app_id': '26c1a948-2b6a-411f-a508-9ad66374b204', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for c -> <Coord:0343e>
+[SENT][COORDR_REQUEST][a7392f2a-5aea-4244-a161-a697fe9e0045] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': 'a7392f2a-5aea-4244-a161-a697fe9e0045', 'delays': [], 'w_obj': {'coord': <Coord:0343e>, 'type': 'c', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][a7392f2a-5aea-4244-a161-a697fe9e0045] payload:{'app_id': 'a7392f2a-5aea-4244-a161-a697fe9e0045', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for d -> <Coord:03436>
+[SENT][COORDR_REQUEST][54e5c79a-aa57-4957-b91c-cec584fbdd4f] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '54e5c79a-aa57-4957-b91c-cec584fbdd4f', 'delays': [], 'w_obj': {'coord': <Coord:03436>, 'type': 'd', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][54e5c79a-aa57-4957-b91c-cec584fbdd4f] payload:{'app_id': '54e5c79a-aa57-4957-b91c-cec584fbdd4f', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for e -> <Coord:03438>
+[SENT][COORDR_REQUEST][fc77ae03-cb8e-4092-a4e7-bbc5d2907b2b] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': 'fc77ae03-cb8e-4092-a4e7-bbc5d2907b2b', 'delays': [], 'w_obj': {'coord': <Coord:03438>, 'type': 'e', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][fc77ae03-cb8e-4092-a4e7-bbc5d2907b2b] payload:{'app_id': 'fc77ae03-cb8e-4092-a4e7-bbc5d2907b2b', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for f -> <Coord:0343b>
+[SENT][COORDR_REQUEST][b69e5569-590c-4d35-90f4-f94fe3e8833b] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': 'b69e5569-590c-4d35-90f4-f94fe3e8833b', 'delays': [], 'w_obj': {'coord': <Coord:0343b>, 'type': 'f', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][b69e5569-590c-4d35-90f4-f94fe3e8833b] payload:{'app_id': 'b69e5569-590c-4d35-90f4-f94fe3e8833b', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for g -> <Coord:03436>
+[SENT][COORDR_REQUEST][954154f2-36b9-4d32-9140-14024d0dfb8d] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '954154f2-36b9-4d32-9140-14024d0dfb8d', 'delays': [], 'w_obj': {'coord': <Coord:03436>, 'type': 'g', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][954154f2-36b9-4d32-9140-14024d0dfb8d] payload:{'app_id': '954154f2-36b9-4d32-9140-14024d0dfb8d', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for h -> <Coord:0343e>
+[SENT][COORDR_REQUEST][c4f2b6c5-ce54-4ceb-bf36-b1a7057f6a6a] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': 'c4f2b6c5-ce54-4ceb-bf36-b1a7057f6a6a', 'delays': [], 'w_obj': {'coord': <Coord:0343e>, 'type': 'h', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][c4f2b6c5-ce54-4ceb-bf36-b1a7057f6a6a] payload:{'app_id': 'c4f2b6c5-ce54-4ceb-bf36-b1a7057f6a6a', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for i -> <Coord:03437>
+[SENT][COORDR_REQUEST][8e80fad3-7012-419e-b53e-8a067ffbe091] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '8e80fad3-7012-419e-b53e-8a067ffbe091', 'delays': [], 'w_obj': {'coord': <Coord:03437>, 'type': 'i', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][8e80fad3-7012-419e-b53e-8a067ffbe091] payload:{'app_id': '8e80fad3-7012-419e-b53e-8a067ffbe091', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for j -> <Coord:03435>
+[SENT][COORDR_REQUEST][ceadcebd-576c-4afb-bdba-d9e76d131e5c] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': 'ceadcebd-576c-4afb-bdba-d9e76d131e5c', 'delays': [], 'w_obj': {'coord': <Coord:03435>, 'type': 'j', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][ceadcebd-576c-4afb-bdba-d9e76d131e5c] payload:{'app_id': 'ceadcebd-576c-4afb-bdba-d9e76d131e5c', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for a -> <Coord:03438>
+[SENT][COORDR_REQUEST][66139c7b-8b19-4ff0-bdbd-b6a89e13ed19] payload:{'req_type': 'READ_WRITE', 'app_ps': <Application:03448>, 'app_id': '66139c7b-8b19-4ff0-bdbd-b6a89e13ed19', 'delays': [], 'w_obj': {'coord': <Coord:03438>, 'type': 'a', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][66139c7b-8b19-4ff0-bdbd-b6a89e13ed19] payload:{'app_id': '66139c7b-8b19-4ff0-bdbd-b6a89e13ed19', 'result': True}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for b -> <Coord:03439>
+[SENT][COORDR_REQUEST][d8dc2ae0-5eea-400e-93a5-8852cfcf29e2] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': 'd8dc2ae0-5eea-400e-93a5-8852cfcf29e2', 'delays': [], 'w_obj': {'coord': <Coord:03439>, 'type': 'b', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][d8dc2ae0-5eea-400e-93a5-8852cfcf29e2] payload:{'app_id': 'd8dc2ae0-5eea-400e-93a5-8852cfcf29e2', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for c -> <Coord:0343e>
+[SENT][COORDR_REQUEST][1eac7490-d840-4d2e-bd79-a512ec8982ff] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '1eac7490-d840-4d2e-bd79-a512ec8982ff', 'delays': [], 'w_obj': {'coord': <Coord:0343e>, 'type': 'c', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][1eac7490-d840-4d2e-bd79-a512ec8982ff] payload:{'app_id': '1eac7490-d840-4d2e-bd79-a512ec8982ff', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for d -> <Coord:03436>
+[SENT][COORDR_REQUEST][c088a7a8-1259-43cc-bb44-68efe142a025] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': 'c088a7a8-1259-43cc-bb44-68efe142a025', 'delays': [], 'w_obj': {'coord': <Coord:03436>, 'type': 'd', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][c088a7a8-1259-43cc-bb44-68efe142a025] payload:{'app_id': 'c088a7a8-1259-43cc-bb44-68efe142a025', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for e -> <Coord:03438>
+[SENT][COORDR_REQUEST][7d4036e5-1eae-4f96-b487-62db8703413a] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '7d4036e5-1eae-4f96-b487-62db8703413a', 'delays': [], 'w_obj': {'coord': <Coord:03438>, 'type': 'e', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][7d4036e5-1eae-4f96-b487-62db8703413a] payload:{'app_id': '7d4036e5-1eae-4f96-b487-62db8703413a', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for f -> <Coord:0343b>
+[SENT][COORDR_REQUEST][a218abac-9459-4705-9224-ee8974c5e11f] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': 'a218abac-9459-4705-9224-ee8974c5e11f', 'delays': [], 'w_obj': {'coord': <Coord:0343b>, 'type': 'f', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][a218abac-9459-4705-9224-ee8974c5e11f] payload:{'app_id': 'a218abac-9459-4705-9224-ee8974c5e11f', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for g -> <Coord:03436>
+[SENT][COORDR_REQUEST][4d23faaa-2b87-4721-ada1-f9ede4a3b9fc] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '4d23faaa-2b87-4721-ada1-f9ede4a3b9fc', 'delays': [], 'w_obj': {'coord': <Coord:03436>, 'type': 'g', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][4d23faaa-2b87-4721-ada1-f9ede4a3b9fc] payload:{'app_id': '4d23faaa-2b87-4721-ada1-f9ede4a3b9fc', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for h -> <Coord:0343e>
+[SENT][COORDR_REQUEST][1e6eec8b-27ff-4684-bb9f-871ce069dcb7] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '1e6eec8b-27ff-4684-bb9f-871ce069dcb7', 'delays': [], 'w_obj': {'coord': <Coord:0343e>, 'type': 'h', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][1e6eec8b-27ff-4684-bb9f-871ce069dcb7] payload:{'app_id': '1e6eec8b-27ff-4684-bb9f-871ce069dcb7', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for i -> <Coord:03437>
+[SENT][COORDR_REQUEST][0e474cef-2aed-4782-9002-aa0041a65f9c] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': '0e474cef-2aed-4782-9002-aa0041a65f9c', 'delays': [], 'w_obj': {'coord': <Coord:03437>, 'type': 'i', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][0e474cef-2aed-4782-9002-aa0041a65f9c] payload:{'app_id': '0e474cef-2aed-4782-9002-aa0041a65f9c', 'result': False}
+[RECEIVED][DONE]
+Coord process for A -> <Coord:0343b>
+Coord process for j -> <Coord:03435>
+[SENT][COORDR_REQUEST][fa67d99b-fe54-4ce5-b0d1-84b2c9f66613] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03448>, 'app_id': 'fa67d99b-fe54-4ce5-b0d1-84b2c9f66613', 'delays': [], 'w_obj': {'coord': <Coord:03435>, 'type': 'j', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:0343b>, 'type': 'A', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][fa67d99b-fe54-4ce5-b0d1-84b2c9f66613] payload:{'app_id': 'fa67d99b-fe54-4ce5-b0d1-84b2c9f66613', 'result': False}
+[RECEIVED][DONE]

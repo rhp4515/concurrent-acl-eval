@@ -1,0 +1,10 @@
+Coord process for customer -> <Coord:fe408>
+Coord process for movie -> <Coord:fe407>
+[SENT][COORDR_REQUEST][a867fc59-a6e5-463d-ac12-dcd28e520ec4] payload:{'req_type': 'READ_WRITE', 'app_ps': <Application:fe409>, 'w_obj': {'id': 'A', 'coord': <Coord:fe407>, 'type': 'movie', 'attr': {}}, 'action': {'type': 'view'}, 'app_id': 'a867fc59-a6e5-463d-ac12-dcd28e520ec4', 'r_obj': {'id': '1', 'coord': <Coord:fe408>, 'type': 'customer', 'attr': {}}, 'delays': ['worker_response']}
+[RECEIVED][CLIENT_RESPONSE][a867fc59-a6e5-463d-ac12-dcd28e520ec4] payload:{'result': True, 'app_id': 'a867fc59-a6e5-463d-ac12-dcd28e520ec4'}
+[RECEIVED][DONE]
+Coord process for customer -> <Coord:fe408>
+Coord process for movie -> <Coord:fe407>
+[SENT][COORDR_REQUEST][9dbc6f8d-763e-4168-a870-17f1263ec22b] payload:{'req_type': 'READ_WRITE', 'app_ps': <Application:fe409>, 'w_obj': {'id': 'A', 'coord': <Coord:fe407>, 'type': 'movie', 'attr': {}}, 'action': {'type': 'view'}, 'app_id': '9dbc6f8d-763e-4168-a870-17f1263ec22b', 'r_obj': {'id': '2', 'coord': <Coord:fe408>, 'type': 'customer', 'attr': {}}, 'delays': []}
+[RECEIVED][CLIENT_RESPONSE][9dbc6f8d-763e-4168-a870-17f1263ec22b] payload:{'result': True, 'app_id': '9dbc6f8d-763e-4168-a870-17f1263ec22b'}
+[RECEIVED][DONE]

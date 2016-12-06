@@ -1,0 +1,7 @@
+Coord process for F -> <Coord:03435>
+Coord process for a -> <Coord:03438>
+[SENT][COORDR_REQUEST][47cf55e2-d668-40e1-8a61-c8147602ad7e] payload:{'req_type': 'READ_ONLY', 'app_ps': <Application:03447>, 'app_id': '47cf55e2-d668-40e1-8a61-c8147602ad7e', 'delays': [], 'w_obj': {'coord': <Coord:03438>, 'type': 'a', 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}, 'r_obj': {'coord': <Coord:03435>, 'type': 'F', 'attr': {}, 'id': '1'}}
+[RECEIVED][CLIENT_RESPONSE][47cf55e2-d668-40e1-8a61-c8147602ad7e] payload:{'app_id': '47cf55e2-d668-40e1-8a61-c8147602ad7e', 'result': False}
+[RECEIVED][DONE]
+Coord process for F -> <Coord:03435>
+Coord process for b -> <Coord:03439>

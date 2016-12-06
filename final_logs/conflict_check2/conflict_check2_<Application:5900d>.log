@@ -1,0 +1,5 @@
+Coord process for employee -> <Coord:5900b>
+Coord process for movie -> <Coord:5900a>
+[SENT][COORDR_REQUEST][6b0fea11-9ee8-463c-8da8-604681a421f0] payload:{'action': {'type': 'view'}, 'r_obj': {'attr': {}, 'coord': <Coord:5900b>, 'type': 'employee', 'id': '1'}, 'delays': [], 'w_obj': {'attr': {}, 'coord': <Coord:5900a>, 'type': 'movie', 'id': 'A'}, 'req_type': 'READ_ONLY', 'app_id': '6b0fea11-9ee8-463c-8da8-604681a421f0', 'app_ps': <Application:5900d>}
+[RECEIVED][CLIENT_RESPONSE][6b0fea11-9ee8-463c-8da8-604681a421f0] payload:{'app_id': '6b0fea11-9ee8-463c-8da8-604681a421f0', 'result': False}
+[RECEIVED][DONE]

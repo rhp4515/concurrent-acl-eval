@@ -1,0 +1,10 @@
+Coord process for X -> <Coord:25007>
+Coord process for x -> <Coord:25008>
+[SENT][COORDR_REQUEST][3e2e41d2-186f-44f9-81b8-f3589253418d] payload:{'req_type': 'READ_ONLY', 'w_obj': {'type': 'x', 'coord': <Coord:25008>, 'attr': {}, 'id': 'A'}, 'delays': [], 'app_ps': <Application:2500a>, 'app_id': '3e2e41d2-186f-44f9-81b8-f3589253418d', 'r_obj': {'type': 'X', 'coord': <Coord:25007>, 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}}
+[RECEIVED][CLIENT_RESPONSE][3e2e41d2-186f-44f9-81b8-f3589253418d] payload:{'app_id': '3e2e41d2-186f-44f9-81b8-f3589253418d', 'result': False}
+[RECEIVED][DONE]
+Coord process for X -> <Coord:25007>
+Coord process for x -> <Coord:25008>
+[SENT][COORDR_REQUEST][dead72ea-eba7-4e49-b9aa-c914c2342753] payload:{'req_type': 'READ_ONLY', 'w_obj': {'type': 'x', 'coord': <Coord:25008>, 'attr': {}, 'id': 'A'}, 'delays': [], 'app_ps': <Application:2500a>, 'app_id': 'dead72ea-eba7-4e49-b9aa-c914c2342753', 'r_obj': {'type': 'X', 'coord': <Coord:25007>, 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}}
+[RECEIVED][CLIENT_RESPONSE][dead72ea-eba7-4e49-b9aa-c914c2342753] payload:{'app_id': 'dead72ea-eba7-4e49-b9aa-c914c2342753', 'result': False}
+[RECEIVED][DONE]

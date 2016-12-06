@@ -1,0 +1,10 @@
+Coord process for X -> <Coord:25007>
+Coord process for x -> <Coord:25008>
+[SENT][COORDR_REQUEST][65232138-0a32-467e-aef6-969eb77c08ca] payload:{'req_type': 'READ_ONLY', 'w_obj': {'type': 'x', 'coord': <Coord:25008>, 'attr': {}, 'id': 'A'}, 'delays': [], 'app_ps': <Application:25009>, 'app_id': '65232138-0a32-467e-aef6-969eb77c08ca', 'r_obj': {'type': 'X', 'coord': <Coord:25007>, 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}}
+[RECEIVED][CLIENT_RESPONSE][65232138-0a32-467e-aef6-969eb77c08ca] payload:{'app_id': '65232138-0a32-467e-aef6-969eb77c08ca', 'result': False}
+[RECEIVED][DONE]
+Coord process for customer -> <Coord:25008>
+Coord process for movie -> <Coord:25007>
+[SENT][COORDR_REQUEST][9fc51d24-9acf-4a38-8879-0d7abaa67062] payload:{'req_type': 'READ_WRITE', 'w_obj': {'type': 'movie', 'coord': <Coord:25007>, 'attr': {}, 'id': 'A'}, 'delays': [], 'app_ps': <Application:25009>, 'app_id': '9fc51d24-9acf-4a38-8879-0d7abaa67062', 'r_obj': {'type': 'customer', 'coord': <Coord:25008>, 'attr': {}, 'id': '1'}, 'action': {'type': 'view'}}
+[RECEIVED][CLIENT_RESPONSE][9fc51d24-9acf-4a38-8879-0d7abaa67062] payload:{'app_id': '9fc51d24-9acf-4a38-8879-0d7abaa67062', 'result': True}
+[RECEIVED][DONE]

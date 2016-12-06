@@ -1,0 +1,5 @@
+Coord process for customer -> <Coord:f0008>
+Coord process for movie -> <Coord:f0007>
+[SENT][COORDR_REQUEST][be2e31d1-6eef-4e98-bf66-bec45fe3b937] payload:{'app_id': 'be2e31d1-6eef-4e98-bf66-bec45fe3b937', 'w_obj': {'type': 'customer', 'coord': <Coord:f0008>, 'attr': {}, 'id': '1'}, 'app_ps': <Application:f0009>, 'req_type': 'READ_WRITE', 'action': {'type': 'view'}, 'delays': ['worker_w_response', 'worker_response', 'misprediction'], 'r_obj': {'type': 'movie', 'coord': <Coord:f0007>, 'attr': {}, 'id': 'A'}}
+[RECEIVED][CLIENT_RESPONSE][be2e31d1-6eef-4e98-bf66-bec45fe3b937] payload:{'app_id': 'be2e31d1-6eef-4e98-bf66-bec45fe3b937', 'result': True}
+[RECEIVED][DONE]
